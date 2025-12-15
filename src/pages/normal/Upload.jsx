@@ -1,0 +1,877 @@
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import { X, Maximize2 } from 'lucide-react';
+import LeftSidebar from '../../components/normal/LeftSidebar';
+import RightSidebar from '../../components/normal/RightSidebar';
+import { useApp } from '../../context/AppContext';
+
+const FILTERS = [
+  { name: '일반', value: 'normal' },
+  { name: 'Aden', value: 'aden' },
+  { name: 'Clarendon', value: 'clarendon' },
+  { name: 'Crema', value: 'crema' },
+  { name: 'Gingham', value: 'gingham' },
+  { name: 'Juno', value: 'juno' },
+  { name: 'Lark', value: 'lark' },
+  { name: 'Ludwig', value: 'ludwig' },
+  { name: 'Moon', value: 'moon' },
+  { name: 'Perpetua', value: 'perpetua' },
+  { name: 'Reyes', value: 'reyes' },
+  { name: 'Slumber', value: 'slumber' },
+];
+
+const Upload = () => {
+  const navigate = useNavigate();
+  const { isDarkMode } = useApp();
+  const [contentType, setContentType] = useState('photo'); // 'photo', 'reels'
+  const [preview, setPreview] = useState(null);
+  const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
+  const [step, setStep] = useState('select'); // 'select', 'crop', 'filter', 'final'
+  const [editTab, setEditTab] = useState('filter'); // 'filter', 'adjust'
+  const [selectedFilter, setSelectedFilter] = useState('normal');
+  const [adjustments, setAdjustments] = useState({
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    temperature: 0,
+    fade: 0,
+    vignette: 0,
+  });
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target.result);
+        setStep('crop');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleNext = () => {
+    if (step === 'crop') {
+      if (contentType === 'reels') {
+        setStep('final');
+      } else {
+        setStep('filter');
+      }
+    } else if (step === 'filter') {
+      setStep('final');
+    }
+  };
+
+  const handleBack = () => {
+    if (step === 'final') {
+      if (contentType === 'reels') {
+        setStep('crop');
+      } else {
+        setStep('filter');
+      }
+    } else if (step === 'filter') {
+      setStep('crop');
+    } else if (step === 'crop') {
+      setStep('select');
+      setPreview(null);
+    }
+  };
+
+  const handlePost = () => {
+    alert('게시물이 업로드되었습니다!');
+    navigate('/normal/home');
+  };
+
+  const handleClose = () => {
+    navigate('/normal/home');
+  };
+
+  const handleAdjustmentChange = (key, value) => {
+    setAdjustments(prev => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <>
+      <LeftSidebar />
+      <RightSidebar />
+
+      <CloseButtonOuter onClick={handleClose}>
+        <X size={24} />
+      </CloseButtonOuter>
+
+      <Overlay onClick={handleClose}>
+        <Modal onClick={(e) => e.stopPropagation()} $step={step} $darkMode={isDarkMode}>
+          <ModalHeader $darkMode={isDarkMode}>
+            {step !== 'select' && (
+              <BackButton onClick={handleBack}>뒤로</BackButton>
+            )}
+            <ModalTitle $darkMode={isDarkMode}>
+              {step === 'select' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
+              {step === 'crop' && '자르기'}
+              {step === 'filter' && '편집'}
+              {step === 'final' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
+            </ModalTitle>
+            {(step === 'crop' || step === 'filter') && (
+              <NextButton onClick={handleNext}>다음</NextButton>
+            )}
+            {step === 'final' && (
+              <ShareButton onClick={handlePost}>공유하기</ShareButton>
+            )}
+          </ModalHeader>
+
+          {step === 'select' && (
+            <TabContainer>
+              <Tab $active={contentType === 'photo'} onClick={() => setContentType('photo')}>
+                사진
+              </Tab>
+              <Tab $active={contentType === 'reels'} onClick={() => setContentType('reels')}>
+                릴스
+              </Tab>
+            </TabContainer>
+          )}
+
+          {step === 'select' && (
+            <UploadSection>
+              <IconContainer>
+                {contentType === 'photo' ? (
+                  <span style={{ fontSize: '60px' }}>📷</span>
+                ) : (
+                  <span style={{ fontSize: '60px' }}>🎬</span>
+                )}
+              </IconContainer>
+              <UploadText>
+                {contentType === 'photo'
+                  ? '사진을 여기에 끌어다 놓으세요'
+                  : '동영상을 여기에 끌어다 놓으세요'}
+              </UploadText>
+              <SelectButton onClick={() => fileInputRef.current?.click()}>
+                컴퓨터에서 선택
+              </SelectButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={contentType === 'photo' ? 'image/*' : 'video/*'}
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+            </UploadSection>
+          )}
+
+          {step === 'crop' && preview && (
+            <>
+              <PreviewSection>
+                {contentType === 'reels' ? (
+                  <ReelsFrame>
+                    <PreviewVideo src={preview} controls autoPlay loop />
+                  </ReelsFrame>
+                ) : (
+                  <PreviewImage src={preview} alt="Preview" />
+                )}
+              </PreviewSection>
+              {contentType === 'photo' && (
+                <CropToolbar>
+                  <CropButton>
+                    <Maximize2 size={20} />
+                  </CropButton>
+                  <CropButton>1:1</CropButton>
+                  <CropButton>4:5</CropButton>
+                  <CropButton>16:9</CropButton>
+                </CropToolbar>
+              )}
+            </>
+          )}
+
+          {step === 'filter' && preview && contentType === 'photo' && (
+            <FilterContainer>
+              <FilterLeft>
+                <PreviewImageLarge src={preview} alt="Preview" />
+              </FilterLeft>
+              <FilterRight>
+                <FilterTabs>
+                  <FilterTab
+                    $active={editTab === 'filter'}
+                    onClick={() => setEditTab('filter')}
+                  >
+                    필터
+                  </FilterTab>
+                  <FilterTab
+                    $active={editTab === 'adjust'}
+                    onClick={() => setEditTab('adjust')}
+                  >
+                    조정
+                  </FilterTab>
+                </FilterTabs>
+
+                {editTab === 'filter' && (
+                  <FilterGrid>
+                    {FILTERS.map((filter) => (
+                      <FilterOption
+                        key={filter.value}
+                        onClick={() => setSelectedFilter(filter.value)}
+                        $active={selectedFilter === filter.value}
+                      >
+                        <FilterPreview src={preview} alt={filter.name} />
+                        <FilterName>{filter.name}</FilterName>
+                      </FilterOption>
+                    ))}
+                  </FilterGrid>
+                )}
+
+                {editTab === 'adjust' && (
+                  <AdjustmentPanel>
+                    <AdjustmentItem>
+                      <AdjustmentLabel>밝기</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.brightness}
+                        onChange={(e) => handleAdjustmentChange('brightness', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.brightness}</AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>대비</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.contrast}
+                        onChange={(e) => handleAdjustmentChange('contrast', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.contrast}</AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>포화도</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.saturation}
+                        onChange={(e) => handleAdjustmentChange('saturation', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.saturation}</AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>채도</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.temperature}
+                        onChange={(e) => handleAdjustmentChange('temperature', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.temperature}</AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>온도</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.fade}
+                        onChange={(e) => handleAdjustmentChange('fade', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.fade}</AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>주변 이동</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
+                        value={adjustments.vignette}
+                        onChange={(e) => handleAdjustmentChange('vignette', e.target.value)}
+                      />
+                      <AdjustmentValue>{adjustments.vignette}</AdjustmentValue>
+                    </AdjustmentItem>
+                  </AdjustmentPanel>
+                )}
+              </FilterRight>
+            </FilterContainer>
+          )}
+
+          {step === 'final' && preview && (
+            <FinalContainer>
+              <FinalLeft>
+                {contentType === 'reels' ? (
+                  <ReelsFrame>
+                    <PreviewVideo src={preview} controls autoPlay loop />
+                  </ReelsFrame>
+                ) : (
+                  <PreviewImageFinal src={preview} alt="Preview" />
+                )}
+              </FinalLeft>
+              <FinalRight>
+                <UserInfo>
+                  <Avatar>👤</Avatar>
+                  <Username>사용자명</Username>
+                </UserInfo>
+
+                <CaptionTextarea
+                  placeholder="문구 입력..."
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  maxLength={2200}
+                />
+
+                <CharCount>{caption.length}/2,200</CharCount>
+              </FinalRight>
+            </FinalContainer>
+          )}
+        </Modal>
+      </Overlay>
+    </>
+  );
+};
+
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const Modal = styled.div`
+  background: ${props => props.$darkMode ? '#262626' : 'white'};
+  border-radius: 12px;
+  width: ${props => props.$step === 'filter' || props.$step === 'final' ? '90%' : '540px'};
+  max-width: ${props => props.$step === 'filter' || props.$step === 'final' ? '960px' : '540px'};
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid ${props => props.$darkMode ? '#000' : '#dbdbdb'};
+  position: relative;
+  min-height: 43px;
+`;
+
+const BackButton = styled.button`
+  position: absolute;
+  left: 16px;
+  font-size: 14px;
+  color: #0095f6;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    color: #00376b;
+  }
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  flex: 1;
+  text-align: center;
+`;
+
+const CloseButtonOuter = styled.button`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1001;
+  transition: opacity 0.2s;
+  outline: none;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    opacity: 0.7;
+  }
+
+  svg {
+    color: white;
+  }
+
+  @media (max-width: 767px) {
+    top: 0;
+    right: 0;
+  }
+`;
+
+const NextButton = styled.button`
+  position: absolute;
+  right: 16px;
+  font-size: 14px;
+  color: #0095f6;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    color: #00376b;
+  }
+`;
+
+const ShareButton = styled.button`
+  position: absolute;
+  right: 16px;
+  font-size: 14px;
+  color: #0095f6;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    color: #00376b;
+  }
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  border-bottom: 1px solid #dbdbdb;
+  background: #fafafa;
+`;
+
+const Tab = styled.button`
+  flex: 1;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: ${props => props.$active ? '700' : '500'};
+  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
+  background: ${props => props.$active ? '#fff' : 'transparent'};
+  border: none;
+  border-bottom: ${props => props.$active ? '2px solid #262626' : '2px solid transparent'};
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+
+  &:hover {
+    color: #262626;
+    background: ${props => props.$active ? '#fff' : 'rgba(255, 255, 255, 0.5)'};
+  }
+`;
+
+const UploadSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  min-height: 500px;
+`;
+
+const IconContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  height: 80px;
+  color: #262626;
+`;
+
+const UploadText = styled.p`
+  font-size: 22px;
+  color: #262626;
+  margin-bottom: 24px;
+  text-align: center;
+`;
+
+const SelectButton = styled.button`
+  background: #0095f6;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  border: none;
+
+  &:hover {
+    background: #1877f2;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const PreviewSection = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  min-height: 500px;
+  max-height: 70vh;
+  position: relative;
+  padding: 24px;
+
+  @media (max-width: 767px) {
+    min-height: auto;
+    height: 70vh;
+    max-height: none;
+    padding: 16px 12px;
+  }
+`;
+
+const PreviewImage = styled.img`
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+`;
+
+const ReelsFrame = styled.div`
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 9 / 16;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  border-radius: 8px;
+  max-height: 80vh;
+
+  img, video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (max-width: 767px) {
+    max-width: 90vw;
+    max-height: 75vh;
+  }
+`;
+
+const PreviewVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const CropToolbar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid #dbdbdb;
+  background: white;
+`;
+
+const CropButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #262626;
+  transition: all 0.2s;
+  outline: none;
+  background: white;
+
+  &:hover {
+    background: #fafafa;
+  }
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  height: 600px;
+  overflow: hidden;
+`;
+
+const FilterLeft = styled.div`
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const PreviewImageLarge = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+`;
+
+const FilterRight = styled.div`
+  width: 340px;
+  border-left: 1px solid #dbdbdb;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow: hidden;
+`;
+
+const FilterTabs = styled.div`
+  display: flex;
+  border-bottom: 1px solid #dbdbdb;
+`;
+
+const FilterTab = styled.button`
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
+  border: none;
+  border-bottom: ${props => props.$active ? '1px solid #262626' : 'none'};
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  background: transparent;
+
+  &:hover {
+    color: #262626;
+  }
+`;
+
+const FilterGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: #dbdbdb;
+  overflow-y: auto;
+  max-height: calc(600px - 45px);
+`;
+
+const FilterOption = styled.div`
+  background: white;
+  cursor: pointer;
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: ${props => props.$active ? '2px solid #0095f6' : 'none'};
+
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+const FilterPreview = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const FilterName = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 11px;
+  text-align: center;
+`;
+
+const AdjustmentPanel = styled.div`
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(600px - 45px);
+`;
+
+const AdjustmentItem = styled.div`
+  margin-bottom: 24px;
+`;
+
+const AdjustmentLabel = styled.div`
+  font-size: 14px;
+  color: #262626;
+  margin-bottom: 8px;
+  font-weight: 500;
+`;
+
+const AdjustmentSlider = styled.input`
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #dbdbdb;
+  outline: none;
+  border: none;
+  -webkit-appearance: none;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #262626;
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #262626;
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
+`;
+
+const AdjustmentValue = styled.div`
+  text-align: right;
+  font-size: 12px;
+  color: #8e8e8e;
+  margin-top: 4px;
+`;
+
+const FinalContainer = styled.div`
+  display: flex;
+  height: 600px;
+  overflow: hidden;
+
+  @media (max-width: 767px) {
+    flex-direction: column;
+    height: auto;
+  }
+`;
+
+const FinalLeft = styled.div`
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+
+  @media (max-width: 767px) {
+    width: 100%;
+    padding: 16px 12px;
+    min-height: 60vh;
+  }
+`;
+
+const PreviewImageFinal = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+`;
+
+const FinalRight = styled.div`
+  width: 340px;
+  border-left: 1px solid #dbdbdb;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow-y: auto;
+
+  @media (max-width: 767px) {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #dbdbdb;
+  }
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #efefef;
+`;
+
+const Avatar = styled.div`
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fafafa;
+  border: 1px solid #dbdbdb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+`;
+
+const Username = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+`;
+
+const CaptionTextarea = styled.textarea`
+  padding: 16px;
+  border: none;
+  border-bottom: 1px solid #efefef;
+  font-size: 14px;
+  color: white;
+  background: #262626;
+  resize: none;
+  font-family: inherit;
+  min-height: 120px;
+  outline: none;
+
+  &::placeholder {
+    color: #8e8e8e;
+  }
+
+  &:focus {
+    outline: none;
+  }
+`;
+
+const CharCount = styled.div`
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #8e8e8e;
+  text-align: right;
+  border-bottom: 1px solid #efefef;
+`;
+
+const OptionsList = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const OptionItem = styled.div`
+  padding: 16px;
+  border-bottom: 1px solid #efefef;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #fafafa;
+  }
+`;
+
+const OptionLabel = styled.div`
+  font-size: 14px;
+  color: #262626;
+`;
+
+export default Upload;
