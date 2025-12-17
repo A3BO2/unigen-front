@@ -1,36 +1,53 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { X, Maximize2 } from 'lucide-react';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import { useApp } from '../../context/AppContext';
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { X, Maximize2 } from "lucide-react";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import { useApp } from "../../context/AppContext";
+
+// 필터 값 정의
+const FILTER_STYLES = {
+  normal: "",
+  aden: "hue-rotate(-20deg) contrast(0.9) saturation(0.85) brightness(1.2)",
+  clarendon: "contrast(1.2) saturation(1.35)",
+  crema: "sepia(0.5) contrast(0.8)",
+  gingham: "brightness(1.05) hue-rotate(-10deg)",
+  juno: "sepia(0.35) saturation(1.6)",
+  lark: "contrast(0.9) brightness(1.2) saturation(1.1)",
+  ludwig: "sepia(0.25) contrast(0.9) saturation(1.1)",
+  moon: "grayscale(1) contrast(1.1) brightness(1.1)",
+  perpetua: "contrast(1.1) brightness(1.2) saturate(1.1)",
+  reyes: "sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)",
+  slumber: "sepia(0.35) contrast(0.9) saturate(1.2)",
+};
 
 const FILTERS = [
-  { name: '일반', value: 'normal' },
-  { name: 'Aden', value: 'aden' },
-  { name: 'Clarendon', value: 'clarendon' },
-  { name: 'Crema', value: 'crema' },
-  { name: 'Gingham', value: 'gingham' },
-  { name: 'Juno', value: 'juno' },
-  { name: 'Lark', value: 'lark' },
-  { name: 'Ludwig', value: 'ludwig' },
-  { name: 'Moon', value: 'moon' },
-  { name: 'Perpetua', value: 'perpetua' },
-  { name: 'Reyes', value: 'reyes' },
-  { name: 'Slumber', value: 'slumber' },
+  { name: "일반", value: "normal" },
+  { name: "Aden", value: "aden" },
+  { name: "Clarendon", value: "clarendon" },
+  { name: "Crema", value: "crema" },
+  { name: "Gingham", value: "gingham" },
+  { name: "Juno", value: "juno" },
+  { name: "Lark", value: "lark" },
+  { name: "Ludwig", value: "ludwig" },
+  { name: "Moon", value: "moon" },
+  { name: "Perpetua", value: "perpetua" },
+  { name: "Reyes", value: "reyes" },
+  { name: "Slumber", value: "slumber" },
 ];
 
 const Upload = () => {
   const navigate = useNavigate();
-  const { isDarkMode } = useApp();
-  const [contentType, setContentType] = useState('photo'); // 'photo', 'reels'
+  const { isDarkMode, user } = useApp();
+  const [contentType, setContentType] = useState("photo"); // 'photo', 'reels'
   const [preview, setPreview] = useState(null);
-  const [caption, setCaption] = useState('');
-  const [location, setLocation] = useState('');
-  const [step, setStep] = useState('select'); // 'select', 'crop', 'filter', 'final'
-  const [editTab, setEditTab] = useState('filter'); // 'filter', 'adjust'
-  const [selectedFilter, setSelectedFilter] = useState('normal');
+  const [caption, setCaption] = useState("");
+  const [location, setLocation] = useState("");
+  const [step, setStep] = useState("select"); // 'select', 'crop', 'filter', 'final'
+  const [editTab, setEditTab] = useState("filter"); // 'filter', 'adjust'
+  const [selectedFilter, setSelectedFilter] = useState("normal");
+  const [originalFile, setOriginalFile] = useState(null);
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
     contrast: 0,
@@ -44,53 +61,122 @@ const Upload = () => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setOriginalFile(file);
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreview(e.target.result);
-        setStep('crop');
+        setStep("crop");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleNext = () => {
-    if (step === 'crop') {
-      if (contentType === 'reels') {
-        setStep('final');
+  const handleNext = async () => {
+    if (step === "crop") {
+      if (contentType === "reels") {
+        setStep("final");
       } else {
-        setStep('filter');
+        setStep("filter");
       }
-    } else if (step === 'filter') {
-      setStep('final');
+    } else if (step === "filter") {
+      // 필터 적용 로직 시작
+      try {
+        // 1. 현재 선택된 파일 가져오기
+        if (!originalFile) {
+          alert("파일이 없습니다.");
+          return;
+        }
+
+        // 2. 필터 입힌 새 파일 생성
+        const processedFile = await processImage(file, selectedFilter);
+
+        // 미리보기 URL로 변환 > preview 업데이트
+        const newPreview = URL.createObjectURL(processedFile);
+        setPreview(newPreview);
+
+        // 4. 다음 단계 넘어가기
+        setStep("final");
+      } catch (error) {
+        console.error("이미지 처리 실패:", error);
+        alert("이미지 필터 적용 중 오류 발생");
+      }
     }
   };
 
   const handleBack = () => {
-    if (step === 'final') {
-      if (contentType === 'reels') {
-        setStep('crop');
+    if (step === "final") {
+      if (contentType === "reels") {
+        setStep("crop");
       } else {
-        setStep('filter');
+        setStep("filter");
       }
-    } else if (step === 'filter') {
-      setStep('crop');
-    } else if (step === 'crop') {
-      setStep('select');
+    } else if (step === "filter") {
+      setStep("crop");
+    } else if (step === "crop") {
+      setStep("select");
       setPreview(null);
     }
   };
 
   const handlePost = () => {
-    alert('게시물이 업로드되었습니다!');
-    navigate('/normal/home');
+    alert("게시물이 업로드되었습니다!");
+    navigate("/normal/home");
   };
 
   const handleClose = () => {
-    navigate('/normal/home');
+    navigate("/normal/home");
   };
 
   const handleAdjustmentChange = (key, value) => {
-    setAdjustments(prev => ({ ...prev, [key]: value }));
+    setAdjustments((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // 이미지 변환 함수
+  const processImage = (file, filterType) => {
+    return new Promise((resolve, reject) => {
+      // 1. 이미지를 로드하는 도구
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      // 2. 로드 후 작업 시작
+      img.onload = () => {
+        // 가상 캔버스 생성
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // 캔버스 크기를 이미지 크기에 맞추기
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // 필터 효과 적용
+        const filterCss = FILTER_STYLES[filterType] || "";
+        ctx.filter = filterCss;
+
+        // 이미지를 캔버스에 그리기(필터 적용 지점)
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+        // 3. 캔버스 내용을 파일로 변환
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("이미지 변환 실패"));
+              return;
+            }
+
+            // 원본 파일명 유지
+            const processedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            resolve(processedFile); // 성공 후 반환
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.onerror = (err) => reject(err);
+    });
   };
 
   return (
@@ -103,49 +189,65 @@ const Upload = () => {
       </CloseButtonOuter>
 
       <Overlay onClick={handleClose}>
-        <Modal onClick={(e) => e.stopPropagation()} $step={step} $darkMode={isDarkMode}>
+        <Modal
+          onClick={(e) => e.stopPropagation()}
+          $step={step}
+          $darkMode={isDarkMode}
+        >
           <ModalHeader $darkMode={isDarkMode}>
-            {step !== 'select' && (
+            {step !== "select" && (
               <BackButton onClick={handleBack}>뒤로</BackButton>
             )}
             <ModalTitle $darkMode={isDarkMode}>
-              {step === 'select' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
-              {step === 'crop' && '자르기'}
-              {step === 'filter' && '편집'}
-              {step === 'final' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
+              {step === "select" &&
+                (contentType === "reels"
+                  ? "새 릴스 만들기"
+                  : "새 게시물 만들기")}
+              {step === "crop" && "자르기"}
+              {step === "filter" && "편집"}
+              {step === "final" &&
+                (contentType === "reels"
+                  ? "새 릴스 만들기"
+                  : "새 게시물 만들기")}
             </ModalTitle>
-            {(step === 'crop' || step === 'filter') && (
+            {(step === "crop" || step === "filter") && (
               <NextButton onClick={handleNext}>다음</NextButton>
             )}
-            {step === 'final' && (
+            {step === "final" && (
               <ShareButton onClick={handlePost}>공유하기</ShareButton>
             )}
           </ModalHeader>
 
-          {step === 'select' && (
+          {step === "select" && (
             <TabContainer>
-              <Tab $active={contentType === 'photo'} onClick={() => setContentType('photo')}>
+              <Tab
+                $active={contentType === "photo"}
+                onClick={() => setContentType("photo")}
+              >
                 사진
               </Tab>
-              <Tab $active={contentType === 'reels'} onClick={() => setContentType('reels')}>
+              <Tab
+                $active={contentType === "reels"}
+                onClick={() => setContentType("reels")}
+              >
                 릴스
               </Tab>
             </TabContainer>
           )}
 
-          {step === 'select' && (
+          {step === "select" && (
             <UploadSection>
               <IconContainer>
-                {contentType === 'photo' ? (
-                  <span style={{ fontSize: '60px' }}>📷</span>
+                {contentType === "photo" ? (
+                  <span style={{ fontSize: "60px" }}>📷</span>
                 ) : (
-                  <span style={{ fontSize: '60px' }}>🎬</span>
+                  <span style={{ fontSize: "60px" }}>🎬</span>
                 )}
               </IconContainer>
               <UploadText>
-                {contentType === 'photo'
-                  ? '사진을 여기에 끌어다 놓으세요'
-                  : '동영상을 여기에 끌어다 놓으세요'}
+                {contentType === "photo"
+                  ? "사진을 여기에 끌어다 놓으세요"
+                  : "동영상을 여기에 끌어다 놓으세요"}
               </UploadText>
               <SelectButton onClick={() => fileInputRef.current?.click()}>
                 컴퓨터에서 선택
@@ -153,17 +255,17 @@ const Upload = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={contentType === 'photo' ? 'image/*' : 'video/*'}
+                accept={contentType === "photo" ? "image/*" : "video/*"}
                 onChange={handleFileSelect}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
             </UploadSection>
           )}
 
-          {step === 'crop' && preview && (
+          {step === "crop" && preview && (
             <>
               <PreviewSection>
-                {contentType === 'reels' ? (
+                {contentType === "reels" ? (
                   <ReelsFrame>
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
@@ -171,7 +273,7 @@ const Upload = () => {
                   <PreviewImage src={preview} alt="Preview" />
                 )}
               </PreviewSection>
-              {contentType === 'photo' && (
+              {contentType === "photo" && (
                 <CropToolbar>
                   <CropButton>
                     <Maximize2 size={20} />
@@ -184,28 +286,32 @@ const Upload = () => {
             </>
           )}
 
-          {step === 'filter' && preview && contentType === 'photo' && (
+          {step === "filter" && preview && contentType === "photo" && (
             <FilterContainer>
               <FilterLeft>
-                <PreviewImageLarge src={preview} alt="Preview" />
+                <PreviewImageLarge
+                  src={preview}
+                  alt="Preview"
+                  style={{ filter: FILTER_STYLES[selectedFilter] }}
+                />
               </FilterLeft>
               <FilterRight>
                 <FilterTabs>
                   <FilterTab
-                    $active={editTab === 'filter'}
-                    onClick={() => setEditTab('filter')}
+                    $active={editTab === "filter"}
+                    onClick={() => setEditTab("filter")}
                   >
                     필터
                   </FilterTab>
                   <FilterTab
-                    $active={editTab === 'adjust'}
-                    onClick={() => setEditTab('adjust')}
+                    $active={editTab === "adjust"}
+                    onClick={() => setEditTab("adjust")}
                   >
                     조정
                   </FilterTab>
                 </FilterTabs>
 
-                {editTab === 'filter' && (
+                {editTab === "filter" && (
                   <FilterGrid>
                     {FILTERS.map((filter) => (
                       <FilterOption
@@ -213,14 +319,18 @@ const Upload = () => {
                         onClick={() => setSelectedFilter(filter.value)}
                         $active={selectedFilter === filter.value}
                       >
-                        <FilterPreview src={preview} alt={filter.name} />
+                        <FilterPreview
+                          src={preview}
+                          alt={filter.name}
+                          style={{ filter: FILTER_STYLES[filter.value] }}
+                        />
                         <FilterName>{filter.name}</FilterName>
                       </FilterOption>
                     ))}
                   </FilterGrid>
                 )}
 
-                {editTab === 'adjust' && (
+                {editTab === "adjust" && (
                   <AdjustmentPanel>
                     <AdjustmentItem>
                       <AdjustmentLabel>밝기</AdjustmentLabel>
@@ -229,9 +339,13 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.brightness}
-                        onChange={(e) => handleAdjustmentChange('brightness', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("brightness", e.target.value)
+                        }
                       />
-                      <AdjustmentValue>{adjustments.brightness}</AdjustmentValue>
+                      <AdjustmentValue>
+                        {adjustments.brightness}
+                      </AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -241,7 +355,9 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.contrast}
-                        onChange={(e) => handleAdjustmentChange('contrast', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("contrast", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.contrast}</AdjustmentValue>
                     </AdjustmentItem>
@@ -253,9 +369,13 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.saturation}
-                        onChange={(e) => handleAdjustmentChange('saturation', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("saturation", e.target.value)
+                        }
                       />
-                      <AdjustmentValue>{adjustments.saturation}</AdjustmentValue>
+                      <AdjustmentValue>
+                        {adjustments.saturation}
+                      </AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -265,9 +385,13 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.temperature}
-                        onChange={(e) => handleAdjustmentChange('temperature', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("temperature", e.target.value)
+                        }
                       />
-                      <AdjustmentValue>{adjustments.temperature}</AdjustmentValue>
+                      <AdjustmentValue>
+                        {adjustments.temperature}
+                      </AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -277,7 +401,9 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.fade}
-                        onChange={(e) => handleAdjustmentChange('fade', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("fade", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.fade}</AdjustmentValue>
                     </AdjustmentItem>
@@ -289,7 +415,9 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.vignette}
-                        onChange={(e) => handleAdjustmentChange('vignette', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("vignette", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.vignette}</AdjustmentValue>
                     </AdjustmentItem>
@@ -299,10 +427,10 @@ const Upload = () => {
             </FilterContainer>
           )}
 
-          {step === 'final' && preview && (
+          {step === "final" && preview && (
             <FinalContainer>
               <FinalLeft>
-                {contentType === 'reels' ? (
+                {contentType === "reels" ? (
                   <ReelsFrame>
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
@@ -347,10 +475,12 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
   border-radius: 12px;
-  width: ${props => props.$step === 'filter' || props.$step === 'final' ? '90%' : '540px'};
-  max-width: ${props => props.$step === 'filter' || props.$step === 'final' ? '960px' : '540px'};
+  width: ${(props) =>
+    props.$step === "filter" || props.$step === "final" ? "90%" : "540px"};
+  max-width: ${(props) =>
+    props.$step === "filter" || props.$step === "final" ? "960px" : "540px"};
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -362,7 +492,7 @@ const ModalHeader = styled.div`
   align-items: center;
   justify-content: center;
   padding: 12px 16px;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#000' : '#dbdbdb'};
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#000" : "#dbdbdb")};
   position: relative;
   min-height: 43px;
 `;
@@ -386,7 +516,7 @@ const BackButton = styled.button`
 const ModalTitle = styled.h2`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   flex: 1;
   text-align: center;
 `;
@@ -461,18 +591,20 @@ const Tab = styled.button`
   flex: 1;
   padding: 14px;
   font-size: 15px;
-  font-weight: ${props => props.$active ? '700' : '500'};
-  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
-  background: ${props => props.$active ? '#fff' : 'transparent'};
+  font-weight: ${(props) => (props.$active ? "700" : "500")};
+  color: ${(props) => (props.$active ? "#262626" : "#8e8e8e")};
+  background: ${(props) => (props.$active ? "#fff" : "transparent")};
   border: none;
-  border-bottom: ${props => props.$active ? '2px solid #262626' : '2px solid transparent'};
+  border-bottom: ${(props) =>
+    props.$active ? "2px solid #262626" : "2px solid transparent"};
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
 
   &:hover {
     color: #262626;
-    background: ${props => props.$active ? '#fff' : 'rgba(255, 255, 255, 0.5)'};
+    background: ${(props) =>
+      props.$active ? "#fff" : "rgba(255, 255, 255, 0.5)"};
   }
 `;
 
@@ -556,7 +688,8 @@ const ReelsFrame = styled.div`
   border-radius: 8px;
   max-height: 80vh;
 
-  img, video {
+  img,
+  video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -642,9 +775,9 @@ const FilterTab = styled.button`
   padding: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
+  color: ${(props) => (props.$active ? "#262626" : "#8e8e8e")};
   border: none;
-  border-bottom: ${props => props.$active ? '1px solid #262626' : 'none'};
+  border-bottom: ${(props) => (props.$active ? "1px solid #262626" : "none")};
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
@@ -670,7 +803,7 @@ const FilterOption = styled.div`
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
-  border: ${props => props.$active ? '2px solid #0095f6' : 'none'};
+  border: ${(props) => (props.$active ? "2px solid #0095f6" : "none")};
 
   &:hover {
     opacity: 0.8;
