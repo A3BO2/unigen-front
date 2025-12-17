@@ -1,62 +1,108 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import styled from 'styled-components';
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+import styled from "styled-components";
 
 const NormalLogin = () => {
   const navigate = useNavigate();
   const { login } = useApp();
+
   const [searchParams] = useSearchParams();
-  const mode = searchParams.get('mode');
-  const isSignup = mode === 'signup';
+  const mode = searchParams.get("mode");
+
+  const isSignup = mode === "signup";
   const isLogin = !isSignup;
+
   const [formData, setFormData] = useState({
-    phone: '',
-    username: '',
-    password: '',
+    phone: "",
+    username: "",
+    password: "",
+    name: "",
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    try {
+      if (isLogin) {
+        // 로그인
+        const response = await fetch(
+          "http://localhost:3000/api/v1/auth/login",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: formData.phone,
+              password: formData.password,
+            }),
+          }
+        );
+        const data = await response.json();
 
-    if (isLogin) {
-      // 로그인
-      login({
-        id: formData.phone || formData.username,
-        name: formData.username,
-      }, 'normal');
-      navigate('/normal/home');
-    } else {
-      // 회원가입 - 기본 정보로 바로 로그인 처리
-      login({
-        id: formData.phone,
-        name: formData.username,
-      }, 'normal');
-      navigate('/normal/home');
+        if (response.ok) {
+          localStorage.setItem("token", data.token);
+          login(data.data?.user || data.user, "normal");
+          alert("로그인 성공!");
+          navigate("/normal/home");
+        } else {
+          alert(data.message || "로그인 실패");
+        }
+      } else {
+        // 회원가입
+        const signupData = {
+          ...formData,
+          name: formData.name || formData.username, // 실명 없으면 닉네임으로 대체
+          signup_mode: "phone",
+          preferred_mode: "normal",
+        };
+
+        const response = await fetch(
+          "http://localhost:3000/api/v1/auth/signup",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(signupData),
+          }
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          alert("회원가입 성공! 로그인 해주세요.");
+          navigate("/login");
+        } else {
+          alert(data.message || "회원가입 실패");
+        }
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("서버 연결 실패");
     }
+  };
+
+  // 카카오 버튼 클릭 시 실행
+  const handleKakaoAuth = async () => {
+    console.log("카카오 로그인 시도");
+    alert("카카오 로그인은 추후 API 연동 예정입니다.");
   };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
   const handleModeToggle = () => {
     if (isLogin) {
-      navigate('/login/normal?mode=signup');
+      navigate("/login/normal?mode=signup");
     } else {
-      navigate('/login/normal');
+      navigate("/login/normal");
     }
   };
 
   return (
     <Container>
       <Header>
-        <BackButton onClick={() => navigate('/')}>
-          ←
-        </BackButton>
+        <BackButton onClick={() => navigate("/")}>←</BackButton>
       </Header>
 
       <FormContainer>
@@ -64,14 +110,24 @@ const NormalLogin = () => {
 
         <Form onSubmit={handleSubmit}>
           {!isLogin && (
-            <Input
-              type="text"
-              name="username"
-              placeholder="사용자 이름"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
+            <>
+              <Input
+                type="text"
+                name="name"
+                placeholder="성명 (실명)"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                type="text"
+                name="username"
+                placeholder="사용자 이름 (닉네임)"
+                value={formData.username}
+                onChange={handleChange}
+                required
+              />
+            </>
           )}
 
           <Input
@@ -93,7 +149,7 @@ const NormalLogin = () => {
           />
 
           <SubmitButton type="submit">
-            {isLogin ? '로그인' : '가입'}
+            {isLogin ? "로그인" : "가입"}
           </SubmitButton>
         </Form>
 
@@ -103,21 +159,21 @@ const NormalLogin = () => {
           <DividerLine />
         </Divider>
 
-        <SocialButton>
-          {isLogin ? '카카오로 로그인' : '카카오로 회원가입'}
+        <SocialButton type="button" onClick={handleKakaoAuth}>
+          {isLogin ? "카카오로 로그인" : "카카오로 회원가입"}
         </SocialButton>
 
-        <ForgotPassword onClick={() => navigate('/forgot-password')}>
+        <ForgotPassword onClick={() => navigate("/forgot-password")}>
           비밀번호를 잊으셨나요?
         </ForgotPassword>
       </FormContainer>
 
-        <SignupBox>
-          {isLogin ? '계정이 없으신가요?' : '계정이 있으신가요?'}
-          <SignupLink onClick={handleModeToggle}>
-            {isLogin ? ' 가입하기' : ' 로그인'}
-          </SignupLink>
-        </SignupBox>
+      <SignupBox>
+        {isLogin ? "계정이 없으신가요?" : "계정이 있으신가요?"}
+        <SignupLink onClick={handleModeToggle}>
+          {isLogin ? " 가입하기" : " 로그인"}
+        </SignupLink>
+      </SignupBox>
     </Container>
   );
 };
@@ -233,7 +289,7 @@ const DividerText = styled.span`
 const SocialButton = styled.button`
   width: 100%;
   padding: 10px 16px;
-  background: #FEE500;
+  background: #fee500;
   color: #000000;
   font-size: 14px;
   font-weight: 600;
@@ -243,7 +299,7 @@ const SocialButton = styled.button`
   transition: background 0.2s;
 
   &:hover {
-    background: #FDD835;
+    background: #fdd835;
   }
 
   &:active {

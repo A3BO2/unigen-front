@@ -1,31 +1,31 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './context/AppContext';
-import { GlobalStyles } from './styles/GlobalStyles';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AppProvider, useApp } from "./context/AppContext";
+import { GlobalStyles } from "./styles/GlobalStyles";
 
 // Onboarding
-import Welcome from './pages/onboarding/Welcome';
-import SeniorLogin from './pages/onboarding/SeniorLogin';
-import NormalLogin from './pages/onboarding/NormalLogin';
-import ForgotPassword from './pages/onboarding/ForgotPassword';
-import EmailVerification from './pages/onboarding/EmailVerification';
+import Welcome from "./pages/onboarding/Welcome";
+import SeniorLogin from "./pages/onboarding/SeniorLogin";
+import NormalLogin from "./pages/onboarding/NormalLogin";
+import ForgotPassword from "./pages/onboarding/ForgotPassword";
+import EmailVerification from "./pages/onboarding/EmailVerification";
 
 // Normal Mode
-import NormalHome from './pages/normal/Home';
-import NormalSearch from './pages/normal/Search';
-import NormalExplore from './pages/normal/Explore';
-import NormalReels from './pages/normal/Reels';
-import NormalUpload from './pages/normal/Upload';
-import NormalStoryCreate from './pages/normal/StoryCreate';
-import NormalProfile from './pages/normal/Profile';
-import NormalProfileEdit from './pages/normal/ProfileEdit';
-import NormalSettings from './pages/normal/Settings';
+import NormalHome from "./pages/normal/Home";
+import NormalSearch from "./pages/normal/Search";
+import NormalExplore from "./pages/normal/Explore";
+import NormalReels from "./pages/normal/Reels";
+import NormalUpload from "./pages/normal/Upload";
+import NormalStoryCreate from "./pages/normal/StoryCreate";
+import NormalProfile from "./pages/normal/Profile";
+import NormalProfileEdit from "./pages/normal/ProfileEdit";
+import NormalSettings from "./pages/normal/Settings";
 
 // Senior Mode
-import SeniorHome from './pages/senior/Home';
-import SeniorWrite from './pages/senior/Write';
-import SeniorProfile from './pages/senior/Profile';
-import SeniorSettings from './pages/senior/Settings';
-import SeniorFamilyHelp from './pages/senior/FamilyHelp';
+import SeniorHome from "./pages/senior/Home";
+import SeniorWrite from "./pages/senior/Write";
+import SeniorProfile from "./pages/senior/Profile";
+import SeniorSettings from "./pages/senior/Settings";
+import SeniorFamilyHelp from "./pages/senior/FamilyHelp";
 
 function ProtectedRoute({ children, requiredMode }) {
   const { user, mode } = useApp();
@@ -34,9 +34,13 @@ function ProtectedRoute({ children, requiredMode }) {
     return <Navigate to="/" replace />;
   }
 
-  
   if (requiredMode && mode !== requiredMode) {
-    return <Navigate to={mode === 'senior' ? '/senior/home' : '/normal/home'} replace />;
+    return (
+      <Navigate
+        to={mode === "senior" ? "/senior/home" : "/normal/home"}
+        replace
+      />
+    );
   }
 
   return children;
@@ -47,7 +51,10 @@ function AppRoutes() {
 
   return (
     <>
-      <GlobalStyles $isSeniorMode={mode === 'senior'} $isDarkMode={isDarkMode} />
+      <GlobalStyles
+        $isSeniorMode={mode === "senior"}
+        $isDarkMode={isDarkMode}
+      />
       <Routes>
         {/* Onboarding */}
         <Route path="/" element={<Welcome />} />

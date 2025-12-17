@@ -1,41 +1,41 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import { Heart, MessageCircle, Send, MoreHorizontal, Plus } from 'lucide-react';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { useApp } from '../../context/AppContext';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import styled, { keyframes } from "styled-components";
+import { Heart, MessageCircle, Send, MoreHorizontal, Plus } from "lucide-react";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import { useApp } from "../../context/AppContext";
 
 // Mock 데이터
 const INITIAL_POSTS = [
   {
     id: 1,
-    user: { name: '김할머니', avatar: '👵' },
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500',
+    user: { name: "김할머니", avatar: "👵" },
+    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500",
     likes: 142,
-    caption: '오늘 공원 산책하고 왔어요',
-    timestamp: '2시간 전',
-    liked: false
+    caption: "오늘 공원 산책하고 왔어요",
+    timestamp: "2시간 전",
+    liked: false,
   },
   {
     id: 2,
-    user: { name: '박할아버지', avatar: '👴' },
-    image: 'https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500',
+    user: { name: "박할아버지", avatar: "👴" },
+    image: "https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500",
     likes: 89,
-    caption: '손주들과 함께한 즐거운 시간',
-    timestamp: '5시간 전',
-    liked: false
+    caption: "손주들과 함께한 즐거운 시간",
+    timestamp: "5시간 전",
+    liked: false,
   },
   {
     id: 3,
-    user: { name: '이할머니', avatar: '👵' },
-    image: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=500',
+    user: { name: "이할머니", avatar: "👵" },
+    image: "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=500",
     likes: 203,
-    caption: '정원에 꽃이 활짝 피었네요',
-    timestamp: '1일 전',
-    liked: false
-  }
+    caption: "정원에 꽃이 활짝 피었네요",
+    timestamp: "1일 전",
+    liked: false,
+  },
 ];
 
 const Home = () => {
@@ -45,16 +45,18 @@ const Home = () => {
   const [showComments, setShowComments] = useState(null);
 
   const handleLike = (postId) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          liked: !post.liked,
-          likes: post.liked ? post.likes - 1 : post.likes + 1
-        };
-      }
-      return post;
-    }));
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            liked: !post.liked,
+            likes: post.liked ? post.likes - 1 : post.likes + 1,
+          };
+        }
+        return post;
+      })
+    );
   };
 
   return (
@@ -65,7 +67,10 @@ const Home = () => {
 
       <Container $darkMode={isDarkMode}>
         <MobileHeader $darkMode={isDarkMode}>
-          <LogoImage src={isDarkMode ? "/unigen_white.png" : "/unigen_black.png"} alt="Unigen" />
+          <LogoImage
+            src={isDarkMode ? "/unigen_white.png" : "/unigen_black.png"}
+            alt="Unigen"
+          />
           <MobileIcons>
             <IconButton>
               <Heart size={24} />
@@ -75,7 +80,7 @@ const Home = () => {
 
         <MainContent>
           <Stories $darkMode={isDarkMode}>
-            <Story onClick={() => navigate('/normal/story-create')}>
+            <Story onClick={() => navigate("/normal/story-create")}>
               <StoryAvatar>
                 <MyStoryRing>
                   <span>👤</span>
@@ -90,9 +95,7 @@ const Home = () => {
               <Story key={i}>
                 <StoryAvatar>
                   <StoryRing>
-                    <span>
-                      {i % 2 === 0 ? '👵' : '👴'}
-                    </span>
+                    <span>{i % 2 === 0 ? "👵" : "👴"}</span>
                   </StoryRing>
                 </StoryAvatar>
                 <StoryName $darkMode={isDarkMode}>사용자{i}</StoryName>
@@ -100,56 +103,78 @@ const Home = () => {
             ))}
           </Stories>
 
-      <Feed>
-        {posts.map((post) => (
-          <Post key={post.id} $darkMode={isDarkMode}>
-            <PostHeader>
-              <UserInfo>
-                <Avatar>{post.user.avatar}</Avatar>
-                <Username $darkMode={isDarkMode}>{post.user.name}</Username>
-              </UserInfo>
-              <MoreButton $darkMode={isDarkMode}>
-                <MoreHorizontal size={24} />
-              </MoreButton>
-            </PostHeader>
+          <Feed>
+            {posts.map((post) => (
+              <Post key={post.id} $darkMode={isDarkMode}>
+                <PostHeader>
+                  <UserInfo>
+                    <Avatar>{post.user.avatar}</Avatar>
+                    <Username $darkMode={isDarkMode}>{post.user.name}</Username>
+                  </UserInfo>
+                  <MoreButton $darkMode={isDarkMode}>
+                    <MoreHorizontal size={24} />
+                  </MoreButton>
+                </PostHeader>
 
-            <PostImage src={post.image} alt="" onDoubleClick={() => handleLike(post.id)} />
+                <PostImage
+                  src={post.image}
+                  alt=""
+                  onDoubleClick={() => handleLike(post.id)}
+                />
 
-            <PostActions>
-              <LeftActions>
-                <ActionButton onClick={() => handleLike(post.id)} $liked={post.liked} $darkMode={isDarkMode}>
-                  <Heart
-                    size={24}
-                    fill={post.liked ? '#ed4956' : 'none'}
-                    color={post.liked ? '#ed4956' : (isDarkMode ? '#fff' : '#262626')}
-                    strokeWidth={post.liked ? 2 : 1.5}
-                  />
-                </ActionButton>
-                <ActionButton $darkMode={isDarkMode}>
-                  <MessageCircle size={24} strokeWidth={1.5} />
-                </ActionButton>
-                <ActionButton $darkMode={isDarkMode}>
-                  <Send size={24} strokeWidth={1.5} />
-                </ActionButton>
-              </LeftActions>
-            </PostActions>
+                <PostActions>
+                  <LeftActions>
+                    <ActionButton
+                      onClick={() => handleLike(post.id)}
+                      $liked={post.liked}
+                      $darkMode={isDarkMode}
+                    >
+                      <Heart
+                        size={24}
+                        fill={post.liked ? "#ed4956" : "none"}
+                        color={
+                          post.liked
+                            ? "#ed4956"
+                            : isDarkMode
+                            ? "#fff"
+                            : "#262626"
+                        }
+                        strokeWidth={post.liked ? 2 : 1.5}
+                      />
+                    </ActionButton>
+                    <ActionButton $darkMode={isDarkMode}>
+                      <MessageCircle size={24} strokeWidth={1.5} />
+                    </ActionButton>
+                    <ActionButton $darkMode={isDarkMode}>
+                      <Send size={24} strokeWidth={1.5} />
+                    </ActionButton>
+                  </LeftActions>
+                </PostActions>
 
-            <PostInfo>
-              <Likes $darkMode={isDarkMode}>좋아요 {post.likes.toLocaleString()}개</Likes>
-              <Caption $darkMode={isDarkMode}>
-                <Username $darkMode={isDarkMode}>{post.user.name}</Username> {post.caption}
-              </Caption>
-              <Comments $darkMode={isDarkMode} onClick={() => setShowComments(post.id)}>댓글 12개 모두 보기</Comments>
-              <Timestamp $darkMode={isDarkMode}>{post.timestamp}</Timestamp>
-            </PostInfo>
+                <PostInfo>
+                  <Likes $darkMode={isDarkMode}>
+                    좋아요 {post.likes.toLocaleString()}개
+                  </Likes>
+                  <Caption $darkMode={isDarkMode}>
+                    <Username $darkMode={isDarkMode}>{post.user.name}</Username>{" "}
+                    {post.caption}
+                  </Caption>
+                  <Comments
+                    $darkMode={isDarkMode}
+                    onClick={() => setShowComments(post.id)}
+                  >
+                    댓글 12개 모두 보기
+                  </Comments>
+                  <Timestamp $darkMode={isDarkMode}>{post.timestamp}</Timestamp>
+                </PostInfo>
 
-            <CommentInput>
-              <input placeholder="댓글 달기..." />
-              <PostButton>게시</PostButton>
-            </CommentInput>
-          </Post>
-        ))}
-      </Feed>
+                <CommentInput>
+                  <input placeholder="댓글 달기..." />
+                  <PostButton>게시</PostButton>
+                </CommentInput>
+              </Post>
+            ))}
+          </Feed>
         </MainContent>
 
         {showComments && (
@@ -158,52 +183,82 @@ const Home = () => {
               <ModalContent>
                 <ModalLeft>
                   <PostImageModal
-                    src={posts.find(p => p.id === showComments)?.image}
+                    src={posts.find((p) => p.id === showComments)?.image}
                     alt=""
                   />
                 </ModalLeft>
                 <ModalRight>
                   <ModalHeader>
                     <UserInfo>
-                      <Avatar>{posts.find(p => p.id === showComments)?.user.avatar}</Avatar>
-                      <Username $darkMode={isDarkMode}>{posts.find(p => p.id === showComments)?.user.name}</Username>
+                      <Avatar>
+                        {posts.find((p) => p.id === showComments)?.user.avatar}
+                      </Avatar>
+                      <Username $darkMode={isDarkMode}>
+                        {posts.find((p) => p.id === showComments)?.user.name}
+                      </Username>
                     </UserInfo>
                   </ModalHeader>
 
                   <CommentsSection>
                     <CommentItem>
-                      <CommentAvatar>{posts.find(p => p.id === showComments)?.user.avatar}</CommentAvatar>
+                      <CommentAvatar>
+                        {posts.find((p) => p.id === showComments)?.user.avatar}
+                      </CommentAvatar>
                       <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>{posts.find(p => p.id === showComments)?.user.name}</CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>{posts.find(p => p.id === showComments)?.caption}</CommentText>
-                        <CommentTime $darkMode={isDarkMode}>{posts.find(p => p.id === showComments)?.timestamp}</CommentTime>
+                        <CommentUsername $darkMode={isDarkMode}>
+                          {posts.find((p) => p.id === showComments)?.user.name}
+                        </CommentUsername>
+                        <CommentText $darkMode={isDarkMode}>
+                          {posts.find((p) => p.id === showComments)?.caption}
+                        </CommentText>
+                        <CommentTime $darkMode={isDarkMode}>
+                          {posts.find((p) => p.id === showComments)?.timestamp}
+                        </CommentTime>
                       </CommentContent>
                     </CommentItem>
 
                     <CommentItem>
                       <CommentAvatar>👴</CommentAvatar>
                       <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>최할아버지</CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>정말 아름다운 사진이네요!</CommentText>
-                        <CommentTime $darkMode={isDarkMode}>1시간 전</CommentTime>
+                        <CommentUsername $darkMode={isDarkMode}>
+                          최할아버지
+                        </CommentUsername>
+                        <CommentText $darkMode={isDarkMode}>
+                          정말 아름다운 사진이네요!
+                        </CommentText>
+                        <CommentTime $darkMode={isDarkMode}>
+                          1시간 전
+                        </CommentTime>
                       </CommentContent>
                     </CommentItem>
 
                     <CommentItem>
                       <CommentAvatar>👵</CommentAvatar>
                       <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>정할머니</CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>저도 가보고 싶어요 ㅎㅎ</CommentText>
-                        <CommentTime $darkMode={isDarkMode}>30분 전</CommentTime>
+                        <CommentUsername $darkMode={isDarkMode}>
+                          정할머니
+                        </CommentUsername>
+                        <CommentText $darkMode={isDarkMode}>
+                          저도 가보고 싶어요 ㅎㅎ
+                        </CommentText>
+                        <CommentTime $darkMode={isDarkMode}>
+                          30분 전
+                        </CommentTime>
                       </CommentContent>
                     </CommentItem>
 
                     <CommentItem>
                       <CommentAvatar>👴</CommentAvatar>
                       <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>강할아버지</CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>날씨가 참 좋았겠습니다</CommentText>
-                        <CommentTime $darkMode={isDarkMode}>15분 전</CommentTime>
+                        <CommentUsername $darkMode={isDarkMode}>
+                          강할아버지
+                        </CommentUsername>
+                        <CommentText $darkMode={isDarkMode}>
+                          날씨가 참 좋았겠습니다
+                        </CommentText>
+                        <CommentTime $darkMode={isDarkMode}>
+                          15분 전
+                        </CommentTime>
                       </CommentContent>
                     </CommentItem>
                   </CommentsSection>
@@ -213,8 +268,16 @@ const Home = () => {
                       <ActionButton onClick={() => handleLike(showComments)}>
                         <Heart
                           size={24}
-                          fill={posts.find(p => p.id === showComments)?.liked ? '#ed4956' : 'none'}
-                          color={posts.find(p => p.id === showComments)?.liked ? '#ed4956' : '#262626'}
+                          fill={
+                            posts.find((p) => p.id === showComments)?.liked
+                              ? "#ed4956"
+                              : "none"
+                          }
+                          color={
+                            posts.find((p) => p.id === showComments)?.liked
+                              ? "#ed4956"
+                              : "#262626"
+                          }
                           strokeWidth={1.5}
                         />
                       </ActionButton>
@@ -225,8 +288,16 @@ const Home = () => {
                         <Send size={24} strokeWidth={1.5} />
                       </ActionButton>
                     </ActionButtons>
-                    <Likes>좋아요 {posts.find(p => p.id === showComments)?.likes.toLocaleString()}개</Likes>
-                    <Timestamp>{posts.find(p => p.id === showComments)?.timestamp}</Timestamp>
+                    <Likes>
+                      좋아요{" "}
+                      {posts
+                        .find((p) => p.id === showComments)
+                        ?.likes.toLocaleString()}
+                      개
+                    </Likes>
+                    <Timestamp>
+                      {posts.find((p) => p.id === showComments)?.timestamp}
+                    </Timestamp>
                   </ModalActions>
 
                   <CommentInputBox>
@@ -245,7 +316,7 @@ const Home = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
 
   @media (min-width: 1264px) {
     margin-left: 335px;
@@ -266,8 +337,9 @@ const Container = styled.div`
 const MobileHeader = styled.header`
   position: sticky;
   top: 0;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   padding: 12px 16px;
   display: flex;
   justify-content: space-between;
@@ -312,8 +384,8 @@ const MainContent = styled.main`
 `;
 
 const Stories = styled.div`
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 8px;
   padding: 16px 0;
   display: flex;
@@ -330,7 +402,8 @@ const Stories = styled.div`
   @media (max-width: 767px) {
     border: none;
     border-radius: 0;
-    border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+    border-bottom: 1px solid
+      ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
     margin-bottom: 0;
     padding: 16px 0 16px 12px;
   }
@@ -357,7 +430,14 @@ const StoryRing = styled.div`
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  background: linear-gradient(
+    45deg,
+    #f09433 0%,
+    #e6683c 25%,
+    #dc2743 50%,
+    #cc2366 75%,
+    #bc1888 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -366,7 +446,7 @@ const StoryRing = styled.div`
   position: relative;
 
   &::after {
-    content: '';
+    content: "";
     width: 52px;
     height: 52px;
     background: white;
@@ -430,7 +510,7 @@ const AddStoryButton = styled.div`
 
 const StoryName = styled.span`
   font-size: 12px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   max-width: 64px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -442,8 +522,8 @@ const Feed = styled.div`
 `;
 
 const Post = styled.article`
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 8px;
   margin-bottom: 20px;
 
@@ -476,14 +556,14 @@ const MoreButton = styled.button`
   }
 
   svg {
-    color: ${props => props.$darkMode ? '#fff' : '#262626'};
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   }
 `;
 
 const Username = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   transition: opacity 0.2s;
 `;
 
@@ -559,12 +639,14 @@ const ActionButton = styled.button`
     transform: scale(0.9);
   }
 
-  ${props => props.$liked && `
+  ${(props) =>
+    props.$liked &&
+    `
     animation: ${likeAnimation} 0.4s ease;
   `}
 
   svg {
-    color: ${props => props.$darkMode ? '#fff' : '#262626'};
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   }
 `;
 
@@ -575,7 +657,7 @@ const PostInfo = styled.div`
 const Likes = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin: 8px 0;
   cursor: pointer;
 
@@ -588,7 +670,7 @@ const Caption = styled.p`
   font-size: 14px;
   margin-bottom: 2px;
   line-height: 18px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
   ${Username} {
     margin-right: 4px;
@@ -597,7 +679,7 @@ const Caption = styled.p`
 
 const Comments = styled.div`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#a8a8a8' : '#8e8e8e'};
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
   margin: 4px 0 2px;
   cursor: pointer;
 
@@ -608,7 +690,7 @@ const Comments = styled.div`
 
 const Timestamp = styled.div`
   font-size: 10px;
-  color: ${props => props.$darkMode ? '#a8a8a8' : '#8e8e8e'};
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
   letter-spacing: 0.2px;
   margin-top: 8px;
   text-transform: uppercase;
@@ -776,19 +858,19 @@ const CommentContent = styled.div`
 const CommentUsername = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin-right: 8px;
 `;
 
 const CommentText = styled.span`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   line-height: 18px;
 `;
 
 const CommentTime = styled.div`
   font-size: 12px;
-  color: ${props => props.$darkMode ? '#a8a8a8' : '#8e8e8e'};
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
   margin-top: 8px;
 `;
 
