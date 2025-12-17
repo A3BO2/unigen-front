@@ -7,7 +7,7 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { getPosts } from "../../services/post";
-import { getTimeAgo } from "../../utils/time";
+import { getTimeAgo } from "../../util/date";
 
 const Home = () => {
   const navigate = useNavigate();
