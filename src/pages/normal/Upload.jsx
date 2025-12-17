@@ -9,13 +9,13 @@ import { useApp } from "../../context/AppContext";
 // 필터 값 정의
 const FILTER_STYLES = {
   normal: "",
-  aden: "hue-rotate(-20deg) contrast(0.9) saturation(0.85) brightness(1.2)",
-  clarendon: "contrast(1.2) saturation(1.35)",
+  aden: "hue-rotate(-20deg) contrast(0.9) saturate(0.85) brightness(1.2)",
+  clarendon: "contrast(1.2) saturate(1.35)",
   crema: "sepia(0.5) contrast(0.8)",
   gingham: "brightness(1.05) hue-rotate(-10deg)",
-  juno: "sepia(0.35) saturation(1.6)",
-  lark: "contrast(0.9) brightness(1.2) saturation(1.1)",
-  ludwig: "sepia(0.25) contrast(0.9) saturation(1.1)",
+  juno: "sepia(0.35) saturate(1.6)",
+  lark: "contrast(0.9) brightness(1.2) saturate(1.1)",
+  ludwig: "sepia(0.25) contrast(0.9) saturate(1.1)",
   moon: "grayscale(1) contrast(1.1) brightness(1.1)",
   perpetua: "contrast(1.1) brightness(1.2) saturate(1.1)",
   reyes: "sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)",

@@ -18,6 +18,7 @@ const Home = () => {
   // 포스트 데이터 불러오기
   useEffect(() => {
     getPosts().then((data) => {
+      console.log(data.items[0]);
       // API 데이터를 posts 형식으로 변환
       const transformedPosts = data.items.map((item) => ({
         id: item.id,
