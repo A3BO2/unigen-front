@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import { Heart, MessageCircle, Send, MoreHorizontal, Plus } from "lucide-react";
@@ -6,43 +6,36 @@ import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
-
-// Mock 데이터
-const INITIAL_POSTS = [
-  {
-    id: 1,
-    user: { name: "김할머니", avatar: "👵" },
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500",
-    likes: 142,
-    caption: "오늘 공원 산책하고 왔어요",
-    timestamp: "2시간 전",
-    liked: false,
-  },
-  {
-    id: 2,
-    user: { name: "박할아버지", avatar: "👴" },
-    image: "https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500",
-    likes: 89,
-    caption: "손주들과 함께한 즐거운 시간",
-    timestamp: "5시간 전",
-    liked: false,
-  },
-  {
-    id: 3,
-    user: { name: "이할머니", avatar: "👵" },
-    image: "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=500",
-    likes: 203,
-    caption: "정원에 꽃이 활짝 피었네요",
-    timestamp: "1일 전",
-    liked: false,
-  },
-];
+import { getPosts } from "../../services/post";
+import { getTimeAgo } from "../../util/date";
 
 const Home = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useApp();
-  const [posts, setPosts] = useState(INITIAL_POSTS);
+  const [posts, setPosts] = useState([]);
   const [showComments, setShowComments] = useState(null);
+
+  // 포스트 데이터 불러오기
+  useEffect(() => {
+    getPosts().then((data) => {
+      // API 데이터를 posts 형식으로 변환
+      const transformedPosts = data.items.map((item) => ({
+        id: item.id,
+        user: {
+          name: item.author.name,
+          avatar: item.author.profileImageUrl,
+        },
+        image: item.imageUrl,
+        likes: item.likeCount,
+        caption: item.content,
+        timestamp: getTimeAgo(item.createdAt),
+        liked: false,
+        comments: item.commentCount,
+      }));
+
+      setPosts(transformedPosts);
+    });
+  }, []);
 
   const handleLike = (postId) => {
     setPosts(
