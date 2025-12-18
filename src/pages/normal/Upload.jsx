@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { X, Maximize2 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
+import Cropper from "react-easy-crop";
 
 // 필터 값 정의
 const FILTER_STYLES = {
@@ -50,6 +51,11 @@ const Upload = () => {
 
   const [originalFile, setOriginalFile] = useState(null);
   const [aspectRatio, setAspectRatio] = useState(null);
+  const [originalAspect, setOriginalAspect] = useState(1);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
@@ -75,36 +81,117 @@ const Upload = () => {
     }
   };
 
+  // 사용자가 드래그를 멈췄을 때 좌표를 저장하는 함수
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
   const handleNext = async () => {
     if (step === "crop") {
       if (contentType === "reels") {
         setStep("final");
       } else {
-        setStep("filter");
+        // 자르기 단계 => 필터 단계로 넘어갈 때 실제로 이미지를 자름
+        try {
+          // 1. 원본 이미지 불러옴
+          const image = new Image();
+          image.src = preview; // 현재 보고 있는 원본 이미지
+
+          // 2. 이미지가 로드되면 캔버스로 자르기 수행
+          await new Promise((resolve) => {
+            image.onload = () => {
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
+
+              // 잘라낼 크기 설정
+              canvas.width = croppedAreaPixels.width;
+              canvas.height = croppedAreaPixels.height;
+
+              // 원본에서 해당 영역만큼 가져오기
+              ctx.drawImage(
+                image,
+                croppedAreaPixels.x,
+                croppedAreaPixels.y,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height,
+                0,
+                0,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height
+              );
+
+              // 3. 잘린 이미지를 Blob으로 변환하여 preview
+              canvas.toBlob((blob) => {
+                const newFile = new File([blob], "cropped.jpg", {
+                  type: "image/jpeg",
+                });
+                setOriginalFile(newFile); // 필터 단계에서 쓸 파일로 교체
+                setPreview(URL.createObjectURL(newFile)); // 미리보기 교체
+                resolve();
+              }, "image/jpeg");
+            };
+          });
+
+          setStep("filter");
+        } catch (e) {
+          console.error(e);
+          alert("이미지 자르기 실패");
+        }
       }
     } else if (step === "filter") {
       // 필터 적용 로직 시작
+      // 최종 단계로 넘어갈 때 이미지 굽기 수행
       try {
-        // 1. 현재 선택된 파일 가져오기
         if (!originalFile) {
-          alert("파일이 없습니다.");
+          alert("편집할 파일이 없습니다.");
           return;
         }
 
-        // 2. 필터 입힌 새 파일 생성
-        const processedFile = await processImage(file, selectedFilter);
+        // 필터 입힌 새 파일 생성
+        const processedFile = await processImage(originalFile, selectedFilter);
 
         // 미리보기 URL로 변환 > preview 업데이트
         const newPreview = URL.createObjectURL(processedFile);
         setPreview(newPreview);
 
-        // 4. 다음 단계 넘어가기
+        // 다음 단계 넘어가기
         setStep("final");
       } catch (error) {
         console.error("이미지 처리 실패:", error);
         alert("이미지 필터 적용 중 오류 발생");
       }
     }
+  };
+
+  // 이미지 로드 후 원본 비율 저장
+  const onMediaLoaded = (mediaSize) => {
+    const { naturalWidth, naturalHeight } = mediaSize;
+    const ratio = naturalWidth / naturalHeight;
+    setOriginalAspect(ratio);
+
+    // 처음에 비율 설정이 안되어있다면 원본 비율로 시작
+    if (!aspectRatio) {
+      setAspectRatio(ratio);
+    }
+  };
+
+  const getAppliedFilterStyle = () => {
+    // 1. 필터 가져오기
+    const baseFilter = FILTER_STYLES[selectedFilter] || "";
+
+    // 2. 조정값 더하기(슬라이더 기본값은 0, CSS 기본값은 100% => 100을 더해줌)
+    const adjustFilter = `
+      brightness(${100 + parseInt(adjustments.brightness)}%)
+      contrast(${100 + parseInt(adjustments.contrast)}%)
+      saturate(${100 + parseInt(adjustments.saturation)}%)
+      sepia(${adjustments.temperature > 0 ? adjustments.temperature / 100 : 0}%)
+      hue-rotate(${
+        adjustments.temperature < 0 ? adjustments.temperature : 0
+      }deg)
+    `;
+
+    // 3. 두 가지를 합쳐 반환
+    return `${baseFilter} ${adjustFilter}`;
   };
 
   const handleBack = () => {
@@ -154,7 +241,21 @@ const Upload = () => {
 
         // 필터 효과 적용
         const filterCss = FILTER_STYLES[filterType] || "";
-        ctx.filter = filterCss;
+
+        // 슬라이더 조정값 CSS 만들기
+        const adjustmentCss = `
+          brightness(${100 + parseInt(adjustments.brightness)}%)
+          contrast(${100 + parseInt(adjustments.contrast)}%)
+          saturate(${100 + parseInt(adjustments.saturation)}%)
+          sepia(${
+            adjustments.temperature > 0 ? adjustments.temperature / 100 : 0
+          })
+          hue-rotate(${
+            adjustments.temperature < 0 ? adjustments.temperature : 0
+          }deg)
+        `;
+
+        ctx.filter = `${filterCss} ${adjustmentCss}`.trim();
 
         // 이미지를 캔버스에 그리기(필터 적용 지점)
         ctx.drawImage(img, 0, 0, img.width, img.height);
@@ -267,24 +368,39 @@ const Upload = () => {
 
           {step === "crop" && preview && (
             <>
-              <PreviewSection>
+              <PreviewSection
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  backgroundColor: "#000",
+                }}
+              >
                 {contentType === "reels" ? (
                   <ReelsFrame>
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
                 ) : (
-                  <PreviewImage
-                    src={preview}
-                    alt="Preview"
+                  // 라이브러리 사용
+                  <div
                     style={{
-                      // 비율값이 있으면 해당 비율로, 없으면 원본 비율
-                      aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
-                      // 비율이 설정되었을 때만 꽉 채우기(cover)로 자른 효과
-                      objectFit: aspectRatio ? "cover" : "contain",
-                      // 16:9 처럼 가로가 긴 경우 너비가 너무 좁아지지 않게 조정
-                      width: aspectRatio ? "100%" : "auto",
+                      position: "relative",
+                      width: "100%",
+                      height: "500px",
+                      backgroundColor: "#333",
                     }}
-                  />
+                  >
+                    <Cropper
+                      image={preview}
+                      crop={crop}
+                      zoom={zoom}
+                      aspect={aspectRatio || originalAspect}
+                      onCropChange={setCrop}
+                      onCropComplete={onCropComplete}
+                      onZoomChange={setZoom}
+                      onMediaLoaded={onMediaLoaded}
+                      objectFit="contain"
+                    />
+                  </div>
                 )}
               </PreviewSection>
               {contentType === "photo" && (
@@ -304,6 +420,27 @@ const Upload = () => {
                   <CropButton onClick={() => setAspectRatio(16 / 9)}>
                     16:9
                   </CropButton>
+
+                  {/* 줌 슬라이더 */}
+                  <div
+                    style={{
+                      marginLeft: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px" }}>🔍</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      value={zoom}
+                      onChange={(e) => setZoom(e.target.value)}
+                      style={{ width: "80px" }}
+                    />
+                  </div>
                 </CropToolbar>
               )}
             </>
@@ -315,7 +452,15 @@ const Upload = () => {
                 <PreviewImageLarge
                   src={preview}
                   alt="Preview"
-                  style={{ filter: FILTER_STYLES[selectedFilter] }}
+                  style={{
+                    // 필터 + 조정값 모두 적용
+                    filter: getAppliedFilterStyle(),
+
+                    // 아까 만든 자르기 비율도 유지
+                    aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
+                    objectFit: aspectRatio ? "cover" : "contain",
+                    width: aspectRatio ? "100%" : "auto",
+                  }}
                 />
               </FilterLeft>
               <FilterRight>
@@ -345,7 +490,17 @@ const Upload = () => {
                         <FilterPreview
                           src={preview}
                           alt={filter.name}
-                          style={{ filter: FILTER_STYLES[filter.value] }}
+                          style={{
+                            // 필터값과 조정값을 합쳐서 보여줌
+                            filter: `${FILTER_STYLES[filter.value]}
+                            brightness(${
+                              100 + parseInt(adjustments.brightness)
+                            }%)
+                            contrast(${100 + parseInt(adjustments.contrast)}%)
+                            saturate(${
+                              100 + parseInt(adjustments.saturation)
+                            }%)`,
+                          }}
                         />
                         <FilterName>{filter.name}</FilterName>
                       </FilterOption>
@@ -458,7 +613,11 @@ const Upload = () => {
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
                 ) : (
-                  <PreviewImageFinal src={preview} alt="Preview" />
+                  <PreviewImageFinal
+                    src={preview}
+                    alt="Preview"
+                    style={{ objectFit: "contain" }}
+                  />
                 )}
               </FinalLeft>
               <FinalRight>
