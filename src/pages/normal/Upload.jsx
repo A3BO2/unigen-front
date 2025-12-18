@@ -6,6 +6,7 @@ import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
 import Cropper from "react-easy-crop";
+import { createPost } from "../../services/post";
 
 // 필터 값 정의
 const FILTER_STYLES = {
@@ -209,9 +210,25 @@ const Upload = () => {
     }
   };
 
-  const handlePost = () => {
-    alert("게시물이 업로드되었습니다!");
-    navigate("/normal/home");
+  const handlePost = async () => {
+    // 파일 존재 유무 확인
+    if (!originalFile) {
+      alert("업로드할 이미지가 없습니다.");
+      return;
+    }
+    try {
+      // 서버로 보낼 FormData 만들기
+      const formData = new FormData();
+      formData.append("image", originalFile); // 다 적용된 최종 파일
+      formData.append("content", caption); // 글
+
+      await createPost(formData);
+
+      alert("게시물이 업로드 되었습니다!");
+      navigate("normal/home");
+    } catch (error) {
+      console.log("업로드 에러:", error);
+    }
   };
 
   const handleClose = () => {

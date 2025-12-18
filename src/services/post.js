@@ -83,3 +83,31 @@ export async function getPosts(mode, page = 1, size = 10) {
     "hasNext": false
 }
 */
+
+export async function createPost(formData) {
+  const token = localStorage.getItem("token");
+
+  // apifetch 대신 fetch를 직접 사용해서 Content-Type 문제를 회피
+  const res = await fetch(`${baseURL}/posts`, {
+    method: "POST",
+    headers: {
+      // Content-Type을 적지 않아야 브라우저가 알아서 'multipart/form-data'로 설정해줌
+      Authorization: token ? `Bearer ${token}` : "",
+    },
+    body: formData,
+  });
+
+  // 응답 처리
+  let data;
+
+  try {
+    data = await res.json();
+  } catch (error) {
+    console.log(error);
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message || "업로드 실패");
+  }
+  return data;
+}
