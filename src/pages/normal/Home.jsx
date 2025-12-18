@@ -9,6 +9,8 @@ import { useApp } from "../../context/AppContext";
 import { getPosts } from "../../services/post";
 import { getTimeAgo } from "../../util/date";
 
+const baseURL = import.meta.env.VITE_BASE_URL;
+
 const Home = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useApp();
@@ -26,7 +28,7 @@ const Home = () => {
           name: item.author.name,
           avatar: item.author.profileImageUrl,
         },
-        image: item.imageUrl,
+        image: `${baseURL}${item.imageUrl}`,
         likes: item.likeCount,
         caption: item.content,
         timestamp: getTimeAgo(item.createdAt),
