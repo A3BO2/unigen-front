@@ -9,6 +9,8 @@ import { useApp } from "../../context/AppContext";
 import { getPosts } from "../../services/post";
 import { getTimeAgo } from "../../util/date";
 
+const baseURL = import.meta.env.VITE_BASE_URL;
+
 const Home = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useApp();
@@ -18,6 +20,7 @@ const Home = () => {
   // 포스트 데이터 불러오기
   useEffect(() => {
     getPosts().then((data) => {
+      console.log(data.items[0]);
       // API 데이터를 posts 형식으로 변환
       const transformedPosts = data.items.map((item) => ({
         id: item.id,
@@ -25,7 +28,7 @@ const Home = () => {
           name: item.author.name,
           avatar: item.author.profileImageUrl,
         },
-        image: item.imageUrl,
+        image: `${baseURL}${item.imageUrl}`,
         likes: item.likeCount,
         caption: item.content,
         timestamp: getTimeAgo(item.createdAt),
