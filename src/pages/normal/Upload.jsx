@@ -7,6 +7,7 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
 import Cropper from "react-easy-crop";
 import { createPost } from "../../services/post";
+import { createStory} from 
 
 // 필터 값 정의
 const FILTER_STYLES = {
