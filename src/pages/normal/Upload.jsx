@@ -51,6 +51,7 @@ const Upload = () => {
   const [selectedFilter, setSelectedFilter] = useState("normal");
 
   const [originalFile, setOriginalFile] = useState(null);
+  const [finalFile, setFinalFile] = useState(null); // 최종 필터 먹인 파일 보관용
   const [aspectRatio, setAspectRatio] = useState(null);
   const [originalAspect, setOriginalAspect] = useState(1);
 
@@ -151,6 +152,8 @@ const Upload = () => {
         // 필터 입힌 새 파일 생성
         const processedFile = await processImage(originalFile, selectedFilter);
 
+        setFinalFile(processedFile);
+
         // 미리보기 URL로 변환 > preview 업데이트
         const newPreview = URL.createObjectURL(processedFile);
         setPreview(newPreview);
@@ -185,7 +188,7 @@ const Upload = () => {
       brightness(${100 + parseInt(adjustments.brightness)}%)
       contrast(${100 + parseInt(adjustments.contrast)}%)
       saturate(${100 + parseInt(adjustments.saturation)}%)
-      sepia(${adjustments.temperature > 0 ? adjustments.temperature / 100 : 0}%)
+      sepia(${adjustments.temperature > 0 ? adjustments.temperature : 0}%)
       hue-rotate(${
         adjustments.temperature < 0 ? adjustments.temperature : 0
       }deg)
@@ -200,32 +203,39 @@ const Upload = () => {
       if (contentType === "reels") {
         setStep("crop");
       } else {
+        // 필터 단계로 돌아갈 때 롤백 수행
         setStep("filter");
+
+        // 미리보기를 다시 '자르기만 했던 원본'으로 교체
+        setPreview(URL.createObjectURL(originalFile));
+
+        setFinalFile(null);
       }
     } else if (step === "filter") {
       setStep("crop");
     } else if (step === "crop") {
       setStep("select");
       setPreview(null);
+      setOriginalFile(null);
     }
   };
 
   const handlePost = async () => {
     // 파일 존재 유무 확인
-    if (!originalFile) {
+    if (!finalFile) {
       alert("업로드할 이미지가 없습니다.");
       return;
     }
     try {
       // 서버로 보낼 FormData 만들기
       const formData = new FormData();
-      formData.append("image", originalFile); // 다 적용된 최종 파일
+      formData.append("images", finalFile); // 다 적용된 최종 파일
       formData.append("content", caption); // 글
 
       await createPost(formData);
 
       alert("게시물이 업로드 되었습니다!");
-      navigate("normal/home");
+      navigate("/normal/home");
     } catch (error) {
       console.log("업로드 에러:", error);
     }
@@ -264,9 +274,7 @@ const Upload = () => {
           brightness(${100 + parseInt(adjustments.brightness)}%)
           contrast(${100 + parseInt(adjustments.contrast)}%)
           saturate(${100 + parseInt(adjustments.saturation)}%)
-          sepia(${
-            adjustments.temperature > 0 ? adjustments.temperature / 100 : 0
-          })
+          sepia(${adjustments.temperature > 0 ? adjustments.temperature : 0}%)
           hue-rotate(${
             adjustments.temperature < 0 ? adjustments.temperature : 0
           }deg)
@@ -558,7 +566,7 @@ const Upload = () => {
                     </AdjustmentItem>
 
                     <AdjustmentItem>
-                      <AdjustmentLabel>포화도</AdjustmentLabel>
+                      <AdjustmentLabel>채도</AdjustmentLabel>
                       <AdjustmentSlider
                         type="range"
                         min="-100"
@@ -574,7 +582,7 @@ const Upload = () => {
                     </AdjustmentItem>
 
                     <AdjustmentItem>
-                      <AdjustmentLabel>채도</AdjustmentLabel>
+                      <AdjustmentLabel>온도</AdjustmentLabel>
                       <AdjustmentSlider
                         type="range"
                         min="-100"
@@ -590,7 +598,7 @@ const Upload = () => {
                     </AdjustmentItem>
 
                     <AdjustmentItem>
-                      <AdjustmentLabel>온도</AdjustmentLabel>
+                      <AdjustmentLabel>포화도</AdjustmentLabel>
                       <AdjustmentSlider
                         type="range"
                         min="-100"
@@ -639,8 +647,22 @@ const Upload = () => {
               </FinalLeft>
               <FinalRight>
                 <UserInfo>
-                  <Avatar>👤</Avatar>
-                  <Username>사용자명</Username>
+                  <Avatar>
+                    {user?.profileImageUrl ? (
+                      <img
+                        src={user.profileImageUrl}
+                        alt="프로필"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      "👤"
+                    )}
+                  </Avatar>
+                  <Username>{user?.name || "사용자"}</Username>
                 </UserInfo>
 
                 <CaptionTextarea
