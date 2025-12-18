@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import styled from "styled-components";
+import { initKakaoSDK, loginWithKakao } from "../../utils/kakaoAuth";
+import KakaoSignupModal from "../../components/KakaoSignupModal";
 
 const NormalLogin = () => {
   const navigate = useNavigate();
@@ -19,6 +21,128 @@ const NormalLogin = () => {
     password: "",
     name: "",
   });
+
+  const [showKakaoSignupModal, setShowKakaoSignupModal] = useState(false);
+  const [kakaoAccessToken, setKakaoAccessToken] = useState(null);
+  const [kakaoUserInfo, setKakaoUserInfo] = useState(null);
+
+  // 카카오 SDK 초기화
+  useEffect(() => {
+    const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
+    if (kakaoAppKey) {
+      // 카카오 SDK가 로드될 때까지 대기
+      const checkKakaoSDK = setInterval(() => {
+        if (window.Kakao) {
+          initKakaoSDK(kakaoAppKey);
+          clearInterval(checkKakaoSDK);
+        }
+      }, 100);
+
+      return () => clearInterval(checkKakaoSDK);
+    }
+  }, []);
+
+  // 카카오 인증 처리 공통 함수
+  // 무조건 백엔드에서 사용자 확인 후, 있으면 로그인, 없으면 회원가입 모달 표시
+  const processKakaoAuth = useCallback(async (accessToken) => {
+    try {
+      // 백엔드에 카카오 로그인 요청 (사용자 확인)
+      const response = await fetch(
+        "http://localhost:3000/api/v1/auth/kakao/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: accessToken }),
+        }
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        // 사용자가 DB에 있음 → 로그인 성공
+        localStorage.setItem("token", data.token);
+        login(data.data?.user || data.user, "normal");
+        // URL을 깔끔하게 정리하고 바로 홈으로 이동
+        window.history.replaceState({}, document.title, "/normal/home");
+        navigate("/normal/home", { replace: true });
+      } else if (data.needsSignup) {
+        // 사용자가 DB에 없음 → 회원가입 모달 표시
+        setKakaoUserInfo(data.kakaoUser);
+        setShowKakaoSignupModal(true);
+      } else {
+        console.error("카카오 로그인 실패:", data.message || "알 수 없는 오류");
+      }
+    } catch (error) {
+      console.error("카카오 인증 처리 오류:", error);
+    }
+  }, [login, navigate]);
+
+  // 카카오 로그인 리다이렉트 후 콜백 처리
+  useEffect(() => {
+    const handleKakaoCallback = async () => {
+      // URL에서 카카오 인증 코드 확인
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      const error = urlParams.get("error");
+      const errorDescription = urlParams.get("error_description");
+
+      if (error) {
+        console.error("카카오 로그인 오류:", errorDescription || "카카오 로그인에 실패했습니다.");
+        // 에러 파라미터 제거
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      if (code) {
+        // 카카오 인증 코드가 있으면 액세스 토큰으로 교환
+        try {
+          const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
+          // redirectUri는 authorize 호출 시와 정확히 일치해야 함
+          // 쿼리스트링과 해시를 제외한 현재 URL 사용
+          const currentPath = window.location.pathname;
+          const redirectUri = window.location.origin + currentPath;
+          
+          // 카카오 토큰 발급 API 호출
+          const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+            },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              client_id: kakaoAppKey,
+              redirect_uri: redirectUri,
+              code: code,
+            }),
+          });
+
+          const tokenData = await tokenResponse.json();
+
+          if (!tokenResponse.ok) {
+            console.error("카카오 토큰 발급 실패:", tokenData);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+          }
+
+          if (tokenData.access_token) {
+            const accessToken = tokenData.access_token;
+            setKakaoAccessToken(accessToken);
+            // 코드 파라미터를 먼저 제거 (processKakaoAuth에서 navigate가 호출되기 전에)
+            window.history.replaceState({}, document.title, window.location.pathname);
+            await processKakaoAuth(accessToken);
+          } else {
+            console.error("토큰 발급 실패: access_token이 없습니다.", tokenData);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          console.error("카카오 토큰 교환 오류:", err);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    };
+
+    handleKakaoCallback();
+  }, [processKakaoAuth]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,10 +202,66 @@ const NormalLogin = () => {
     }
   };
 
-  // 카카오 버튼 클릭 시 실행
-  const handleKakaoAuth = async () => {
-    console.log("카카오 로그인 시도");
-    alert("카카오 로그인은 추후 API 연동 예정입니다.");
+  // 카카오 버튼 클릭 시 실행 (리다이렉트 방식)
+  const handleKakaoAuth = () => {
+    try {
+      if (!window.Kakao || !window.Kakao.isInitialized()) {
+        console.error("카카오 SDK가 초기화되지 않았습니다.");
+        return;
+      }
+      // 카카오 로그인 실행 (리다이렉트 방식)
+      loginWithKakao();
+      // 리다이렉트되므로 여기서는 아무것도 하지 않음
+      // 콜백은 useEffect에서 처리됨
+    } catch (error) {
+      console.error("카카오 로그인 오류:", error);
+    }
+  };
+
+  // 카카오 회원가입 처리
+  const handleKakaoSignup = async (signupFormData) => {
+    try {
+      if (!kakaoAccessToken) {
+        return;
+      }
+
+      const response = await fetch(
+        "http://localhost:3000/api/v1/auth/kakao/signup",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token: kakaoAccessToken,
+            username: signupFormData.username,
+            phone: signupFormData.phone,
+            name: signupFormData.name,
+            preferred_mode: "normal",
+          }),
+        }
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        // 백엔드 응답 구조: { success: true, data: { user: {...}, tokens: "..." } }
+        const token = data.data?.tokens || data.token;
+        if (token) {
+          localStorage.setItem("token", token);
+          login(data.data?.user || data.user, "normal");
+          setShowKakaoSignupModal(false);
+          setKakaoAccessToken(null);
+          setKakaoUserInfo(null);
+          // URL을 깔끔하게 정리하고 바로 홈으로 이동
+          window.history.replaceState({}, document.title, "/normal/home");
+          navigate("/normal/home", { replace: true });
+        } else {
+          console.error("토큰을 찾을 수 없습니다:", data);
+        }
+      } else {
+        console.error("카카오 회원가입 실패:", data.message || "알 수 없는 오류");
+      }
+    } catch (error) {
+      console.error("카카오 회원가입 오류:", error);
+    }
   };
 
   const handleChange = (e) => {
@@ -160,7 +340,7 @@ const NormalLogin = () => {
         </Divider>
 
         <SocialButton type="button" onClick={handleKakaoAuth}>
-          {isLogin ? "카카오로 로그인" : "카카오로 회원가입"}
+          카카오로 시작하기
         </SocialButton>
 
         <ForgotPassword onClick={() => navigate("/forgot-password")}>
@@ -174,6 +354,17 @@ const NormalLogin = () => {
           {isLogin ? " 가입하기" : " 로그인"}
         </SignupLink>
       </SignupBox>
+
+      <KakaoSignupModal
+        isOpen={showKakaoSignupModal}
+        onClose={() => {
+          setShowKakaoSignupModal(false);
+          setKakaoAccessToken(null);
+          setKakaoUserInfo(null);
+        }}
+        kakaoUser={kakaoUserInfo}
+        onSignup={handleKakaoSignup}
+      />
     </Container>
   );
 };
