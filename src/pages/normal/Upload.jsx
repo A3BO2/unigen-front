@@ -1,36 +1,64 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { X, Maximize2 } from 'lucide-react';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import { useApp } from '../../context/AppContext';
+import { useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { X, Maximize2 } from "lucide-react";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import { useApp } from "../../context/AppContext";
+import Cropper from "react-easy-crop";
+import { createPost } from "../../services/post";
+
+// 필터 값 정의
+const FILTER_STYLES = {
+  normal: "",
+  aden: "hue-rotate(-20deg) contrast(0.9) saturate(0.85) brightness(1.2)",
+  clarendon: "contrast(1.2) saturate(1.35)",
+  crema: "sepia(0.5) contrast(0.8)",
+  gingham: "brightness(1.05) hue-rotate(-10deg)",
+  juno: "sepia(0.35) saturate(1.6)",
+  lark: "contrast(0.9) brightness(1.2) saturate(1.1)",
+  ludwig: "sepia(0.25) contrast(0.9) saturate(1.1)",
+  moon: "grayscale(1) contrast(1.1) brightness(1.1)",
+  perpetua: "contrast(1.1) brightness(1.2) saturate(1.1)",
+  reyes: "sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)",
+  slumber: "sepia(0.35) contrast(0.9) saturate(1.2)",
+};
 
 const FILTERS = [
-  { name: '일반', value: 'normal' },
-  { name: 'Aden', value: 'aden' },
-  { name: 'Clarendon', value: 'clarendon' },
-  { name: 'Crema', value: 'crema' },
-  { name: 'Gingham', value: 'gingham' },
-  { name: 'Juno', value: 'juno' },
-  { name: 'Lark', value: 'lark' },
-  { name: 'Ludwig', value: 'ludwig' },
-  { name: 'Moon', value: 'moon' },
-  { name: 'Perpetua', value: 'perpetua' },
-  { name: 'Reyes', value: 'reyes' },
-  { name: 'Slumber', value: 'slumber' },
+  { name: "일반", value: "normal" },
+  { name: "Aden", value: "aden" },
+  { name: "Clarendon", value: "clarendon" },
+  { name: "Crema", value: "crema" },
+  { name: "Gingham", value: "gingham" },
+  { name: "Juno", value: "juno" },
+  { name: "Lark", value: "lark" },
+  { name: "Ludwig", value: "ludwig" },
+  { name: "Moon", value: "moon" },
+  { name: "Perpetua", value: "perpetua" },
+  { name: "Reyes", value: "reyes" },
+  { name: "Slumber", value: "slumber" },
 ];
 
 const Upload = () => {
   const navigate = useNavigate();
-  const { isDarkMode } = useApp();
-  const [contentType, setContentType] = useState('photo'); // 'photo', 'reels'
+  const { isDarkMode, user } = useApp();
+  const [contentType, setContentType] = useState("photo"); // 'photo', 'reels'
   const [preview, setPreview] = useState(null);
-  const [caption, setCaption] = useState('');
-  const [location, setLocation] = useState('');
-  const [step, setStep] = useState('select'); // 'select', 'crop', 'filter', 'final'
-  const [editTab, setEditTab] = useState('filter'); // 'filter', 'adjust'
-  const [selectedFilter, setSelectedFilter] = useState('normal');
+  const [caption, setCaption] = useState("");
+  const [location, setLocation] = useState("");
+  const [step, setStep] = useState("select"); // 'select', 'crop', 'filter', 'final'
+  const [editTab, setEditTab] = useState("filter"); // 'filter', 'adjust'
+  const [selectedFilter, setSelectedFilter] = useState("normal");
+
+  const [originalFile, setOriginalFile] = useState(null);
+  const [finalFile, setFinalFile] = useState(null); // 최종 필터 먹인 파일 보관용
+  const [aspectRatio, setAspectRatio] = useState(null);
+  const [originalAspect, setOriginalAspect] = useState(1);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
     contrast: 0,
@@ -44,53 +72,240 @@ const Upload = () => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setOriginalFile(file);
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreview(e.target.result);
-        setStep('crop');
+        setStep("crop");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleNext = () => {
-    if (step === 'crop') {
-      if (contentType === 'reels') {
-        setStep('final');
+  // 사용자가 드래그를 멈췄을 때 좌표를 저장하는 함수
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleNext = async () => {
+    if (step === "crop") {
+      if (contentType === "reels") {
+        setStep("final");
       } else {
-        setStep('filter');
+        // 자르기 단계 => 필터 단계로 넘어갈 때 실제로 이미지를 자름
+        try {
+          // 1. 원본 이미지 불러옴
+          const image = new Image();
+          image.src = preview; // 현재 보고 있는 원본 이미지
+
+          // 2. 이미지가 로드되면 캔버스로 자르기 수행
+          await new Promise((resolve) => {
+            image.onload = () => {
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
+
+              // 잘라낼 크기 설정
+              canvas.width = croppedAreaPixels.width;
+              canvas.height = croppedAreaPixels.height;
+
+              // 원본에서 해당 영역만큼 가져오기
+              ctx.drawImage(
+                image,
+                croppedAreaPixels.x,
+                croppedAreaPixels.y,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height,
+                0,
+                0,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height
+              );
+
+              // 3. 잘린 이미지를 Blob으로 변환하여 preview
+              canvas.toBlob((blob) => {
+                const newFile = new File([blob], "cropped.jpg", {
+                  type: "image/jpeg",
+                });
+                setOriginalFile(newFile); // 필터 단계에서 쓸 파일로 교체
+                setPreview(URL.createObjectURL(newFile)); // 미리보기 교체
+                resolve();
+              }, "image/jpeg");
+            };
+          });
+
+          setStep("filter");
+        } catch (e) {
+          console.error(e);
+          alert("이미지 자르기 실패");
+        }
       }
-    } else if (step === 'filter') {
-      setStep('final');
+    } else if (step === "filter") {
+      // 필터 적용 로직 시작
+      // 최종 단계로 넘어갈 때 이미지 굽기 수행
+      try {
+        if (!originalFile) {
+          alert("편집할 파일이 없습니다.");
+          return;
+        }
+
+        // 필터 입힌 새 파일 생성
+        const processedFile = await processImage(originalFile, selectedFilter);
+
+        setFinalFile(processedFile);
+
+        // 미리보기 URL로 변환 > preview 업데이트
+        const newPreview = URL.createObjectURL(processedFile);
+        setPreview(newPreview);
+
+        // 다음 단계 넘어가기
+        setStep("final");
+      } catch (error) {
+        console.error("이미지 처리 실패:", error);
+        alert("이미지 필터 적용 중 오류 발생");
+      }
     }
+  };
+
+  // 이미지 로드 후 원본 비율 저장
+  const onMediaLoaded = (mediaSize) => {
+    const { naturalWidth, naturalHeight } = mediaSize;
+    const ratio = naturalWidth / naturalHeight;
+    setOriginalAspect(ratio);
+
+    // 처음에 비율 설정이 안되어있다면 원본 비율로 시작
+    if (!aspectRatio) {
+      setAspectRatio(ratio);
+    }
+  };
+
+  const getAppliedFilterStyle = () => {
+    // 1. 필터 가져오기
+    const baseFilter = FILTER_STYLES[selectedFilter] || "";
+
+    // 2. 조정값 더하기(슬라이더 기본값은 0, CSS 기본값은 100% => 100을 더해줌)
+    const adjustFilter = `
+      brightness(${100 + parseInt(adjustments.brightness)}%)
+      contrast(${100 + parseInt(adjustments.contrast)}%)
+      saturate(${100 + parseInt(adjustments.saturation)}%)
+      sepia(${adjustments.temperature > 0 ? adjustments.temperature : 0}%)
+      hue-rotate(${
+        adjustments.temperature < 0 ? adjustments.temperature : 0
+      }deg)
+    `;
+
+    // 3. 두 가지를 합쳐 반환
+    return `${baseFilter} ${adjustFilter}`;
   };
 
   const handleBack = () => {
-    if (step === 'final') {
-      if (contentType === 'reels') {
-        setStep('crop');
+    if (step === "final") {
+      if (contentType === "reels") {
+        setStep("crop");
       } else {
-        setStep('filter');
+        // 필터 단계로 돌아갈 때 롤백 수행
+        setStep("filter");
+
+        // 미리보기를 다시 '자르기만 했던 원본'으로 교체
+        setPreview(URL.createObjectURL(originalFile));
+
+        setFinalFile(null);
       }
-    } else if (step === 'filter') {
-      setStep('crop');
-    } else if (step === 'crop') {
-      setStep('select');
+    } else if (step === "filter") {
+      setStep("crop");
+    } else if (step === "crop") {
+      setStep("select");
       setPreview(null);
+      setOriginalFile(null);
     }
   };
 
-  const handlePost = () => {
-    alert('게시물이 업로드되었습니다!');
-    navigate('/normal/home');
+  const handlePost = async () => {
+    // 파일 존재 유무 확인
+    if (!finalFile) {
+      alert("업로드할 이미지가 없습니다.");
+      return;
+    }
+    try {
+      // 서버로 보낼 FormData 만들기
+      const formData = new FormData();
+      formData.append("images", finalFile); // 다 적용된 최종 파일
+      formData.append("content", caption); // 글
+
+      await createPost(formData);
+
+      alert("게시물이 업로드 되었습니다!");
+      navigate("/normal/home");
+    } catch (error) {
+      console.log("업로드 에러:", error);
+    }
   };
 
   const handleClose = () => {
-    navigate('/normal/home');
+    navigate("/normal/home");
   };
 
   const handleAdjustmentChange = (key, value) => {
-    setAdjustments(prev => ({ ...prev, [key]: value }));
+    setAdjustments((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // 이미지 변환 함수
+  const processImage = (file, filterType) => {
+    return new Promise((resolve, reject) => {
+      // 1. 이미지를 로드하는 도구
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      // 2. 로드 후 작업 시작
+      img.onload = () => {
+        // 가상 캔버스 생성
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // 캔버스 크기를 이미지 크기에 맞추기
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // 필터 효과 적용
+        const filterCss = FILTER_STYLES[filterType] || "";
+
+        // 슬라이더 조정값 CSS 만들기
+        const adjustmentCss = `
+          brightness(${100 + parseInt(adjustments.brightness)}%)
+          contrast(${100 + parseInt(adjustments.contrast)}%)
+          saturate(${100 + parseInt(adjustments.saturation)}%)
+          sepia(${adjustments.temperature > 0 ? adjustments.temperature : 0}%)
+          hue-rotate(${
+            adjustments.temperature < 0 ? adjustments.temperature : 0
+          }deg)
+        `;
+
+        ctx.filter = `${filterCss} ${adjustmentCss}`.trim();
+
+        // 이미지를 캔버스에 그리기(필터 적용 지점)
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+        // 3. 캔버스 내용을 파일로 변환
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("이미지 변환 실패"));
+              return;
+            }
+
+            // 원본 파일명 유지
+            const processedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            resolve(processedFile); // 성공 후 반환
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.onerror = (err) => reject(err);
+    });
   };
 
   return (
@@ -103,49 +318,65 @@ const Upload = () => {
       </CloseButtonOuter>
 
       <Overlay onClick={handleClose}>
-        <Modal onClick={(e) => e.stopPropagation()} $step={step} $darkMode={isDarkMode}>
+        <Modal
+          onClick={(e) => e.stopPropagation()}
+          $step={step}
+          $darkMode={isDarkMode}
+        >
           <ModalHeader $darkMode={isDarkMode}>
-            {step !== 'select' && (
+            {step !== "select" && (
               <BackButton onClick={handleBack}>뒤로</BackButton>
             )}
             <ModalTitle $darkMode={isDarkMode}>
-              {step === 'select' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
-              {step === 'crop' && '자르기'}
-              {step === 'filter' && '편집'}
-              {step === 'final' && (contentType === 'reels' ? '새 릴스 만들기' : '새 게시물 만들기')}
+              {step === "select" &&
+                (contentType === "reels"
+                  ? "새 릴스 만들기"
+                  : "새 게시물 만들기")}
+              {step === "crop" && "자르기"}
+              {step === "filter" && "편집"}
+              {step === "final" &&
+                (contentType === "reels"
+                  ? "새 릴스 만들기"
+                  : "새 게시물 만들기")}
             </ModalTitle>
-            {(step === 'crop' || step === 'filter') && (
+            {(step === "crop" || step === "filter") && (
               <NextButton onClick={handleNext}>다음</NextButton>
             )}
-            {step === 'final' && (
+            {step === "final" && (
               <ShareButton onClick={handlePost}>공유하기</ShareButton>
             )}
           </ModalHeader>
 
-          {step === 'select' && (
+          {step === "select" && (
             <TabContainer>
-              <Tab $active={contentType === 'photo'} onClick={() => setContentType('photo')}>
+              <Tab
+                $active={contentType === "photo"}
+                onClick={() => setContentType("photo")}
+              >
                 사진
               </Tab>
-              <Tab $active={contentType === 'reels'} onClick={() => setContentType('reels')}>
+              <Tab
+                $active={contentType === "reels"}
+                onClick={() => setContentType("reels")}
+              >
                 릴스
               </Tab>
             </TabContainer>
           )}
 
-          {step === 'select' && (
+          {step === "select" && (
             <UploadSection>
               <IconContainer>
-                {contentType === 'photo' ? (
-                  <span style={{ fontSize: '60px' }}>📷</span>
+                {contentType === "photo" ? (
+                  <span style={{ fontSize: "60px" }}>📷</span>
                 ) : (
-                  <span style={{ fontSize: '60px' }}>🎬</span>
+                  <span style={{ fontSize: "60px" }}>🎬</span>
                 )}
               </IconContainer>
               <UploadText>
-                {contentType === 'photo'
-                  ? '사진을 여기에 끌어다 놓으세요'
-                  : '동영상을 여기에 끌어다 놓으세요'}
+                {contentType === "photo"
+                  ? "사진을 여기에 끌어다 놓으세요"
+                  : "동영상을 여기에 끌어다 놓으세요"}
               </UploadText>
               <SelectButton onClick={() => fileInputRef.current?.click()}>
                 컴퓨터에서 선택
@@ -153,59 +384,127 @@ const Upload = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={contentType === 'photo' ? 'image/*' : 'video/*'}
+                accept={contentType === "photo" ? "image/*" : "video/*"}
                 onChange={handleFileSelect}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
             </UploadSection>
           )}
 
-          {step === 'crop' && preview && (
+          {step === "crop" && preview && (
             <>
-              <PreviewSection>
-                {contentType === 'reels' ? (
+              <PreviewSection
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  backgroundColor: "#000",
+                }}
+              >
+                {contentType === "reels" ? (
                   <ReelsFrame>
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
                 ) : (
-                  <PreviewImage src={preview} alt="Preview" />
+                  // 라이브러리 사용
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      height: "500px",
+                      backgroundColor: "#333",
+                    }}
+                  >
+                    <Cropper
+                      image={preview}
+                      crop={crop}
+                      zoom={zoom}
+                      aspect={aspectRatio || originalAspect}
+                      onCropChange={setCrop}
+                      onCropComplete={onCropComplete}
+                      onZoomChange={setZoom}
+                      onMediaLoaded={onMediaLoaded}
+                      objectFit="contain"
+                    />
+                  </div>
                 )}
               </PreviewSection>
-              {contentType === 'photo' && (
+              {contentType === "photo" && (
                 <CropToolbar>
-                  <CropButton>
+                  {/* 원본 비율로 되돌리기 */}
+                  <CropButton onClick={() => setAspectRatio(null)}>
                     <Maximize2 size={20} />
                   </CropButton>
-                  <CropButton>1:1</CropButton>
-                  <CropButton>4:5</CropButton>
-                  <CropButton>16:9</CropButton>
+
+                  {/* 1:1 */}
+                  <CropButton onClick={() => setAspectRatio(1)}>1:1</CropButton>
+                  {/* 4:5 */}
+                  <CropButton onClick={() => setAspectRatio(4 / 5)}>
+                    4:5
+                  </CropButton>
+                  {/* 16:9 */}
+                  <CropButton onClick={() => setAspectRatio(16 / 9)}>
+                    16:9
+                  </CropButton>
+
+                  {/* 줌 슬라이더 */}
+                  <div
+                    style={{
+                      marginLeft: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px" }}>🔍</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      value={zoom}
+                      onChange={(e) => setZoom(e.target.value)}
+                      style={{ width: "80px" }}
+                    />
+                  </div>
                 </CropToolbar>
               )}
             </>
           )}
 
-          {step === 'filter' && preview && contentType === 'photo' && (
+          {step === "filter" && preview && contentType === "photo" && (
             <FilterContainer>
               <FilterLeft>
-                <PreviewImageLarge src={preview} alt="Preview" />
+                <PreviewImageLarge
+                  src={preview}
+                  alt="Preview"
+                  style={{
+                    // 필터 + 조정값 모두 적용
+                    filter: getAppliedFilterStyle(),
+
+                    // 아까 만든 자르기 비율도 유지
+                    aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
+                    objectFit: aspectRatio ? "cover" : "contain",
+                    width: aspectRatio ? "100%" : "auto",
+                  }}
+                />
               </FilterLeft>
               <FilterRight>
                 <FilterTabs>
                   <FilterTab
-                    $active={editTab === 'filter'}
-                    onClick={() => setEditTab('filter')}
+                    $active={editTab === "filter"}
+                    onClick={() => setEditTab("filter")}
                   >
                     필터
                   </FilterTab>
                   <FilterTab
-                    $active={editTab === 'adjust'}
-                    onClick={() => setEditTab('adjust')}
+                    $active={editTab === "adjust"}
+                    onClick={() => setEditTab("adjust")}
                   >
                     조정
                   </FilterTab>
                 </FilterTabs>
 
-                {editTab === 'filter' && (
+                {editTab === "filter" && (
                   <FilterGrid>
                     {FILTERS.map((filter) => (
                       <FilterOption
@@ -213,14 +512,28 @@ const Upload = () => {
                         onClick={() => setSelectedFilter(filter.value)}
                         $active={selectedFilter === filter.value}
                       >
-                        <FilterPreview src={preview} alt={filter.name} />
+                        <FilterPreview
+                          src={preview}
+                          alt={filter.name}
+                          style={{
+                            // 필터값과 조정값을 합쳐서 보여줌
+                            filter: `${FILTER_STYLES[filter.value]}
+                            brightness(${
+                              100 + parseInt(adjustments.brightness)
+                            }%)
+                            contrast(${100 + parseInt(adjustments.contrast)}%)
+                            saturate(${
+                              100 + parseInt(adjustments.saturation)
+                            }%)`,
+                          }}
+                        />
                         <FilterName>{filter.name}</FilterName>
                       </FilterOption>
                     ))}
                   </FilterGrid>
                 )}
 
-                {editTab === 'adjust' && (
+                {editTab === "adjust" && (
                   <AdjustmentPanel>
                     <AdjustmentItem>
                       <AdjustmentLabel>밝기</AdjustmentLabel>
@@ -229,9 +542,13 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.brightness}
-                        onChange={(e) => handleAdjustmentChange('brightness', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("brightness", e.target.value)
+                        }
                       />
-                      <AdjustmentValue>{adjustments.brightness}</AdjustmentValue>
+                      <AdjustmentValue>
+                        {adjustments.brightness}
+                      </AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -241,21 +558,11 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.contrast}
-                        onChange={(e) => handleAdjustmentChange('contrast', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("contrast", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.contrast}</AdjustmentValue>
-                    </AdjustmentItem>
-
-                    <AdjustmentItem>
-                      <AdjustmentLabel>포화도</AdjustmentLabel>
-                      <AdjustmentSlider
-                        type="range"
-                        min="-100"
-                        max="100"
-                        value={adjustments.saturation}
-                        onChange={(e) => handleAdjustmentChange('saturation', e.target.value)}
-                      />
-                      <AdjustmentValue>{adjustments.saturation}</AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -264,10 +571,14 @@ const Upload = () => {
                         type="range"
                         min="-100"
                         max="100"
-                        value={adjustments.temperature}
-                        onChange={(e) => handleAdjustmentChange('temperature', e.target.value)}
+                        value={adjustments.saturation}
+                        onChange={(e) =>
+                          handleAdjustmentChange("saturation", e.target.value)
+                        }
                       />
-                      <AdjustmentValue>{adjustments.temperature}</AdjustmentValue>
+                      <AdjustmentValue>
+                        {adjustments.saturation}
+                      </AdjustmentValue>
                     </AdjustmentItem>
 
                     <AdjustmentItem>
@@ -276,8 +587,26 @@ const Upload = () => {
                         type="range"
                         min="-100"
                         max="100"
+                        value={adjustments.temperature}
+                        onChange={(e) =>
+                          handleAdjustmentChange("temperature", e.target.value)
+                        }
+                      />
+                      <AdjustmentValue>
+                        {adjustments.temperature}
+                      </AdjustmentValue>
+                    </AdjustmentItem>
+
+                    <AdjustmentItem>
+                      <AdjustmentLabel>포화도</AdjustmentLabel>
+                      <AdjustmentSlider
+                        type="range"
+                        min="-100"
+                        max="100"
                         value={adjustments.fade}
-                        onChange={(e) => handleAdjustmentChange('fade', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("fade", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.fade}</AdjustmentValue>
                     </AdjustmentItem>
@@ -289,7 +618,9 @@ const Upload = () => {
                         min="-100"
                         max="100"
                         value={adjustments.vignette}
-                        onChange={(e) => handleAdjustmentChange('vignette', e.target.value)}
+                        onChange={(e) =>
+                          handleAdjustmentChange("vignette", e.target.value)
+                        }
                       />
                       <AdjustmentValue>{adjustments.vignette}</AdjustmentValue>
                     </AdjustmentItem>
@@ -299,21 +630,39 @@ const Upload = () => {
             </FilterContainer>
           )}
 
-          {step === 'final' && preview && (
+          {step === "final" && preview && (
             <FinalContainer>
               <FinalLeft>
-                {contentType === 'reels' ? (
+                {contentType === "reels" ? (
                   <ReelsFrame>
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
                 ) : (
-                  <PreviewImageFinal src={preview} alt="Preview" />
+                  <PreviewImageFinal
+                    src={preview}
+                    alt="Preview"
+                    style={{ objectFit: "contain" }}
+                  />
                 )}
               </FinalLeft>
               <FinalRight>
                 <UserInfo>
-                  <Avatar>👤</Avatar>
-                  <Username>사용자명</Username>
+                  <Avatar>
+                    {user?.profileImageUrl ? (
+                      <img
+                        src={user.profileImageUrl}
+                        alt="프로필"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      "👤"
+                    )}
+                  </Avatar>
+                  <Username>{user?.name || "사용자"}</Username>
                 </UserInfo>
 
                 <CaptionTextarea
@@ -347,10 +696,12 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
   border-radius: 12px;
-  width: ${props => props.$step === 'filter' || props.$step === 'final' ? '90%' : '540px'};
-  max-width: ${props => props.$step === 'filter' || props.$step === 'final' ? '960px' : '540px'};
+  width: ${(props) =>
+    props.$step === "filter" || props.$step === "final" ? "90%" : "540px"};
+  max-width: ${(props) =>
+    props.$step === "filter" || props.$step === "final" ? "960px" : "540px"};
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -362,7 +713,7 @@ const ModalHeader = styled.div`
   align-items: center;
   justify-content: center;
   padding: 12px 16px;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#000' : '#dbdbdb'};
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#000" : "#dbdbdb")};
   position: relative;
   min-height: 43px;
 `;
@@ -386,7 +737,7 @@ const BackButton = styled.button`
 const ModalTitle = styled.h2`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   flex: 1;
   text-align: center;
 `;
@@ -461,18 +812,20 @@ const Tab = styled.button`
   flex: 1;
   padding: 14px;
   font-size: 15px;
-  font-weight: ${props => props.$active ? '700' : '500'};
-  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
-  background: ${props => props.$active ? '#fff' : 'transparent'};
+  font-weight: ${(props) => (props.$active ? "700" : "500")};
+  color: ${(props) => (props.$active ? "#262626" : "#8e8e8e")};
+  background: ${(props) => (props.$active ? "#fff" : "transparent")};
   border: none;
-  border-bottom: ${props => props.$active ? '2px solid #262626' : '2px solid transparent'};
+  border-bottom: ${(props) =>
+    props.$active ? "2px solid #262626" : "2px solid transparent"};
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
 
   &:hover {
     color: #262626;
-    background: ${props => props.$active ? '#fff' : 'rgba(255, 255, 255, 0.5)'};
+    background: ${(props) =>
+      props.$active ? "#fff" : "rgba(255, 255, 255, 0.5)"};
   }
 `;
 
@@ -556,7 +909,8 @@ const ReelsFrame = styled.div`
   border-radius: 8px;
   max-height: 80vh;
 
-  img, video {
+  img,
+  video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -642,9 +996,9 @@ const FilterTab = styled.button`
   padding: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$active ? '#262626' : '#8e8e8e'};
+  color: ${(props) => (props.$active ? "#262626" : "#8e8e8e")};
   border: none;
-  border-bottom: ${props => props.$active ? '1px solid #262626' : 'none'};
+  border-bottom: ${(props) => (props.$active ? "1px solid #262626" : "none")};
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
@@ -670,7 +1024,7 @@ const FilterOption = styled.div`
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
-  border: ${props => props.$active ? '2px solid #0095f6' : 'none'};
+  border: ${(props) => (props.$active ? "2px solid #0095f6" : "none")};
 
   &:hover {
     opacity: 0.8;
