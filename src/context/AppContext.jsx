@@ -68,6 +68,47 @@ export const AppProvider = ({ children }) => {
     safeLocalStorage.setItem('isDarkMode', isDarkMode.toString());
   }, [isDarkMode]);
 
+  // 토큰 기반 자동 로그인 (앱 시작 시)
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = safeLocalStorage.getItem('token');
+      if (token && !user) {
+        // 토큰이 있고 사용자 정보가 없으면 서버에서 사용자 정보 가져오기
+        try {
+          const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+          const response = await fetch(`${baseURL}/auth/me`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.user) {
+              const userData = data.data.user;
+              const userMode = userData.preferred_mode || 'normal';
+              setUser(userData);
+              setMode(userMode);
+            } else {
+              // 토큰이 유효하지 않으면 토큰 제거
+              safeLocalStorage.removeItem('token');
+            }
+          } else {
+            // 토큰이 유효하지 않으면 토큰 제거
+            safeLocalStorage.removeItem('token');
+          }
+        } catch (error) {
+          console.error('자동 로그인 실패:', error);
+          safeLocalStorage.removeItem('token');
+        }
+      }
+    };
+
+    checkAuth();
+  }, []); // 초기 마운트 시 한 번만 실행
+
   const login = (userData, selectedMode) => {
     setUser(userData);
     setMode(selectedMode);
@@ -78,6 +119,7 @@ export const AppProvider = ({ children }) => {
     setMode(null);
     safeLocalStorage.removeItem('user');
     safeLocalStorage.removeItem('appMode');
+    safeLocalStorage.removeItem('token');
   };
 
   const switchMode = (newMode) => {

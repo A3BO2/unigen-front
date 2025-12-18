@@ -5,14 +5,26 @@ import LeftSidebar from '../../components/normal/LeftSidebar';
 import RightSidebar from '../../components/normal/RightSidebar';
 import BottomNav from '../../components/normal/BottomNav';
 import { useApp } from '../../context/AppContext';
+import { logoutWithKakao } from '../../utils/kakaoAuth';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { isDarkMode, toggleDarkMode, switchMode } = useApp();
+  const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
 
   const handleModeSwitch = () => {
     switchMode('senior');
     navigate('/senior/home');
+  };
+
+  const handleLogout = () => {
+    if (confirm('로그아웃 하시겠습니까?')) {
+      // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
+      if (user?.signup_mode === 'kakao') {
+        logoutWithKakao();
+      }
+      logout();
+      navigate('/');
+    }
   };
 
   return (
@@ -97,7 +109,7 @@ const Settings = () => {
           </Section>
 
           <Section>
-            <LogoutButton onClick={() => navigate('/')}>
+            <LogoutButton onClick={handleLogout}>
               로그아웃
             </LogoutButton>
           </Section>
