@@ -3,11 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { Home, Search, Compass, Film, PlusSquare, User, Menu, X, Settings, Moon, Sun } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { logoutWithKakao } from '../../utils/kakaoAuth';
 
 const LeftSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isDarkMode, toggleDarkMode } = useApp();
+  const { isDarkMode, toggleDarkMode, logout, user } = useApp();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
@@ -105,7 +106,19 @@ const LeftSidebar = () => {
               <MoreMenuLabel $darkMode={isDarkMode}>모드 전환</MoreMenuLabel>
             </MoreMenuItem>
 
-            <MoreMenuItem onClick={() => navigate('/')} $darkMode={isDarkMode}>
+            <MoreMenuItem 
+              onClick={() => {
+                if (confirm('로그아웃 하시겠습니까?')) {
+                  // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
+                  if (user?.signup_mode === 'kakao') {
+                    logoutWithKakao();
+                  }
+                  logout();
+                  navigate('/');
+                }
+              }} 
+              $darkMode={isDarkMode}
+            >
               <MoreMenuLabel $darkMode={isDarkMode}>로그아웃</MoreMenuLabel>
             </MoreMenuItem>
           </MoreContent>

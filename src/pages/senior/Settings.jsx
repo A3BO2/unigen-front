@@ -4,6 +4,7 @@ import styled, { ThemeProvider } from 'styled-components';
 import { ChevronLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import SeniorBottomNav from '../../components/senior/BottomNav';
+import { logoutWithKakao } from '../../utils/kakaoAuth';
 
 const fontOptions = [
   { value: 'small', label: '작게', description: '많은 내용을 한 화면에서 보고 싶을 때' },
@@ -13,12 +14,16 @@ const fontOptions = [
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { logout, isDarkMode, toggleDarkMode } = useApp();
+  const { logout, isDarkMode, toggleDarkMode, user } = useApp();
   const [fontSize, setFontSize] = useState('medium');
   const [notificationsOn, setNotificationsOn] = useState(true);
 
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
+      // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
+      if (user?.signup_mode === 'kakao') {
+        logoutWithKakao();
+      }
       logout();
       navigate('/');
     }
