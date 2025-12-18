@@ -47,7 +47,10 @@ const Upload = () => {
   const [step, setStep] = useState("select"); // 'select', 'crop', 'filter', 'final'
   const [editTab, setEditTab] = useState("filter"); // 'filter', 'adjust'
   const [selectedFilter, setSelectedFilter] = useState("normal");
+
   const [originalFile, setOriginalFile] = useState(null);
+  const [aspectRatio, setAspectRatio] = useState(null);
+
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
     contrast: 0,
@@ -270,17 +273,37 @@ const Upload = () => {
                     <PreviewVideo src={preview} controls autoPlay loop />
                   </ReelsFrame>
                 ) : (
-                  <PreviewImage src={preview} alt="Preview" />
+                  <PreviewImage
+                    src={preview}
+                    alt="Preview"
+                    style={{
+                      // 비율값이 있으면 해당 비율로, 없으면 원본 비율
+                      aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
+                      // 비율이 설정되었을 때만 꽉 채우기(cover)로 자른 효과
+                      objectFit: aspectRatio ? "cover" : "contain",
+                      // 16:9 처럼 가로가 긴 경우 너비가 너무 좁아지지 않게 조정
+                      width: aspectRatio ? "100%" : "auto",
+                    }}
+                  />
                 )}
               </PreviewSection>
               {contentType === "photo" && (
                 <CropToolbar>
-                  <CropButton>
+                  {/* 원본 비율로 되돌리기 */}
+                  <CropButton onClick={() => setAspectRatio(null)}>
                     <Maximize2 size={20} />
                   </CropButton>
-                  <CropButton>1:1</CropButton>
-                  <CropButton>4:5</CropButton>
-                  <CropButton>16:9</CropButton>
+
+                  {/* 1:1 */}
+                  <CropButton onClick={() => setAspectRatio(1)}>1:1</CropButton>
+                  {/* 4:5 */}
+                  <CropButton onClick={() => setAspectRatio(4 / 5)}>
+                    4:5
+                  </CropButton>
+                  {/* 16:9 */}
+                  <CropButton onClick={() => setAspectRatio(16 / 9)}>
+                    16:9
+                  </CropButton>
                 </CropToolbar>
               )}
             </>
