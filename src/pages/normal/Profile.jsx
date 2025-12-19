@@ -9,6 +9,19 @@ import BottomNav from "../../components/normal/BottomNav";
 import { getCurrentUser } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
 
+const baseURL = import.meta.env.VITE_BASE_URL;
+
+// 이미지 URL을 절대 경로로 변환하는 함수
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // 이미 http:// 또는 https://로 시작하면 그대로 반환
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // 상대 경로면 baseURL 붙이기
+  return `${baseURL}${url}`;
+};
+
 const Profile = () => {
   const { user, logout, isDarkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
@@ -143,7 +156,9 @@ const Profile = () => {
               {profileData?.profile_image ? (
                 <Avatar
                   style={{
-                    backgroundImage: `url(${profileData.profile_image})`,
+                    backgroundImage: `url(${getImageUrl(
+                      profileData.profile_image
+                    )})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
@@ -265,7 +280,7 @@ const Profile = () => {
                 <PostImage
                   style={{
                     backgroundImage: post.image_url
-                      ? `url(${post.image_url})`
+                      ? `url(${getImageUrl(post.image_url)})`
                       : "none",
                     backgroundColor: !post.image_url
                       ? `hsl(${index * 40}, 70%, 80%)`
