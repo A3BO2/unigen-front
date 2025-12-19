@@ -1,34 +1,126 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { X, Type, Crop, ChevronDown } from 'lucide-react';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import { useApp } from '../../context/AppContext';
+import { useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { X, Type, Crop, ChevronDown, Check, Palette } from "lucide-react";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import { useApp } from "../../context/AppContext";
+import { createStory } from "../../services/story";
+import Cropper from "react-easy-crop";
+import Draggable from "react-draggable";
 
 const StoryCreate = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useApp();
-  const [step, setStep] = useState('select'); // select, edit
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [text, setText] = useState('');
+  const [step, setStep] = useState("select"); // select, edit
+  const [preview, setPreview] = useState(null);
+  const [originalfile, setOriginalFile] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isCropping, setIsCropping] = useState(false); // 자르기 모드인지 확인
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [prevCrop, setPrevCrop] = useState({ x: 0, y: 0 });
+  const [prevZoom, setPrevZoom] = useState(1);
+
+  const [textPos, setTextPos] = useState({ x: 0, y: 0 }); // 텍스트 위치
+  const [fontSize, setFontSize] = useState(20); // 폰트 크기
+  const [fontColor, setFontColor] = useState("#ffffff"); // 폰트 색상
+  const [showStyleControls, setShowStyleControls] = useState(false);
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
   const fileInputRef = useRef(null);
+  const previewAreaRef = useRef(null);
+  const nodeRef = useRef(null);
 
   const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setOriginalFile(selectedFile); // 원본 파일 저장
+
       const reader = new FileReader();
       reader.onload = (e) => {
-        setSelectedImage(e.target.result);
-        setStep('edit');
+        setPreview(e.target.result);
+        setStep("edit");
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(selectedFile);
     }
   };
 
-  const handlePost = () => {
-    alert('스토리가 업로드되었습니다!');
-    navigate('/normal/home');
+  const handleTextClick = () => {
+    const userInput = window.prompt("텍스트 입력", caption);
+    if (userInput !== null) {
+      setCaption(userInput);
+    }
+  };
+
+  // 자르기 시작
+  const startCropping = () => {
+    setPrevCrop(crop);
+    setPrevZoom(zoom);
+    setIsCropping(true);
+    setShowStyleControls(false);
+  };
+
+  const cancelCropping = () => {
+    setCrop(prevCrop);
+    setZoom(prevZoom);
+    setIsCropping(false);
+  };
+
+  const completeCropping = () => {
+    setIsCropping(false);
+  };
+
+  const handlePost = async () => {
+    // 파일 존재 유무 확인
+    if (!preview) {
+      alert("업로드할 사진이 없습니다.");
+      return;
+    }
+    try {
+      // 좌표 보정 로직
+      let finalTextData = null;
+
+      if (caption && previewAreaRef.current) {
+        // 현재 눈에 보이는 이미지 영역
+        const displayedWidth = previewAreaRef.current.clientWidth;
+        const displayedHeight = previewAreaRef.current.clientHeight;
+
+        // 텍스트 정보 묶기 (비율로 저장하거나 픽셀값 그대로 전달해서 내부에서 계산)
+        finalTextData = {
+          text: caption,
+          x: textPos.x, // 드래그된 x좌표
+          y: textPos.y, // 드래그된 y좌표
+          fontSize: fontSize,
+          color: fontColor,
+          displayedWidth, // 화면에 보였던 너비
+          displayedHeight, // 화면에 보였던 높이
+        };
+      }
+
+      const finalImageBlob = await getFinalImage(
+        preview,
+        croppedAreaPixels,
+        finalTextData
+      );
+
+      // formData 생성
+      const formData = new FormData();
+
+      // 백엔드가 media라는 이름을 기다림
+      formData.append("media", finalImageBlob, "story_edited.jpg");
+
+      // API 호출
+      await createStory(formData);
+
+      alert("스토리가 업로드되었습니다!");
+      navigate("/normal/home");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "업로드 중 에러 발생.");
+    }
   };
 
   return (
@@ -36,86 +128,258 @@ const StoryCreate = () => {
       <LeftSidebar />
       <RightSidebar />
 
-      <Overlay onClick={() => navigate('/normal/home')}>
+      <Overlay onClick={() => navigate("/normal/home")}>
         <Modal onClick={(e) => e.stopPropagation()} $darkMode={isDarkMode}>
           <Header $darkMode={isDarkMode}>
-            <CloseButton onClick={() => navigate('/normal/home')}>
-              <X size={24} color={isDarkMode ? '#fff' : '#262626'} />
+            <CloseButton onClick={() => navigate("/normal/home")}>
+              <X size={24} color={isDarkMode ? "#fff" : "#262626"} />
             </CloseButton>
             <Title $darkMode={isDarkMode}>스토리에 추가</Title>
           </Header>
 
-      {step === 'select' && (
-        <SelectSection>
-          <OptionCards>
-            <OptionCard onClick={() => fileInputRef.current?.click()}>
-              <OptionIcon>📸</OptionIcon>
-              <OptionLabel>직접 추가</OptionLabel>
-            </OptionCard>
-          </OptionCards>
+          {step === "select" && (
+            <SelectSection>
+              <OptionCards>
+                <OptionCard onClick={() => fileInputRef.current?.click()}>
+                  <OptionIcon>📸</OptionIcon>
+                  <OptionLabel>직접 추가</OptionLabel>
+                </OptionCard>
+              </OptionCards>
 
-          <RecentSection>
-            <RecentHeader>
-              <RecentTitle>최근 항목</RecentTitle>
-              <ChevronDown size={20} />
-            </RecentHeader>
-            <RecentGrid>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <RecentImage
-                  key={i}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <img
-                    src={`https://images.unsplash.com/photo-${1500000000000 + i * 10000000}?w=400&h=400&fit=crop`}
-                    alt=""
-                  />
-                </RecentImage>
-              ))}
-            </RecentGrid>
-          </RecentSection>
+              <RecentSection>
+                <RecentHeader>
+                  <RecentTitle>최근 항목</RecentTitle>
+                  <ChevronDown size={20} />
+                </RecentHeader>
+                <RecentGrid>
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <RecentImage
+                      key={i}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <img
+                        src={`https://images.unsplash.com/photo-${
+                          1500000000000 + i * 10000000
+                        }?w=400&h=400&fit=crop`}
+                        alt=""
+                      />
+                    </RecentImage>
+                  ))}
+                </RecentGrid>
+              </RecentSection>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageSelect}
-            style={{ display: 'none' }}
-          />
-        </SelectSection>
-      )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/* video/*"
+                onChange={handleImageSelect}
+                style={{ display: "none" }}
+              />
+            </SelectSection>
+          )}
 
-      {step === 'edit' && selectedImage && (
-        <EditSection>
-          <PreviewArea>
-            <StoryFrame>
-              <PreviewImage src={selectedImage} alt="Preview" />
-              {text && <TextOverlay>{text}</TextOverlay>}
-            </StoryFrame>
-          </PreviewArea>
+          {step === "edit" && preview && (
+            <EditSection>
+              <PreviewArea>
+                <StoryFrame ref={previewAreaRef}>
+                  {isCropping ? (
+                    <Cropper
+                      image={preview} // selectedImage -> preview
+                      crop={crop}
+                      zoom={zoom}
+                      aspect={9 / 16}
+                      onCropChange={setCrop}
+                      onZoomChange={setZoom}
+                      onCropComplete={onCropComplete}
+                    />
+                  ) : (
+                    <>
+                      {/* selectedImage -> preview */}
+                      <PreviewImage src={preview} alt="Preview" />
+                      {/* text -> caption */}
+                      {caption && (
+                        <Draggable
+                          position={textPos}
+                          onStop={(e, data) =>
+                            setTextPos({ x: data.x, y: data.y })
+                          }
+                          nodeRef={nodeRef}
+                          bounds="parent"
+                        >
+                          <DraggableText
+                            ref={nodeRef}
+                            style={{
+                              fontSize: `${fontSize}px`,
+                              color: fontColor,
+                            }}
+                          >
+                            {caption}
+                          </DraggableText>
+                        </Draggable>
+                      )}
+                    </>
+                  )}
+                </StoryFrame>
+              </PreviewArea>
 
-          <EditTools>
-            <ToolButton>
-              <Type size={24} />
-              <ToolLabel>텍스트</ToolLabel>
-            </ToolButton>
-            <ToolButton>
-              <Crop size={24} />
-              <ToolLabel>사진 자르기</ToolLabel>
-            </ToolButton>
-          </EditTools>
+              {/* 텍스트 스타일 조절 패널 */}
+              {showStyleControls && !isCropping && (
+                <StyleControlPanel>
+                  <ControlRow>
+                    <span>크기</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max0="60"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(Number(e.target.value))}
+                    />
+                  </ControlRow>
+                  <ControlRow>
+                    <span>색상</span>
+                    <ColorPicker>
+                      {[
+                        "#ffffff",
+                        "#000000",
+                        "#ff0000",
+                        "#ffff00",
+                        "#00ff00",
+                        "#0000ff",
+                      ].map((color) => (
+                        <ColorCircle
+                          key={color}
+                          color={color}
+                          onClick={() => setFontColor(color)}
+                          $selected={fontColor === color}
+                        />
+                      ))}
+                    </ColorPicker>
+                  </ControlRow>
+                </StyleControlPanel>
+              )}
 
-          <BottomActions>
-            <ActionButton onClick={handlePost}>
-              <ActionLabel>내 스토리</ActionLabel>
-            </ActionButton>
-          </BottomActions>
-        </EditSection>
-      )}
+              <EditTools>
+                {!isCropping ? (
+                  // [평소] 텍스트 입력 & 자르기 시작 버튼
+                  <>
+                    <ToolButton onClick={handleTextClick}>
+                      <Type size={24} />
+                      <ToolLabel>텍스트</ToolLabel>
+                    </ToolButton>
+
+                    {/* 👇 스타일 조절 버튼 추가 */}
+                    <ToolButton
+                      onClick={() => setShowStyleControls(!showStyleControls)}
+                      $active={showStyleControls}
+                    >
+                      <Palette size={24} />
+                      <ToolLabel>글자 꾸미기</ToolLabel>
+                    </ToolButton>
+
+                    <ToolButton onClick={startCropping}>
+                      <Crop size={24} />
+                      <ToolLabel>사진 자르기</ToolLabel>
+                    </ToolButton>
+                  </>
+                ) : (
+                  // [자르기 중] 취소(X) & 완료(Check) 버튼
+                  <>
+                    <ToolButton onClick={cancelCropping}>
+                      <X size={24} color="#ff3b30" />
+                      <ToolLabel style={{ color: "#ff3b30" }}>취소</ToolLabel>
+                    </ToolButton>
+
+                    <ToolButton onClick={completeCropping}>
+                      <Check size={24} color="#0095f6" />
+                      <ToolLabel style={{ color: "#0095f6" }}>완료</ToolLabel>
+                    </ToolButton>
+                  </>
+                )}
+              </EditTools>
+
+              <BottomActions>
+                <ActionButton onClick={handlePost}>
+                  <ActionLabel>스토리 만들기</ActionLabel>
+                </ActionButton>
+              </BottomActions>
+            </EditSection>
+          )}
         </Modal>
       </Overlay>
     </>
   );
 };
+
+// 이미지 처리 로직
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.setAttribute("crossOrigin", "anonymous");
+    image.src = url;
+  });
+
+async function getFinalImage(imageSrc, pixelCrop, textData) {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const width = pixelCrop ? pixelCrop.width : image.width;
+  const height = pixelCrop ? pixelCrop.height : image.height;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  if (pixelCrop) {
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      width,
+      height
+    );
+  } else {
+    ctx.drawImage(image, 0, 0);
+  }
+
+  // 텍스트 그리기
+  if (textData && textData.text) {
+    const { text, x, y, fontSize, color, displayedWidth, displayedHeight } =
+      textData;
+    const scaleX = width / displayedWidth;
+    const scaleY = height / displayedHeight;
+    const scaleFont = width / displayedWidth;
+    const finalX = x * scaleX;
+    const finalY = y * scaleY;
+    const finalFontSize = fontSize * scaleFont;
+
+    ctx.font = `700 ${finalFontSize}px sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textBaseline = "top"; // 좌표를 글자의 좌측 상단 기준으로 잡음 (Draggable과 일치시키기 위해)
+
+    // 그림자
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 4 * scaleFont;
+    ctx.shadowOffsetX = 2 * scaleFont;
+    ctx.shadowOffsetY = 2 * scaleFont;
+
+    ctx.fillText(text, finalX, finalY);
+  }
+
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        resolve(blob);
+      },
+      "image/jpeg",
+      0.95
+    );
+  });
+}
 
 const Overlay = styled.div`
   position: fixed;
@@ -131,7 +395,7 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
   border-radius: 12px;
   width: 90%;
   max-width: 540px;
@@ -147,8 +411,8 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
-  border-bottom: 1px solid ${props => props.$darkMode ? '#000' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#000" : "#dbdbdb")};
 `;
 
 const CloseButton = styled.button`
@@ -164,7 +428,7 @@ const CloseButton = styled.button`
 const Title = styled.h1`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   flex: 1;
   text-align: center;
   margin-right: 28px;
@@ -386,6 +650,65 @@ const ActionButton = styled.button`
 const ActionLabel = styled.span`
   font-size: 14px;
   font-weight: 600;
+`;
+
+// 👇 [추가] 드래그 가능한 텍스트 스타일
+const DraggableText = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  padding: 8px;
+  /* 드래그할 때 테두리 보여주기 (선택사항) */
+  &:active {
+    border: 1px dashed white;
+    cursor: grabbing;
+  }
+`;
+
+// 👇 [추가] 스타일 조절 패널
+const StyleControlPanel = styled.div`
+  background: #f0f0f0;
+  padding: 12px 20px;
+  border-top: 1px solid #dbdbdb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ControlRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    width: 30px;
+  }
+  input[type="range"] {
+    flex: 1;
+    cursor: pointer;
+  }
+`;
+
+const ColorPicker = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ColorCircle = styled.button`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: ${(props) => props.color};
+  border: ${(props) =>
+    props.$selected ? "2px solid #0095f6" : "1px solid #ddd"};
+  cursor: pointer;
+  transform: ${(props) => (props.$selected ? "scale(1.1)" : "scale(1)")};
 `;
 
 export default StoryCreate;
