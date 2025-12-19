@@ -1,26 +1,128 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import { Settings, Moon, Sun } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useNavigate } from 'react-router-dom';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { logoutWithKakao } from '../../utils/kakaoAuth';
+import { useState, useEffect, useRef, useCallback } from "react";
+import styled from "styled-components";
+import { Settings, Moon, Sun } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import { useNavigate } from "react-router-dom";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import { getCurrentUser } from "../../services/user";
+import { logoutWithKakao } from "../../utils/kakaoAuth";
 
 const Profile = () => {
   const { user, logout, isDarkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const observerRef = useRef();
+  const lastPostRef = useRef();
+  const isLoadingRef = useRef(false);
+  const pageRef = useRef(1);
+
+  // 프로필 데이터 로드
+  const loadProfileData = useCallback(async (pageNum) => {
+    if (isLoadingRef.current) {
+      return;
+    }
+
+    isLoadingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 페이지 2부터만 1초 딜레이 추가 (첫 페이지는 즉시 로드)
+      if (pageNum > 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      const data = await getCurrentUser(pageNum, 9);
+
+      // 백엔드 응답 형식: { profile, posts, pagination }
+      if (data?.profile) {
+        setProfileData(data.profile);
+      }
+
+      if (data?.posts) {
+        if (pageNum === 1) {
+          setPosts(data.posts);
+        } else {
+          setPosts((prev) => [...prev, ...data.posts]);
+        }
+
+        // pagination 정보로 hasMore 결정
+        if (data.pagination) {
+          setHasMore(data.pagination.has_next);
+        } else {
+          // pagination 정보가 없으면 posts 길이로 판단
+          setHasMore(data.posts.length >= 9);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error("프로필 로드 실패:", err);
+      setError(err.message || "프로필을 불러오는데 실패했습니다.");
+      setHasMore(false);
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadProfileData(1);
+  }, [loadProfileData]);
+
+  // 무한 스크롤 Intersection Observer 설정
+  useEffect(() => {
+    if (isLoading || !hasMore) {
+      return;
+    }
+
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (entry.isIntersecting && hasMore && !isLoadingRef.current) {
+          pageRef.current = pageRef.current + 1;
+          loadProfileData(pageRef.current);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px", // 바닥에서 100px 위에서 미리 로드
+        threshold: 0.1, // 10% 보이면 트리거
+      }
+    );
+
+    if (lastPostRef.current) {
+      observerRef.current.observe(lastPostRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, hasMore, loadProfileData]);
 
   const handleLogout = () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
+    if (confirm("로그아웃 하시겠습니까?")) {
       // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
-      if (user?.signup_mode === 'kakao') {
+      if (user?.signup_mode === "kakao") {
         logoutWithKakao();
       }
       logout();
-      navigate('/');
+      navigate("/");
     }
   };
 
@@ -38,31 +140,81 @@ const Profile = () => {
         <MainContent $darkMode={isDarkMode}>
           <ProfileHeader>
             <ProfilePicture>
-              <Avatar>👤</Avatar>
+              {profileData?.profile_image ? (
+                <Avatar
+                  style={{
+                    backgroundImage: `url(${profileData.profile_image})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+              ) : (
+                <Avatar>👤</Avatar>
+              )}
             </ProfilePicture>
 
             <ProfileDetails>
               <TopRow>
-                <Username $darkMode={isDarkMode}>{user?.name || '사용자명'}</Username>
+                <Username $darkMode={isDarkMode}>
+                  {profileData?.name || "사용자명"}
+                </Username>
                 <ActionButtons>
-                  <EditButton onClick={() => navigate('/normal/profile/edit')} $darkMode={isDarkMode}>프로필 편집</EditButton>
+                  <EditButton
+                    onClick={() => navigate("/normal/profile/edit")}
+                    $darkMode={isDarkMode}
+                  >
+                    프로필 편집
+                  </EditButton>
                   <SettingsButtonWrapper>
-                    <SettingsButton onClick={handleSettingsToggle} $darkMode={isDarkMode}>
-                      <Settings size={24} color={isDarkMode ? '#fff' : '#262626'} />
+                    <SettingsButton
+                      onClick={handleSettingsToggle}
+                      $darkMode={isDarkMode}
+                    >
+                      <Settings
+                        size={24}
+                        color={isDarkMode ? "#fff" : "#262626"}
+                      />
                     </SettingsButton>
                     {isMoreOpen && (
                       <SettingsMenu $darkMode={isDarkMode}>
-                        <SettingsMenuItem onClick={() => { navigate('/normal/settings'); setIsMoreOpen(false); }} $darkMode={isDarkMode}>
-                          <Settings size={20} color={isDarkMode ? '#fff' : '#262626'} />
+                        <SettingsMenuItem
+                          onClick={() => {
+                            navigate("/normal/settings");
+                            setIsMoreOpen(false);
+                          }}
+                          $darkMode={isDarkMode}
+                        >
+                          <Settings
+                            size={20}
+                            color={isDarkMode ? "#fff" : "#262626"}
+                          />
                           <MenuLabel $darkMode={isDarkMode}>설정</MenuLabel>
                         </SettingsMenuItem>
 
-                        <SettingsMenuItem onClick={() => { toggleDarkMode(); setIsMoreOpen(false); }} $darkMode={isDarkMode}>
-                          {isDarkMode ? <Moon size={20} color="#fff" /> : <Sun size={20} color="#262626" />}
-                          <MenuLabel $darkMode={isDarkMode}>모드 전환</MenuLabel>
+                        <SettingsMenuItem
+                          onClick={() => {
+                            toggleDarkMode();
+                            setIsMoreOpen(false);
+                          }}
+                          $darkMode={isDarkMode}
+                        >
+                          {isDarkMode ? (
+                            <Moon size={20} color="#fff" />
+                          ) : (
+                            <Sun size={20} color="#262626" />
+                          )}
+                          <MenuLabel $darkMode={isDarkMode}>
+                            모드 전환
+                          </MenuLabel>
                         </SettingsMenuItem>
 
-                        <SettingsMenuItem onClick={() => { handleLogout(); setIsMoreOpen(false); }} $darkMode={isDarkMode}>
+                        <SettingsMenuItem
+                          onClick={() => {
+                            handleLogout();
+                            setIsMoreOpen(false);
+                          }}
+                          $darkMode={isDarkMode}
+                        >
                           <MenuLabel $darkMode={isDarkMode}>로그아웃</MenuLabel>
                         </SettingsMenuItem>
                       </SettingsMenu>
@@ -73,34 +225,73 @@ const Profile = () => {
 
               <Stats>
                 <Stat>
-                  <StatNumber $darkMode={isDarkMode}>0</StatNumber>
+                  <StatNumber $darkMode={isDarkMode}>
+                    {profileData?.post_count || 0}
+                  </StatNumber>
                   <StatLabel $darkMode={isDarkMode}>게시물</StatLabel>
                 </Stat>
                 <Stat>
-                  <StatNumber $darkMode={isDarkMode}>0</StatNumber>
+                  <StatNumber $darkMode={isDarkMode}>
+                    {profileData?.follower_count || 0}
+                  </StatNumber>
                   <StatLabel $darkMode={isDarkMode}>팔로워</StatLabel>
                 </Stat>
                 <Stat>
-                  <StatNumber $darkMode={isDarkMode}>3</StatNumber>
+                  <StatNumber $darkMode={isDarkMode}>
+                    {profileData?.following_count || 0}
+                  </StatNumber>
                   <StatLabel $darkMode={isDarkMode}>팔로우</StatLabel>
                 </Stat>
               </Stats>
-
-              <Bio>
-                <BioName $darkMode={isDarkMode}>?</BioName>
-              </Bio>
             </ProfileDetails>
           </ProfileHeader>
 
           <Divider $darkMode={isDarkMode} />
 
+          {error && <ErrorMessage $darkMode={isDarkMode}>{error}</ErrorMessage>}
+
           <PostGrid>
-            {[...Array(9)].map((_, i) => (
-              <GridItem key={i}>
-                <PostImage style={{ background: `hsl(${i * 40}, 70%, 80%)` }} />
+            {posts.length === 0 && !isLoading && (
+              <EmptyMessage $darkMode={isDarkMode}>
+                게시물이 없습니다.
+              </EmptyMessage>
+            )}
+
+            {posts.map((post, index) => (
+              <GridItem
+                key={post.id || index}
+                ref={index === posts.length - 1 ? lastPostRef : null}
+              >
+                <PostImage
+                  style={{
+                    backgroundImage: post.image_url
+                      ? `url(${post.image_url})`
+                      : "none",
+                    backgroundColor: !post.image_url
+                      ? `hsl(${index * 40}, 70%, 80%)`
+                      : "transparent",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
               </GridItem>
             ))}
           </PostGrid>
+
+          {isLoading && (
+            <LoadingContainer $darkMode={isDarkMode}>
+              <Spinner />
+              <LoadingMessage $darkMode={isDarkMode}>
+                불러오는 중...
+              </LoadingMessage>
+            </LoadingContainer>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <EndMessage $darkMode={isDarkMode}>
+              모든 게시물을 불러왔습니다.
+            </EndMessage>
+          )}
         </MainContent>
       </Container>
     </>
@@ -109,7 +300,7 @@ const Profile = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
 
   @media (min-width: 1264px) {
     margin-left: 335px;
@@ -132,7 +323,7 @@ const MainContent = styled.main`
   max-width: 935px;
   margin: 0 auto;
   padding: 30px 20px;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
   min-height: 100vh;
 
   @media (min-width: 768px) {
@@ -214,7 +405,7 @@ const TopRow = styled.div`
 const Username = styled.h1`
   font-size: 20px;
   font-weight: 400;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
   @media (max-width: 767px) {
     font-size: 18px;
@@ -236,33 +427,33 @@ const ActionButtons = styled.div`
 
 const EditButton = styled.button`
   padding: 7px 16px;
-  background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
   border: none;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#dbdbdb'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#dbdbdb")};
   }
 `;
 
 const StoryButton = styled.button`
   padding: 7px 16px;
-  background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#dbdbdb'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#dbdbdb")};
   }
 `;
 
@@ -290,8 +481,8 @@ const SettingsMenu = styled.div`
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
-  border: 1px solid ${props => props.$darkMode ? '#3a3a3a' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#3a3a3a" : "#dbdbdb")};
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
@@ -308,17 +499,18 @@ const SettingsMenuItem = styled.div`
   transition: background 0.2s;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:not(:last-child) {
-    border-bottom: 1px solid ${props => props.$darkMode ? '#3a3a3a' : '#dbdbdb'};
+    border-bottom: 1px solid
+      ${(props) => (props.$darkMode ? "#3a3a3a" : "#dbdbdb")};
   }
 `;
 
 const MenuLabel = styled.span`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Stats = styled.div`
@@ -347,34 +539,17 @@ const Stat = styled.div`
 const StatNumber = styled.span`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const StatLabel = styled.span`
   font-size: 16px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
-`;
-
-const Bio = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const BioName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
-`;
-
-const BioUsername = styled.div`
-  font-size: 14px;
-  color: #8e8e8e;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Divider = styled.div`
   height: 1px;
-  background: ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   margin-bottom: 0;
 `;
 
@@ -398,6 +573,59 @@ const GridItem = styled.div`
 const PostImage = styled.div`
   width: 100%;
   height: 100%;
+`;
+
+const ErrorMessage = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: ${(props) => (props.$darkMode ? "#ff6b6b" : "#e74c3c")};
+  font-size: 14px;
+`;
+
+const EmptyMessage = styled.div`
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 16px;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 16px;
+`;
+
+const Spinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(142, 142, 142, 0.3);
+  border-top-color: #0095f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LoadingMessage = styled.div`
+  text-align: center;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const EndMessage = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 14px;
 `;
 
 export default Profile;
