@@ -1,28 +1,63 @@
-import styled from 'styled-components';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { Heart, MessageCircle } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import styled from "styled-components";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import { Heart, MessageCircle } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import { useState, useEffect } from "react";
+import { getPosts } from "../../services/post";
 
-// Mock 탐색 데이터
-const EXPLORE_POSTS = [
-  { id: 1, image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500', likes: 1234, comments: 45 },
-  { id: 2, image: 'https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500', likes: 892, comments: 23 },
-  { id: 3, image: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=500', likes: 2156, comments: 67 },
-  { id: 4, image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=500', likes: 3421, comments: 89 },
-  { id: 5, image: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=500', likes: 1876, comments: 34 },
-  { id: 6, image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=500', likes: 945, comments: 12 },
-  { id: 7, image: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=500', likes: 2341, comments: 56 },
-  { id: 8, image: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500', likes: 1567, comments: 43 },
-  { id: 9, image: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=500', likes: 3892, comments: 91 },
-  { id: 10, image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500', likes: 2678, comments: 78 },
-  { id: 11, image: 'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=500', likes: 1234, comments: 29 },
-  { id: 12, image: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=500', likes: 4123, comments: 102 },
-];
+const baseURL = import.meta.env.VITE_BASE_URL;
 
 const Explore = () => {
   const { isDarkMode } = useApp();
+  const [explorePosts, setExplorePosts] = useState([]);
+
+  // 배열을 랜덤으로 섞는 함수
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Feed 데이터 가져오기
+        const feedData = await getPosts(undefined, 1, 30, true);
+        const transformedFeeds = feedData.items.map((item) => ({
+          id: item.id,
+          type: "feed", // 타입 추가
+          image: `${baseURL}${item.imageUrl}`,
+          likes: item.likeCount,
+          comments: item.commentCount,
+        }));
+
+        // TODO: 릴스 데이터 가져오기 (API 함수 추가 필요)
+        // const reelData = await getReels();
+        // const transformedReels = reelData.items.map((item) => ({
+        //   id: item.id,
+        //   type: 'reel',
+        //   image: `${baseURL}${item.thumbnailUrl}`,
+        //   likes: item.likeCount,
+        //   comments: item.commentCount,
+        // }));
+
+        // Feed와 Reel을 합치고 랜덤으로 섞기
+        const allPosts = [...transformedFeeds]; // , ...transformedReels 추가 예정
+        const shuffledPosts = shuffleArray(allPosts);
+
+        setExplorePosts(shuffledPosts);
+      } catch (error) {
+        console.error("데이터를 가져오는 중 오류 발생:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -33,7 +68,7 @@ const Explore = () => {
       <Container $darkMode={isDarkMode}>
         <MainContent>
           <Grid>
-            {EXPLORE_POSTS.map((post) => (
+            {explorePosts.map((post) => (
               <GridItem key={post.id}>
                 <ImageWrapper>
                   <Image src={post.image} alt="" />
@@ -61,7 +96,7 @@ const Explore = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
 
   @media (min-width: 1264px) {
     margin-left: 335px;
