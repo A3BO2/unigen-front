@@ -27,7 +27,7 @@ const Explore = () => {
     const fetchData = async () => {
       try {
         // Feed 데이터 가져오기
-        const feedData = await getPosts(undefined, 1, 30, true);
+        const feedData = await getPosts(undefined, 1, 15, true);
         const transformedFeeds = feedData.items.map((item) => ({
           id: item.id,
           type: "feed", // 타입 추가
