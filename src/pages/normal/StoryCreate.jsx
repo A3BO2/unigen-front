@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { X, Type, Crop, ChevronDown, Check } from "lucide-react";
+import { X, Type, Crop, ChevronDown, Check, Palette } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
 import { createStory } from "../../services/story";
 import Cropper from "react-easy-crop";
+import Draggable from "react-draggable";
 
 const StoryCreate = () => {
   const navigate = useNavigate();
@@ -21,10 +22,17 @@ const StoryCreate = () => {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [prevCrop, setPrevCrop] = useState({ x: 0, y: 0 });
   const [prevZoom, setPrevZoom] = useState(1);
+
+  const [textPos, setTextPos] = useState({ x: 0, y: 0 }); // 텍스트 위치
+  const [fontSize, setFontSize] = useState(20); // 폰트 크기
+  const [fontColor, setFontColor] = useState("#ffffff"); // 폰트 색상
+  const [showStyleControls, setShowStyleControls] = useState(false);
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
   const fileInputRef = useRef(null);
+  const previewAreaRef = useRef(null);
+  const nodeRef = useRef(null);
 
   const handleImageSelect = (e) => {
     const selectedFile = e.target.files[0];
@@ -52,6 +60,7 @@ const StoryCreate = () => {
     setPrevCrop(crop);
     setPrevZoom(zoom);
     setIsCropping(true);
+    setShowStyleControls(false);
   };
 
   const cancelCropping = () => {
@@ -71,10 +80,30 @@ const StoryCreate = () => {
       return;
     }
     try {
+      // 좌표 보정 로직
+      let finalTextData = null;
+
+      if (caption && previewAreaRef.current) {
+        // 현재 눈에 보이는 이미지 영역
+        const displayedWidth = previewAreaRef.current.clientWidth;
+        const displayedHeight = previewAreaRef.current.clientHeight;
+
+        // 텍스트 정보 묶기 (비율로 저장하거나 픽셀값 그대로 전달해서 내부에서 계산)
+        finalTextData = {
+          text: caption,
+          x: textPos.x, // 드래그된 x좌표
+          y: textPos.y, // 드래그된 y좌표
+          fontSize: fontSize,
+          color: fontColor,
+          displayedWidth, // 화면에 보였던 너비
+          displayedHeight, // 화면에 보였던 높이
+        };
+      }
+
       const finalImageBlob = await getFinalImage(
         preview,
         croppedAreaPixels,
-        caption
+        finalTextData
       );
 
       // formData 생성
@@ -152,7 +181,7 @@ const StoryCreate = () => {
           {step === "edit" && preview && (
             <EditSection>
               <PreviewArea>
-                <StoryFrame>
+                <StoryFrame ref={previewAreaRef}>
                   {isCropping ? (
                     <Cropper
                       image={preview} // selectedImage -> preview
@@ -168,11 +197,66 @@ const StoryCreate = () => {
                       {/* selectedImage -> preview */}
                       <PreviewImage src={preview} alt="Preview" />
                       {/* text -> caption */}
-                      {caption && <TextOverlay>{caption}</TextOverlay>}
+                      {caption && (
+                        <Draggable
+                          position={textPos}
+                          onStop={(e, data) =>
+                            setTextPos({ x: data.x, y: data.y })
+                          }
+                          nodeRef={nodeRef}
+                          bounds="parent"
+                        >
+                          <DraggableText
+                            ref={nodeRef}
+                            style={{
+                              fontSize: `${fontSize}px`,
+                              color: fontColor,
+                            }}
+                          >
+                            {caption}
+                          </DraggableText>
+                        </Draggable>
+                      )}
                     </>
                   )}
                 </StoryFrame>
               </PreviewArea>
+
+              {/* 텍스트 스타일 조절 패널 */}
+              {showStyleControls && !isCropping && (
+                <StyleControlPanel>
+                  <ControlRow>
+                    <span>크기</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max0="60"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(Number(e.target.value))}
+                    />
+                  </ControlRow>
+                  <ControlRow>
+                    <span>색상</span>
+                    <ColorPicker>
+                      {[
+                        "#ffffff",
+                        "#000000",
+                        "#ff0000",
+                        "#ffff00",
+                        "#00ff00",
+                        "#0000ff",
+                      ].map((color) => (
+                        <ColorCircle
+                          key={color}
+                          color={color}
+                          onClick={() => setFontColor(color)}
+                          $selected={fontColor === color}
+                        />
+                      ))}
+                    </ColorPicker>
+                  </ControlRow>
+                </StyleControlPanel>
+              )}
 
               <EditTools>
                 {!isCropping ? (
@@ -181,6 +265,15 @@ const StoryCreate = () => {
                     <ToolButton onClick={handleTextClick}>
                       <Type size={24} />
                       <ToolLabel>텍스트</ToolLabel>
+                    </ToolButton>
+
+                    {/* 👇 스타일 조절 버튼 추가 */}
+                    <ToolButton
+                      onClick={() => setShowStyleControls(!showStyleControls)}
+                      $active={showStyleControls}
+                    >
+                      <Palette size={24} />
+                      <ToolLabel>글자 꾸미기</ToolLabel>
                     </ToolButton>
 
                     <ToolButton onClick={startCropping}>
@@ -227,7 +320,7 @@ const createImage = (url) =>
     image.src = url;
   });
 
-async function getFinalImage(imageSrc, pixelCrop, captionText) {
+async function getFinalImage(imageSrc, pixelCrop, textData) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -254,17 +347,27 @@ async function getFinalImage(imageSrc, pixelCrop, captionText) {
   }
 
   // 텍스트 그리기
-  if (captionText) {
-    const fontSize = width * 0.1;
-    ctx.font = `700 ${fontSize}px sans-serif`;
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+  if (textData && textData.text) {
+    const { text, x, y, fontSize, color, displayedWidth, displayedHeight } =
+      textData;
+    const scaleX = width / displayedWidth;
+    const scaleY = height / displayedHeight;
+    const scaleFont = width / displayedWidth;
+    const finalX = x * scaleX;
+    const finalY = y * scaleY;
+    const finalFontSize = fontSize * scaleFont;
+
+    ctx.font = `700 ${finalFontSize}px sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textBaseline = "top"; // 좌표를 글자의 좌측 상단 기준으로 잡음 (Draggable과 일치시키기 위해)
+
+    // 그림자
     ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText(captionText, width / 2, height / 2);
+    ctx.shadowBlur = 4 * scaleFont;
+    ctx.shadowOffsetX = 2 * scaleFont;
+    ctx.shadowOffsetY = 2 * scaleFont;
+
+    ctx.fillText(text, finalX, finalY);
   }
 
   return new Promise((resolve) => {
@@ -547,6 +650,65 @@ const ActionButton = styled.button`
 const ActionLabel = styled.span`
   font-size: 14px;
   font-weight: 600;
+`;
+
+// 👇 [추가] 드래그 가능한 텍스트 스타일
+const DraggableText = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  padding: 8px;
+  /* 드래그할 때 테두리 보여주기 (선택사항) */
+  &:active {
+    border: 1px dashed white;
+    cursor: grabbing;
+  }
+`;
+
+// 👇 [추가] 스타일 조절 패널
+const StyleControlPanel = styled.div`
+  background: #f0f0f0;
+  padding: 12px 20px;
+  border-top: 1px solid #dbdbdb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ControlRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    width: 30px;
+  }
+  input[type="range"] {
+    flex: 1;
+    cursor: pointer;
+  }
+`;
+
+const ColorPicker = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ColorCircle = styled.button`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: ${(props) => props.color};
+  border: ${(props) =>
+    props.$selected ? "2px solid #0095f6" : "1px solid #ddd"};
+  cursor: pointer;
+  transform: ${(props) => (props.$selected ? "scale(1.1)" : "scale(1)")};
 `;
 
 export default StoryCreate;
