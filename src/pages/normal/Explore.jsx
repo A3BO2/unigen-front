@@ -5,7 +5,7 @@ import BottomNav from "../../components/normal/BottomNav";
 import { Heart, MessageCircle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useState, useEffect } from "react";
-import { getPosts } from "../../services/post";
+import { getPosts, getReel } from "../../services/post";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
 
@@ -27,7 +27,7 @@ const Explore = () => {
     const fetchData = async () => {
       try {
         // Feed 데이터 가져오기
-        const feedData = await getPosts(undefined, 1, 15, true);
+        const feedData = await getPosts(undefined, 1, 14, true);
         const transformedFeeds = feedData.items.map((item) => ({
           id: item.id,
           type: "feed", // 타입 추가
@@ -36,18 +36,18 @@ const Explore = () => {
           comments: item.commentCount,
         }));
 
-        // TODO: 릴스 데이터 가져오기 (API 함수 추가 필요)
-        // const reelData = await getReels();
-        // const transformedReels = reelData.items.map((item) => ({
-        //   id: item.id,
-        //   type: 'reel',
-        //   image: `${baseURL}${item.thumbnailUrl}`,
-        //   likes: item.likeCount,
-        //   comments: item.commentCount,
-        // }));
+        // Reel 데이터 가져오기
+        const reelData = await getReel();
+        const transformedReels = reelData.items.map((item) => ({
+          id: item.id,
+          type: "reel", // 타입 추가
+          image: `${baseURL}${item.image_url}`,
+          likes: item.like_count,
+          comments: item.comment_count,
+        }));
 
         // Feed와 Reel을 합치고 랜덤으로 섞기
-        const allPosts = [...transformedFeeds]; // , ...transformedReels 추가 예정
+        const allPosts = [...transformedFeeds, ...transformedReels];
         const shuffledPosts = shuffleArray(allPosts);
 
         setExplorePosts(shuffledPosts);
