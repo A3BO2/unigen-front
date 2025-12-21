@@ -1,70 +1,125 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useState } from "react";
+import styled from "styled-components";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 
-// Mock 릴스 데이터
-const REELS_DATA = [
-  {
-    id: 1,
-    video: 'https://videos.pexels.com/video-files/3843433/3843433-uhd_2160_4096_25fps.mp4',
-    user: { name: '김할머니', avatar: '👵' },
-    caption: '오늘 공원 산책하고 왔어요 🌳',
-    likes: 1234,
-    comments: 89,
-    liked: false,
-    saved: false,
-  },
-  {
-    id: 2,
-    video: 'https://videos.pexels.com/video-files/2473243/2473243-uhd_2160_4096_25fps.mp4',
-    user: { name: '박할아버지', avatar: '👴' },
-    caption: '손주들과 함께한 즐거운 시간 ❤️',
-    likes: 2567,
-    comments: 145,
-    liked: false,
-    saved: false,
-  },
-  {
-    id: 3,
-    video: 'https://videos.pexels.com/video-files/3843452/3843452-uhd_2160_4096_25fps.mp4',
-    user: { name: '이할머니', avatar: '👵' },
-    caption: '정원에 꽃이 활짝 피었네요 🌸',
-    likes: 987,
-    comments: 56,
-    liked: false,
-    saved: false,
-  },
-];
+import { getReel } from "../../services/post";
 
 const Reels = () => {
-  const [reels, setReels] = useState(REELS_DATA);
+  /* =========================
+   * 상태
+   ========================= */
+  const [reels, setReels] = useState([]);
+  const [cursor, setCursor] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [noMoreReels, setNoMoreReels] = useState(false);
+  const FILE_BASE_URL = import.meta.env.VITE_BASE_URL;
 
-  const handleLike = (reelId) => {
-    setReels(reels.map(reel => {
-      if (reel.id === reelId) {
-        return {
-          ...reel,
-          liked: !reel.liked,
-          likes: reel.liked ? reel.likes - 1 : reel.likes + 1
-        };
-      }
-      return reel;
-    }));
+
+
+  /* =========================
+   * 릴스 가져오기
+   ========================= */
+  const fetchReel = async () => {
+  if (loading || noMoreReels) return;
+  setLoading(true);
+
+  try {
+    const data = await getReel(cursor);
+
+    if (!data.reel) {
+      setNoMoreReels(true);
+      return;
+    }
+
+    const reel = data.reel;
+
+    setReels((prev) => {
+      if (prev.some((r) => r.id === reel.id)) return prev;
+
+      return [
+        ...prev,
+        {
+          id: reel.id,
+          video: reel.video_url
+            ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${reel.video_url}`
+            : null,
+          image: reel.image_url
+            ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${reel.image_url}`
+            : null,
+          user: {
+            id: reel.author_id,
+            name: `유저 ${reel.author_id}`,
+            avatar: "👵",
+          },
+          caption: reel.content,
+          likes: reel.like_count,
+          comments: reel.comment_count,
+          liked: false,
+          saved: false,
+          isSeniorMode: reel.is_senior_mode,
+          createdAt: reel.created_at,
+        },
+      ];
+    });
+
+    // ⭐ 핵심 안전장치
+    if (data.nextCursor === cursor) {
+      setNoMoreReels(true);
+      return;
+    }
+
+    setCursor(data.nextCursor);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  /* =========================
+   * 최초 1개 로딩
+   ========================= */
+  useEffect(() => {
+    fetchReel();
+  }, []);
+
+  /* =========================
+   * 스크롤 감지
+   ========================= */
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
+      fetchReel();
+    }
   };
 
-  const handleSave = (reelId) => {
-    setReels(reels.map(reel => {
-      if (reel.id === reelId) {
-        return {
-          ...reel,
-          saved: !reel.saved
-        };
-      }
-      return reel;
-    }));
+  /* =========================
+   * 좋아요 (UI 임시)
+   ========================= */
+  const handleLike = (id) => {
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel.id === id
+          ? {
+              ...reel,
+              liked: !reel.liked,
+              likes: reel.liked
+                ? reel.likes - 1
+                : reel.likes + 1,
+            }
+          : reel
+      )
+    );
   };
 
   return (
@@ -73,59 +128,81 @@ const Reels = () => {
       <BottomNav />
 
       <Container>
-        <ReelsContainer>
+        <ReelsContainer onScroll={handleScroll}>
           {reels.map((reel) => (
-            <ReelWrapper key={reel.id}>
-              <VideoContainer>
-                <Video
-                  src={reel.video}
-                  loop
-                  autoPlay
-                  muted={muted}
-                  playsInline
-                />
+  <ReelWrapper key={reel.id}>
+    <VideoContainer>
+      {/* ✅ 영상 / 이미지 분기 렌더링 */}
+      {reel.video ? (
+        <Video
+          src={reel.video}
+          autoPlay
+          loop
+          muted={muted}
+          playsInline
+        />
+      ) : reel.image ? (
+        <Image
+          src={reel.image}
+          alt="reel image"
+        />
+      ) : null}
 
-                <VolumeButton onClick={() => setMuted(!muted)}>
-                  {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </VolumeButton>
+      {/* 🔊 볼륨 버튼은 영상일 때만 */}
+      {reel.video && (
+        <VolumeButton onClick={() => setMuted(!muted)}>
+          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </VolumeButton>
+      )}
 
-                <ReelInfo>
-                  <UserInfo>
-                    <Avatar>{reel.user.avatar}</Avatar>
-                    <Username>{reel.user.name}</Username>
-                    <FollowButton>팔로우</FollowButton>
-                  </UserInfo>
-                  <Caption>{reel.caption}</Caption>
-                </ReelInfo>
+      <ReelInfo>
+        <UserInfo>
+          <Avatar>{reel.user.avatar}</Avatar>
+          <Username>{reel.user.name}</Username>
+          <FollowButton>팔로우</FollowButton>
+        </UserInfo>
+        <Caption>{reel.caption}</Caption>
+      </ReelInfo>
 
-                <Actions>
-                  <ActionButton onClick={() => handleLike(reel.id)}>
-                    <Heart
-                      size={28}
-                      fill={reel.liked ? '#fff' : 'none'}
-                      color="#fff"
-                      strokeWidth={2}
-                    />
-                    <ActionText>{reel.likes.toLocaleString()}</ActionText>
-                  </ActionButton>
+      <Actions>
+        <ActionButton onClick={() => handleLike(reel.id)}>
+          <Heart
+            size={28}
+            color="#fff"
+            fill={reel.liked ? "#fff" : "none"}
+          />
+          <ActionText>
+            {reel.likes.toLocaleString()}
+          </ActionText>
+        </ActionButton>
 
-                  <ActionButton>
-                    <MessageCircle size={28} color="#fff" strokeWidth={2} />
-                    <ActionText>{reel.comments}</ActionText>
-                  </ActionButton>
+        <ActionButton>
+          <MessageCircle size={28} color="#fff" />
+          <ActionText>{reel.comments}</ActionText>
+        </ActionButton>
 
-                  <ActionButton>
-                    <Send size={28} color="#fff" strokeWidth={2} />
-                  </ActionButton>
-                </Actions>
-              </VideoContainer>
-            </ReelWrapper>
-          ))}
+        <ActionButton>
+          <Send size={28} color="#fff" />
+        </ActionButton>
+      </Actions>
+    </VideoContainer>
+  </ReelWrapper>
+))}
+
+          {reels.length === 0 && noMoreReels && (
+  <EmptyState>
+    <EmptyText>릴스가 없습니다.</EmptyText>
+  </EmptyState>
+)}
+
+
+          
         </ReelsContainer>
       </Container>
     </>
   );
 };
+
 
 const Container = styled.div`
   min-height: 100vh;
@@ -293,5 +370,27 @@ const ActionText = styled.span`
   font-weight: 600;
   color: #fff;
 `;
+
+const EmptyState = styled.div`
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const EmptyText = styled.p`
+  color: #aaa;
+  font-size: 16px;
+`;
+
+const Image = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* ⭐ 핵심 */
+  background: black;
+`;
+
+
+
 
 export default Reels;

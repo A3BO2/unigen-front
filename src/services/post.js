@@ -84,6 +84,18 @@ export async function getPosts(mode, page = 1, size = 10) {
 }
 */
 
+export async function getReel(lastId) {
+  const params = new URLSearchParams();
+  if (lastId) params.append("lastId", lastId);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return await apifetch(`/posts/reels${query}`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+}
+
 export async function createPost(formData) {
   const token = localStorage.getItem("token");
 
@@ -111,3 +123,5 @@ export async function createPost(formData) {
   }
   return data;
 }
+
+
