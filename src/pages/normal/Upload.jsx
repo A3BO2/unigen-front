@@ -64,8 +64,6 @@ const Upload = () => {
     contrast: 0,
     saturation: 0,
     temperature: 0,
-    fade: 0,
-    vignette: 0,
   });
   const fileInputRef = useRef(null);
 
@@ -595,34 +593,6 @@ const Upload = () => {
                       <AdjustmentValue>
                         {adjustments.temperature}
                       </AdjustmentValue>
-                    </AdjustmentItem>
-
-                    <AdjustmentItem>
-                      <AdjustmentLabel>포화도</AdjustmentLabel>
-                      <AdjustmentSlider
-                        type="range"
-                        min="-100"
-                        max="100"
-                        value={adjustments.fade}
-                        onChange={(e) =>
-                          handleAdjustmentChange("fade", e.target.value)
-                        }
-                      />
-                      <AdjustmentValue>{adjustments.fade}</AdjustmentValue>
-                    </AdjustmentItem>
-
-                    <AdjustmentItem>
-                      <AdjustmentLabel>주변 이동</AdjustmentLabel>
-                      <AdjustmentSlider
-                        type="range"
-                        min="-100"
-                        max="100"
-                        value={adjustments.vignette}
-                        onChange={(e) =>
-                          handleAdjustmentChange("vignette", e.target.value)
-                        }
-                      />
-                      <AdjustmentValue>{adjustments.vignette}</AdjustmentValue>
                     </AdjustmentItem>
                   </AdjustmentPanel>
                 )}
