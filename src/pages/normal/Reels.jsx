@@ -111,6 +111,17 @@ const Reels = () => {
     }
   };
 
+  // 영상 클릭 시 재생/정지 토글
+  const togglePlay = (e) => {
+    const video = e.target;
+
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  };
+
   /* =========================
    * 좋아요 (UI 임시)
    ========================= */
@@ -146,6 +157,8 @@ const Reels = () => {
                     loop
                     muted={muted}
                     playsInline
+                    onClick={togglePlay}
+                    style={{ cursor: "pointer" }}
                   />
                 ) : reel.image ? (
                   <Image src={reel.image} alt="reel image" />
