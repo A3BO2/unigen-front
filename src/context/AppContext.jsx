@@ -91,58 +91,18 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = safeLocalStorage.getItem('token');
-<<<<<<< Updated upstream
-      if (token && !user) {
-        // 토큰이 있고 사용자 정보가 없으면 서버에서 사용자 정보 가져오기
-        try {
-          const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
-          const response = await fetch(`${baseURL}/auth/me`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data?.user) {
-              const userData = data.data.user;
-              const userMode = userData.preferred_mode || 'normal';
-              setUser(userData);
-              setMode(userMode);
-
-              // 사용자 설정도 함께 가져오기
-              try {
-                const settingsResponse = await fetch(`${baseURL}/users/me/settings`, {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                  },
-                });
-                if (settingsResponse.ok) {
-                  const settingsData = await settingsResponse.json();
-                  if (settingsData.fontScale) {
-                    setFontScale(settingsData.fontScale);
-                  }
-                }
-              } catch (settingsError) {
-                console.error('설정 로드 실패:', settingsError);
-              }
-            } else {
-              // 토큰이 유효하지 않으면 토큰 제거
-              safeLocalStorage.removeItem('token');
-            }
-=======
-      if (!token || user) return;
+      
+      // 토큰이 없거나 유효하지 않으면 (null, undefined, 빈 문자열, 공백만 있는 경우) 조기 반환
+      if (!token || typeof token !== 'string' || token.trim() === '' || user) {
+        return;
+      }
 
       try {
         const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
         const response = await fetch(`${baseURL}/auth/me`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${token.trim()}`,
             'Content-Type': 'application/json',
           },
         });
@@ -154,17 +114,10 @@ export const AppProvider = ({ children }) => {
             const userMode = userData.preferred_mode || 'normal';
             setUser(userData);
             setMode(userMode);
->>>>>>> Stashed changes
           } else {
             // 토큰이 유효하지 않으면 토큰 제거
             safeLocalStorage.removeItem('token');
           }
-<<<<<<< Updated upstream
-        } catch (error) {
-          console.error('자동 로그인 실패:', error);
-          safeLocalStorage.removeItem('token');
-        }
-=======
         } else {
           // 토큰이 유효하지 않으면 토큰 제거
           safeLocalStorage.removeItem('token');
@@ -172,27 +125,28 @@ export const AppProvider = ({ children }) => {
       } catch (error) {
         console.error('자동 로그인 실패:', error);
         safeLocalStorage.removeItem('token');
->>>>>>> Stashed changes
       }
     };
 
     checkAuth();
   }, []); // 초기 마운트 시 한 번만 실행
 
-<<<<<<< Updated upstream
-=======
   // 로그인(또는 자동 로그인)으로 user가 설정되면 서버에서 사용자 설정을 가져와 적용
   useEffect(() => {
     const loadUserSettings = async () => {
       const token = safeLocalStorage.getItem('token');
-      if (!user || !token) return;
+      
+      // 토큰이 없거나 유효하지 않으면 (null, undefined, 빈 문자열, 공백만 있는 경우) 조기 반환
+      if (!user || !token || typeof token !== 'string' || token.trim() === '') {
+        return;
+      }
 
       try {
         const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
         const response = await fetch(`${baseURL}/users/me/settings`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${token.trim()}`,
             'Content-Type': 'application/json',
           },
         });
@@ -213,7 +167,6 @@ export const AppProvider = ({ children }) => {
 
     loadUserSettings();
   }, [user]);
->>>>>>> Stashed changes
   const login = (userData, selectedMode) => {
     setUser(userData);
     setMode(selectedMode);

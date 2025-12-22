@@ -7,16 +7,11 @@ import RightSidebar from '../../components/normal/RightSidebar';
 import BottomNav from '../../components/normal/BottomNav';
 import { useApp } from '../../context/AppContext';
 import { logoutWithKakao } from '../../utils/kakaoAuth';
-<<<<<<< Updated upstream
-=======
 import { updateUserSettings } from '../../services/user';
->>>>>>> Stashed changes
 
 const Settings = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
-<<<<<<< Updated upstream
-=======
   const [loading, setLoading] = useState(false);
 
   const handleDarkModeToggle = async () => {
@@ -34,7 +29,6 @@ const Settings = () => {
       setLoading(false);
     }
   };
->>>>>>> Stashed changes
 
   const handleModeSwitch = () => {
     switchMode('senior');
