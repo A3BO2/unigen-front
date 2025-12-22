@@ -69,7 +69,7 @@ const NavItem = styled.button`
 `;
 
 const Label = styled.span`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
 `;
 

@@ -34,3 +34,48 @@ export async function getCurrentUser(page = 1, limit = 9) {
 
   return data;
 }
+
+export async function getUserSettings() {
+  const response = await fetch(`${baseURL}/users/me/settings`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse /users/me/settings response", error);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "설정 조회에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function updateUserSettings(settings) {
+  const response = await fetch(`${baseURL}/users/me/settings`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(settings),
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse /users/me/settings response", error);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "설정 업데이트에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
