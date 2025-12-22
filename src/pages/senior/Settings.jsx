@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { ThemeProvider } from 'styled-components';
 import { ChevronLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import SeniorBottomNav from '../../components/senior/BottomNav';
 import { logoutWithKakao } from '../../utils/kakaoAuth';
+import { getUserSettings, updateUserSettings } from '../../services/user';
 
 const fontOptions = [
   { value: 'small', label: '작게', description: '많은 내용을 한 화면에서 보고 싶을 때' },
@@ -14,9 +15,63 @@ const fontOptions = [
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { logout, isDarkMode, toggleDarkMode, user } = useApp();
-  const [fontSize, setFontSize] = useState('medium');
+  const { logout, isDarkMode, toggleDarkMode, user, fontScale, updateFontScale } = useApp();
+  const [fontSize, setFontSize] = useState(fontScale || 'large');
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // 초기 설정 로드
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await getUserSettings();
+        setFontSize(settings.fontScale || 'large');
+        setNotificationsOn(settings.notificationsOn !== undefined ? settings.notificationsOn : true);
+        // AppContext도 업데이트
+        if (settings.fontScale) {
+          updateFontScale(settings.fontScale);
+        }
+      } catch (error) {
+        console.error('설정 로드 실패:', error);
+      }
+    };
+    loadSettings();
+  }, [updateFontScale]);
+
+  // 폰트 크기 변경 핸들러
+  const handleFontSizeChange = async (newFontSize) => {
+    setFontSize(newFontSize);
+    updateFontScale(newFontSize);
+    
+    // 서버에 저장
+    try {
+      setLoading(true);
+      await updateUserSettings({ fontScale: newFontSize });
+    } catch (error) {
+      console.error('설정 저장 실패:', error);
+      // 실패해도 로컬 상태는 유지
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 알림 설정 변경 핸들러
+  const handleNotificationsChange = async () => {
+    const newValue = !notificationsOn;
+    setNotificationsOn(newValue);
+    
+    // 서버에 저장
+    try {
+      setLoading(true);
+      await updateUserSettings({ notificationsOn: newValue });
+    } catch (error) {
+      console.error('설정 저장 실패:', error);
+      // 실패 시 원래 값으로 복구
+      setNotificationsOn(notificationsOn);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
@@ -47,8 +102,9 @@ const Settings = () => {
               {fontOptions.map(option => (
                 <FontOptionButton
                   key={option.value}
-                  onClick={() => setFontSize(option.value)}
+                  onClick={() => handleFontSizeChange(option.value)}
                   $active={fontSize === option.value}
+                  disabled={loading}
                 >
                   <FontOptionLabel>{option.label}</FontOptionLabel>
                   <FontOptionDesc>{option.description}</FontOptionDesc>
@@ -59,7 +115,7 @@ const Settings = () => {
 
           <Section>
             <SectionTitle>알림</SectionTitle>
-            <SettingItem onClick={() => setNotificationsOn(!notificationsOn)}>
+            <SettingItem onClick={handleNotificationsChange} style={{ opacity: loading ? 0.6 : 1 }}>
               <SettingLabel>알림 받기</SettingLabel>
               <Toggle $active={notificationsOn}>
                 <ToggleCircle $active={notificationsOn} />
@@ -132,7 +188,7 @@ const BackButton = styled.button`
 `;
 
 const Title = styled.h1`
-  font-size: 32px;
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
   flex: 1;
   text-align: center;
@@ -151,7 +207,7 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 16px;
   padding: 0 8px;
@@ -178,13 +234,13 @@ const FontOptionButton = styled.button`
 `;
 
 const FontOptionLabel = styled.div`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#f5f5f5' : '#1f1f1f'};
 `;
 
 const FontOptionDesc = styled.div`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#d6d6d6' : '#555'};
   margin-top: 6px;
 `;
@@ -208,7 +264,7 @@ const SettingItem = styled.div`
 `;
 
 const SettingLabel = styled.span`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 600;
 `;
 
@@ -221,7 +277,7 @@ const HelpBox = styled.div`
 `;
 
 const HelpText = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   line-height: 1.5;
   color: ${props => props.theme.$darkMode ? '#ddd' : '#555'};
   margin-bottom: 16px;
@@ -230,7 +286,7 @@ const HelpText = styled.p`
 const HelpButton = styled.button`
   width: 100%;
   padding: 18px;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   border-radius: 12px;
   background: #ffb703;
@@ -268,7 +324,7 @@ const LogoutButton = styled.button`
   padding: 20px;
   background: #ff4458;
   color: white;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   border-radius: 12px;
   cursor: pointer;

@@ -7,6 +7,17 @@ export const GlobalStyles = createGlobalStyle`
     box-sizing: border-box;
   }
 
+  :root {
+    --font-scale: ${props => {
+      const scaleMap = {
+        small: 0.85,
+        medium: 1,
+        large: 1.25
+      };
+      return scaleMap[props.$fontScale] || 1;
+    }};
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -19,6 +30,7 @@ export const GlobalStyles = createGlobalStyle`
       }
       return '#fafafa';
     }};
+    font-size: calc(16px * var(--font-scale, 1));
   }
 
   #root {

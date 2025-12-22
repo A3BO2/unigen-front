@@ -66,13 +66,14 @@ function ProtectedRoute({ children, requiredMode }) {
 }
 
 function AppRoutes() {
-  const { mode, isDarkMode } = useApp();
+  const { mode, isDarkMode, fontScale } = useApp();
 
   return (
     <>
       <GlobalStyles
         $isSeniorMode={mode === "senior"}
         $isDarkMode={isDarkMode}
+        $fontScale={fontScale || 'large'}
       />
       <Routes>
         {/* Onboarding */}

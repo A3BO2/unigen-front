@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import SeniorBottomNav from '../../components/senior/BottomNav';
+import { getUserSettings } from '../../services/user';
 
 // Mock 데이터
 const MY_POSTS = [
@@ -31,6 +33,30 @@ const MY_POSTS = [
 const Profile = () => {
   const { user, isDarkMode } = useApp();
   const navigate = useNavigate();
+  const [settings, setSettings] = useState({
+    fontScale: 'large',
+    notificationsOn: true,
+    seniorSimpleMode: true,
+    language: 'ko'
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        const data = await getUserSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error('설정 조회 실패:', error);
+        // 에러 발생 시 기본값 유지
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   return (
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
@@ -48,7 +74,15 @@ const Profile = () => {
         <QuickActions>
           <QuickActionButton onClick={() => navigate('/senior/settings')}>
             <ActionTitle>글자 · 알림 설정</ActionTitle>
-            <ActionDescription>글씨 크기와 알림을 한눈에 조절해요</ActionDescription>
+            <ActionDescription>
+              {!loading && (
+                <>
+                  글씨 크기: {settings.fontScale === 'small' ? '작게' : settings.fontScale === 'medium' ? '보통' : '크게'} · 
+                  알림: {settings.notificationsOn ? '켜짐' : '꺼짐'}
+                </>
+              )}
+              {loading && '글씨 크기와 알림을 한눈에 조절해요'}
+            </ActionDescription>
           </QuickActionButton>
           <QuickActionButton onClick={() => navigate('/senior/help')}>
             <ActionTitle>가족에게 도움 요청하기</ActionTitle>
@@ -114,7 +148,7 @@ const Header = styled.header`
 `;
 
 const Title = styled.h1`
-  font-size: 32px;
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
 `;
 
@@ -140,13 +174,13 @@ const Avatar = styled.div`
 `;
 
 const Name = styled.h2`
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 8px;
 `;
 
 const Phone = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
@@ -175,18 +209,18 @@ const QuickActionButton = styled.button`
 `;
 
 const ActionTitle = styled.span`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#fff' : '#222'};
 `;
 
 const ActionDescription = styled.span`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#bbb' : '#666'};
 `;
 
 const SectionHeader = styled.h2`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   padding: 0 24px;
   margin-bottom: 16px;
@@ -206,13 +240,13 @@ const HelpSection = styled.div`
 `;
 
 const HelpTitle = styled.h3`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 12px;
 `;
 
 const HelpDescription = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#ccc' : '#555'};
   margin-bottom: 16px;
   line-height: 1.5;
@@ -221,7 +255,7 @@ const HelpDescription = styled.p`
 const HelpButton = styled.button`
   width: 100%;
   padding: 18px;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   border-radius: 12px;
   background: #ffb703;
@@ -274,7 +308,7 @@ const PostImage = styled.img`
 `;
 
 const PostContent = styled.p`
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   line-height: 1.6;
   margin-bottom: 16px;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
@@ -287,12 +321,12 @@ const PostMeta = styled.div`
 `;
 
 const PostTime = styled.span`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
 const PostStats = styled.span`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 

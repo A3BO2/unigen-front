@@ -50,6 +50,11 @@ export const AppProvider = ({ children }) => {
     return savedDarkMode === 'true' ? true : false;
   });
 
+  const [fontScale, setFontScale] = useState(() => {
+    // 로컬 스토리지에서 폰트 크기 불러오기
+    return safeLocalStorage.getItem('fontScale') || 'large';
+  });
+
   useEffect(() => {
     if (mode) {
       safeLocalStorage.setItem('appMode', mode);
@@ -67,6 +72,20 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     safeLocalStorage.setItem('isDarkMode', isDarkMode.toString());
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (fontScale) {
+      safeLocalStorage.setItem('fontScale', fontScale);
+      // CSS 변수로 폰트 크기 설정
+      const root = document.documentElement;
+      const scaleMap = {
+        small: 0.85,
+        medium: 1,
+        large: 1.25
+      };
+      root.style.setProperty('--font-scale', scaleMap[fontScale] || 1);
+    }
+  }, [fontScale]);
 
   // 토큰 기반 자동 로그인 (앱 시작 시)
   useEffect(() => {
@@ -91,6 +110,25 @@ export const AppProvider = ({ children }) => {
               const userMode = userData.preferred_mode || 'normal';
               setUser(userData);
               setMode(userMode);
+
+              // 사용자 설정도 함께 가져오기
+              try {
+                const settingsResponse = await fetch(`${baseURL}/users/me/settings`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                });
+                if (settingsResponse.ok) {
+                  const settingsData = await settingsResponse.json();
+                  if (settingsData.fontScale) {
+                    setFontScale(settingsData.fontScale);
+                  }
+                }
+              } catch (settingsError) {
+                console.error('설정 로드 실패:', settingsError);
+              }
             } else {
               // 토큰이 유효하지 않으면 토큰 제거
               safeLocalStorage.removeItem('token');
@@ -130,15 +168,21 @@ export const AppProvider = ({ children }) => {
     setIsDarkMode(prev => !prev);
   };
 
+  const updateFontScale = (newFontScale) => {
+    setFontScale(newFontScale);
+  };
+
   return (
     <AppContext.Provider value={{
       mode,
       user,
       isDarkMode,
+      fontScale,
       login,
       logout,
       switchMode,
-      toggleDarkMode
+      toggleDarkMode,
+      updateFontScale
     }}>
       {children}
     </AppContext.Provider>
