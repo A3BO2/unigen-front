@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import styled from 'styled-components';
 import { ChevronRight, Moon, Sun, User } from 'lucide-react';
 import LeftSidebar from '../../components/normal/LeftSidebar';
@@ -6,10 +7,34 @@ import RightSidebar from '../../components/normal/RightSidebar';
 import BottomNav from '../../components/normal/BottomNav';
 import { useApp } from '../../context/AppContext';
 import { logoutWithKakao } from '../../utils/kakaoAuth';
+<<<<<<< Updated upstream
+=======
+import { updateUserSettings } from '../../services/user';
+>>>>>>> Stashed changes
 
 const Settings = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
+<<<<<<< Updated upstream
+=======
+  const [loading, setLoading] = useState(false);
+
+  const handleDarkModeToggle = async () => {
+    const newValue = !isDarkMode;
+    // 로컬 UI 먼저 반영
+    toggleDarkMode();
+
+    try {
+      setLoading(true);
+      await updateUserSettings({ isDarkMode: newValue });
+    } catch (error) {
+      console.error('다크 모드 설정 저장 실패:', error);
+      // 실패해도 로컬 다크 모드 상태는 그대로 둔다
+    } finally {
+      setLoading(false);
+    }
+  };
+>>>>>>> Stashed changes
 
   const handleModeSwitch = () => {
     switchMode('senior');
@@ -52,7 +77,11 @@ const Settings = () => {
               <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
             </SettingItem>
 
-            <SettingItem $darkMode={isDarkMode} onClick={toggleDarkMode}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={handleDarkModeToggle}
+              style={{ opacity: loading ? 0.6 : 1 }}
+            >
               <SettingLeft>
                 <IconWrapper $darkMode={isDarkMode}>
                   {isDarkMode ? <Moon size={20} /> : <Sun size={20} />}

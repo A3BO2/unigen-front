@@ -116,7 +116,7 @@ const BackButton = styled.button`
 `;
 
 const Title = styled.h1`
-  font-size: 32px;
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
   flex: 1;
   text-align: center;
@@ -142,13 +142,13 @@ const IntroCard = styled.div`
 `;
 
 const IntroTitle = styled.h2`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 12px;
 `;
 
 const IntroText = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#ddd' : '#555'};
   margin-bottom: 16px;
   line-height: 1.5;
@@ -158,7 +158,7 @@ const IntroButton = styled.button`
   width: 100%;
   padding: 18px;
   border-radius: 12px;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   background: #ffb703;
   color: #000;
@@ -190,7 +190,7 @@ const QRBox = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: calc(36px * var(--font-scale, 1));
   font-weight: 700;
 `;
 
@@ -202,7 +202,7 @@ const QRCode = styled.span`
 `;
 
 const QRNote = styled.p`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#ccc' : '#666'};
   margin-bottom: 12px;
 `;
@@ -213,7 +213,7 @@ const RefreshButton = styled.button`
   gap: 8px;
   padding: 12px 20px;
   border-radius: 999px;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   font-weight: 600;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   border: 2px solid ${props => props.theme.$darkMode ? '#444' : '#ccc'};
@@ -245,7 +245,7 @@ const StepNumber = styled.div`
   border-radius: 50%;
   background: #ffb703;
   color: #000;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -253,7 +253,7 @@ const StepNumber = styled.div`
 `;
 
 const StepText = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   line-height: 1.4;
   flex: 1;
 `;
@@ -266,13 +266,13 @@ const WaitingCard = styled.div`
 `;
 
 const WaitingTitle = styled.h3`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 12px;
 `;
 
 const WaitingText = styled.p`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#ddd' : '#555'};
   line-height: 1.5;
 `;

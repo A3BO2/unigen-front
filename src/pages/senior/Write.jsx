@@ -262,12 +262,12 @@ const CancelButton = styled.button`
 `;
 
 const Title = styled.h1`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
 `;
 
 const PostButton = styled.button`
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.disabled ? (props.theme.$darkMode ? '#3a3a3a' : '#999') : '#0095f6'};
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
@@ -295,7 +295,7 @@ const ModeSelector = styled.div`
 const ModeButton = styled.button`
   width: 280px;
   height: 280px;
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -314,7 +314,7 @@ const ModeButton = styled.button`
   @media (max-width: 400px) {
     width: 240px;
     height: 240px;
-    font-size: 24px;
+    font-size: calc(24px * var(--font-scale, 1));
   }
 `;
 
@@ -329,7 +329,7 @@ const UploadSection = styled.div`
 `;
 
 const UploadTitle = styled.h2`
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   text-align: center;
@@ -363,7 +363,7 @@ const PhotoButton = styled.button`
 `;
 
 const PhotoButtonLabel = styled.span`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
 `;
 
@@ -390,7 +390,7 @@ const RecordingIndicator = styled.div`
 `;
 
 const RecordingText = styled.p`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 600;
   color: #f00;
 `;
@@ -398,7 +398,7 @@ const RecordingText = styled.p`
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 300px;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   line-height: 1.6;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
@@ -448,7 +448,7 @@ const RemovePhotoButton = styled.button`
 const PhotoCaption = styled.textarea`
   width: 100%;
   min-height: 120px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   line-height: 1.6;
   color: #fff;
   background: #1a1a1a;
@@ -491,7 +491,7 @@ const ActionButton = styled.button`
 `;
 
 const ActionLabel = styled.span`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 600;
 `;
 
@@ -513,7 +513,7 @@ const ThemeHeader = styled.div`
 `;
 
 const ThemeTitle = styled.h2`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
 `;
 
@@ -541,11 +541,11 @@ const ThemeButton = styled.button`
 `;
 
 const ThemeEmoji = styled.span`
-  font-size: 36px;
+  font-size: calc(36px * var(--font-scale, 1));
 `;
 
 const ThemeLabel = styled.span`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   font-weight: 600;
   text-align: center;
 `;

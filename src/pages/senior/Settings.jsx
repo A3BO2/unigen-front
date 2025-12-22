@@ -20,13 +20,23 @@ const Settings = () => {
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [loading, setLoading] = useState(false);
 
+<<<<<<< Updated upstream
   // 초기 설정 로드
+=======
+  // 초기 설정 로드 (마운트 시 한 번만)
+>>>>>>> Stashed changes
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const settings = await getUserSettings();
         setFontSize(settings.fontScale || 'large');
+<<<<<<< Updated upstream
         setNotificationsOn(settings.notificationsOn !== undefined ? settings.notificationsOn : true);
+=======
+        setNotificationsOn(
+          settings.notificationsOn !== undefined ? settings.notificationsOn : true
+        );
+>>>>>>> Stashed changes
         // AppContext도 업데이트
         if (settings.fontScale) {
           updateFontScale(settings.fontScale);
@@ -36,13 +46,21 @@ const Settings = () => {
       }
     };
     loadSettings();
+<<<<<<< Updated upstream
   }, [updateFontScale]);
+=======
+  }, []);
+>>>>>>> Stashed changes
 
   // 폰트 크기 변경 핸들러
   const handleFontSizeChange = async (newFontSize) => {
     setFontSize(newFontSize);
     updateFontScale(newFontSize);
+<<<<<<< Updated upstream
     
+=======
+
+>>>>>>> Stashed changes
     // 서버에 저장
     try {
       setLoading(true);
@@ -59,7 +77,11 @@ const Settings = () => {
   const handleNotificationsChange = async () => {
     const newValue = !notificationsOn;
     setNotificationsOn(newValue);
+<<<<<<< Updated upstream
     
+=======
+
+>>>>>>> Stashed changes
     // 서버에 저장
     try {
       setLoading(true);
@@ -72,6 +94,26 @@ const Settings = () => {
       setLoading(false);
     }
   };
+<<<<<<< Updated upstream
+=======
+
+  // 다크 모드 변경 핸들러 (시니어 설정 화면에서 토글 시 서버에도 저장)
+  const handleDarkModeChange = async () => {
+    const newValue = !isDarkMode;
+    // 먼저 로컬 UI 상태 반영
+    toggleDarkMode();
+
+    try {
+      setLoading(true);
+      await updateUserSettings({ isDarkMode: newValue });
+    } catch (error) {
+      console.error('다크 모드 설정 저장 실패:', error);
+      // 서버 저장 실패해도 로컬 다크모드 상태는 그대로 둠
+    } finally {
+      setLoading(false);
+    }
+  };
+>>>>>>> Stashed changes
 
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
@@ -125,7 +167,7 @@ const Settings = () => {
 
           <Section>
             <SectionTitle>화면</SectionTitle>
-            <SettingItem onClick={toggleDarkMode}>
+            <SettingItem onClick={handleDarkModeChange} style={{ opacity: loading ? 0.6 : 1 }}>
               <SettingLabel>다크 모드</SettingLabel>
               <Toggle $active={isDarkMode}>
                 <ToggleCircle $active={isDarkMode} />

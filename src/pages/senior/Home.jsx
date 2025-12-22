@@ -231,11 +231,11 @@ const Header = styled.header`
 `;
 
 const Logo = styled.h1`
-  font-size: 36px;
+  font-size: calc(36px * var(--font-scale, 1));
   font-weight: 700;
 
   @media (min-width: 768px) {
-    font-size: 40px;
+    font-size: calc(40px * var(--font-scale, 1));
   }
 `;
 
@@ -274,7 +274,7 @@ const Avatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: calc(32px * var(--font-scale, 1));
   flex-shrink: 0;
   border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
 `;
@@ -286,18 +286,18 @@ const UserDetails = styled.div`
 `;
 
 const Username = styled.span`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
 `;
 
 const Timestamp = styled.span`
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
 const Content = styled.p`
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
   line-height: 1.7;
   margin-bottom: 24px;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
@@ -343,7 +343,7 @@ const ActionButton = styled.button`
 `;
 
 const ActionText = styled.span`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.$liked ? '#ff4458' : (props.theme.$darkMode ? '#fff' : '#000')};
   min-width: 36px;
@@ -356,7 +356,7 @@ const CommentsSection = styled.div`
 `;
 
 const CommentsHeader = styled.h3`
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   margin-bottom: 20px;
@@ -380,7 +380,7 @@ const CommentInput = styled.textarea`
   border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
   border-radius: 12px;
   padding: 16px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   resize: none;
   min-height: 80px;
@@ -399,7 +399,7 @@ const CommentInput = styled.textarea`
 const CommentSubmitButton = styled.button`
   background: #0095f6;
   color: #fff;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   padding: 16px 28px;
   border-radius: 12px;
@@ -438,7 +438,7 @@ const CommentAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   flex-shrink: 0;
   border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
 `;
@@ -457,18 +457,18 @@ const CommentHeader = styled.div`
 `;
 
 const CommentUsername = styled.span`
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
 `;
 
 const CommentTime = styled.span`
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
 const CommentText = styled.p`
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   line-height: 1.6;
   color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
   word-break: keep-all;
