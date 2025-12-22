@@ -31,11 +31,12 @@ function getHeaders() {
 }
 
 // api 예시 https://api.seniorsns.com/api/v1/posts/feed?mode=senior&page=1&size=10
-export async function getPosts(mode, page = 1, size = 10) {
+export async function getPosts(mode, page = 1, size = 10, all) {
   const params = new URLSearchParams();
   if (mode) params.append("mode", mode);
   params.append("page", page);
   params.append("size", size);
+  if (all) params.append("all", all);
 
   const query = params.toString() ? `?${params.toString()}` : "";
   console.log(query);
@@ -44,45 +45,6 @@ export async function getPosts(mode, page = 1, size = 10) {
     headers: getHeaders(),
   });
 }
-/* api 응답결과
- {
-    "items": [
-        {
-            "id": 3,
-            "author": {
-                "id": 1,
-                "name": "김영수",
-                "profileImageUrl": null
-            },
-            "content": "팀 프로젝트 화이팅!",
-            "imageUrl": "https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500",
-            "postType": null,
-            "isSeniorMode": false,
-            "likeCount": 0,
-            "commentCount": 0,
-            "createdAt": "2025-12-16T13:01:46.000Z"
-        },
-        {
-            "id": 1,
-            "author": {
-                "id": 1,
-                "name": "김영수",
-                "profileImageUrl": null
-            },
-            "content": "오늘은 날씨가 좋아서 동네 공원을 산책했어요.",
-            "imageUrl": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500",
-            "postType": "feed",
-            "isSeniorMode": true,
-            "likeCount": 0,
-            "commentCount": 0,
-            "createdAt": "2025-12-16T12:39:27.000Z"
-        },
-    ],
-    "page": 1,
-    "size": 10,
-    "hasNext": false
-}
-*/
 
 export async function getReel(lastId) {
   const params = new URLSearchParams();

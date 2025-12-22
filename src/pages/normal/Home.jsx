@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
-import { Heart, MessageCircle, Send, MoreHorizontal, Plus } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  MoreHorizontal,
+  Plus,
+  Loader2,
+} from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
@@ -16,11 +23,26 @@ const Home = () => {
   const { isDarkMode } = useApp();
   const [posts, setPosts] = useState([]);
   const [showComments, setShowComments] = useState(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observerTarget = useRef(null);
+  const loadedPagesRef = useRef(new Set()); // 이미 로드된 페이지 추적
+
+  const POSTS_PER_PAGE = 5; // 한 번에 불러올 포스트 개수
 
   // 포스트 데이터 불러오기
-  useEffect(() => {
-    getPosts().then((data) => {
-      console.log(data.items[0]);
+  const loadPosts = useCallback(async (pageNum) => {
+    // 이미 로드 중이거나, 더 이상 데이터가 없거나, 이미 로드된 페이지면 스킵
+    if (loading || !hasMore || loadedPagesRef.current.has(pageNum)) return;
+
+    loadedPagesRef.current.add(pageNum); // 페이지 로딩 시작 표시
+    setLoading(true);
+
+    try {
+      const data = await getPosts("normal", pageNum, POSTS_PER_PAGE);
+      console.log(`페이지 ${pageNum} 로드:`, data.items[0]);
+
       // API 데이터를 posts 형식으로 변환
       const transformedPosts = data.items.map((item) => ({
         id: item.id,
@@ -36,9 +58,55 @@ const Home = () => {
         comments: item.commentCount,
       }));
 
-      setPosts(transformedPosts);
-    });
+      // 중복 제거: 기존 포스트 ID와 비교하여 새로운 포스트만 추가
+      setPosts((prevPosts) => {
+        const existingIds = new Set(prevPosts.map((p) => p.id));
+        const newPosts = transformedPosts.filter(
+          (post) => !existingIds.has(post.id)
+        );
+        return [...prevPosts, ...newPosts];
+      });
+
+      setHasMore(data.items.length === POSTS_PER_PAGE);
+    } catch (error) {
+      console.error("포스트 로딩 실패:", error);
+      loadedPagesRef.current.delete(pageNum); // 실패시 재시도 가능하도록
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // 초기 로딩
+  useEffect(() => {
+    loadPosts(1);
+  }, []); // 빈 배열로 한 번만 실행
+
+  // Intersection Observer로 무한 스크롤 구현
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage((prevPage) => {
+            const nextPage = prevPage + 1;
+            loadPosts(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, loadPosts]);
 
   const handleLike = (postId) => {
     setPosts(
@@ -170,6 +238,24 @@ const Home = () => {
                 </CommentInput>
               </Post>
             ))}
+
+            {/* 무한 스크롤 트리거 */}
+            <LoadingTrigger ref={observerTarget} />
+
+            {/* 로딩 인디케이터 */}
+            {loading && (
+              <LoadingContainer $darkMode={isDarkMode}>
+                <Loader2 size={32} className="spinner" />
+                <LoadingText $darkMode={isDarkMode}>로딩 중...</LoadingText>
+              </LoadingContainer>
+            )}
+
+            {/* 더 이상 포스트가 없을 때 */}
+            {!hasMore && posts.length > 0 && (
+              <EndMessage $darkMode={isDarkMode}>
+                모든 포스트를 확인했습니다 🎉
+              </EndMessage>
+            )}
           </Feed>
         </MainContent>
 
@@ -898,6 +984,47 @@ const CommentInputBox = styled.div`
       color: #8e8e8e;
     }
   }
+`;
+
+const LoadingTrigger = styled.div`
+  height: 20px;
+  width: 100%;
+`;
+
+const spinAnimation = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+
+  .spinner {
+    animation: ${spinAnimation} 1s linear infinite;
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  }
+`;
+
+const LoadingText = styled.div`
+  font-size: 14px;
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
+`;
+
+const EndMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 14px;
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
+  font-weight: 500;
 `;
 
 export default Home;

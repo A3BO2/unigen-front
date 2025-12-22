@@ -1,28 +1,124 @@
-import styled from 'styled-components';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { Heart, MessageCircle } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import styled from "styled-components";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import { Heart, MessageCircle } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { getPosts, getReel } from "../../services/post";
 
-// Mock 탐색 데이터
-const EXPLORE_POSTS = [
-  { id: 1, image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500', likes: 1234, comments: 45 },
-  { id: 2, image: 'https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=500', likes: 892, comments: 23 },
-  { id: 3, image: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=500', likes: 2156, comments: 67 },
-  { id: 4, image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=500', likes: 3421, comments: 89 },
-  { id: 5, image: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=500', likes: 1876, comments: 34 },
-  { id: 6, image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=500', likes: 945, comments: 12 },
-  { id: 7, image: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=500', likes: 2341, comments: 56 },
-  { id: 8, image: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500', likes: 1567, comments: 43 },
-  { id: 9, image: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=500', likes: 3892, comments: 91 },
-  { id: 10, image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500', likes: 2678, comments: 78 },
-  { id: 11, image: 'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=500', likes: 1234, comments: 29 },
-  { id: 12, image: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=500', likes: 4123, comments: 102 },
-];
+const baseURL = import.meta.env.VITE_BASE_URL;
 
 const Explore = () => {
   const { isDarkMode } = useApp();
+  const [explorePosts, setExplorePosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const observer = useRef();
+  const isInitialMount = useRef(true); // 초기 마운트 추적
+
+  // 최신 값을 참조하기 위한 ref
+  const loadingRef = useRef(loading);
+  const hasMoreRef = useRef(hasMore);
+  const pageRef = useRef(page);
+  const nextCursorRef = useRef(nextCursor);
+
+  // ref 업데이트
+  useEffect(() => {
+    loadingRef.current = loading;
+    hasMoreRef.current = hasMore;
+    pageRef.current = page;
+    nextCursorRef.current = nextCursor;
+  }, [loading, hasMore, page, nextCursor]);
+
+  // 배열을 랜덤으로 섞는 함수
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // 데이터 로드 함수
+  const loadMoreData = useCallback(async () => {
+    if (loadingRef.current || !hasMoreRef.current) return;
+
+    setLoading(true);
+    try {
+      // Feed 데이터 가져오기
+      const feedData = await getPosts(undefined, pageRef.current, 14, true);
+      const transformedFeeds = feedData.items.map((item) => ({
+        id: item.id,
+        type: "feed",
+        image: `${baseURL}${item.imageUrl}`,
+        likes: item.likeCount,
+        comments: item.commentCount,
+      }));
+
+      // Reel 데이터 가져오기 (한 개)
+      let transformedReel = null;
+      try {
+        const reelData = await getReel(nextCursorRef.current);
+        if (reelData.reel) {
+          transformedReel = {
+            id: reelData.reel.id,
+            type: "reel",
+            image: `${baseURL}${reelData.reel.image_url}`,
+            likes: reelData.reel.like_count,
+            comments: reelData.reel.comment_count,
+          };
+          setNextCursor(reelData.nextCursor);
+        }
+      } catch (error) {
+        console.log("Reel 데이터 없음:", error);
+      }
+
+      // Feed와 Reel을 합치고 랜덤으로 섞기
+      const newPosts = transformedReel
+        ? [...transformedFeeds, transformedReel]
+        : transformedFeeds;
+      const shuffledNewPosts = shuffleArray(newPosts);
+
+      setExplorePosts((prev) => [...prev, ...shuffledNewPosts]);
+      setPage((prev) => prev + 1);
+
+      // 더 이상 데이터가 없으면 hasMore를 false로 설정
+      if (feedData.items.length === 0) {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("데이터를 가져오는 중 오류 발생:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // 의존성 배열 제거 - ref를 통해 최신 값 참조
+
+  // 마지막 요소를 관찰하는 ref callback
+  const lastPostElementRef = useCallback(
+    (node) => {
+      if (loadingRef.current) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreRef.current) {
+          loadMoreData();
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loadMoreData]
+  );
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      loadMoreData();
+    }
+  }, []); // 빈 배열로 초기 한 번만 실행
 
   return (
     <>
@@ -33,26 +129,63 @@ const Explore = () => {
       <Container $darkMode={isDarkMode}>
         <MainContent>
           <Grid>
-            {EXPLORE_POSTS.map((post) => (
-              <GridItem key={post.id}>
-                <ImageWrapper>
-                  <Image src={post.image} alt="" />
-                  <Overlay>
-                    <Stats>
-                      <Stat>
-                        <Heart size={20} fill="white" color="white" />
-                        <span>{post.likes.toLocaleString()}</span>
-                      </Stat>
-                      <Stat>
-                        <MessageCircle size={20} fill="white" color="white" />
-                        <span>{post.comments}</span>
-                      </Stat>
-                    </Stats>
-                  </Overlay>
-                </ImageWrapper>
-              </GridItem>
-            ))}
+            {explorePosts.map((post, index) => {
+              // 마지막 요소에 ref 연결
+              if (explorePosts.length === index + 1) {
+                return (
+                  <GridItem
+                    key={`${post.type}-${post.id}`}
+                    ref={lastPostElementRef}
+                  >
+                    <ImageWrapper>
+                      <Image src={post.image} alt="" />
+                      <Overlay>
+                        <Stats>
+                          <Stat>
+                            <Heart size={20} fill="white" color="white" />
+                            <span>{post.likes.toLocaleString()}</span>
+                          </Stat>
+                          <Stat>
+                            <MessageCircle
+                              size={20}
+                              fill="white"
+                              color="white"
+                            />
+                            <span>{post.comments}</span>
+                          </Stat>
+                        </Stats>
+                      </Overlay>
+                    </ImageWrapper>
+                  </GridItem>
+                );
+              } else {
+                return (
+                  <GridItem key={`${post.type}-${post.id}`}>
+                    <ImageWrapper>
+                      <Image src={post.image} alt="" />
+                      <Overlay>
+                        <Stats>
+                          <Stat>
+                            <Heart size={20} fill="white" color="white" />
+                            <span>{post.likes.toLocaleString()}</span>
+                          </Stat>
+                          <Stat>
+                            <MessageCircle
+                              size={20}
+                              fill="white"
+                              color="white"
+                            />
+                            <span>{post.comments}</span>
+                          </Stat>
+                        </Stats>
+                      </Overlay>
+                    </ImageWrapper>
+                  </GridItem>
+                );
+              }
+            })}
           </Grid>
+          {loading && <LoadingText>로딩 중...</LoadingText>}
         </MainContent>
       </Container>
     </>
@@ -61,7 +194,7 @@ const Explore = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
 
   @media (min-width: 1264px) {
     margin-left: 335px;
@@ -153,6 +286,13 @@ const Stat = styled.div`
   svg {
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
   }
+`;
+
+const LoadingText = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: ${(props) => (props.theme.darkMode ? "#fff" : "#262626")};
+  font-size: 14px;
 `;
 
 export default Explore;
