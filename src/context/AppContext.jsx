@@ -91,6 +91,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = safeLocalStorage.getItem('token');
+<<<<<<< Updated upstream
       if (token && !user) {
         // 토큰이 있고 사용자 정보가 없으면 서버에서 사용자 정보 가져오기
         try {
@@ -133,20 +134,86 @@ export const AppProvider = ({ children }) => {
               // 토큰이 유효하지 않으면 토큰 제거
               safeLocalStorage.removeItem('token');
             }
+=======
+      if (!token || user) return;
+
+      try {
+        const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+        const response = await fetch(`${baseURL}/auth/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.user) {
+            const userData = data.data.user;
+            const userMode = userData.preferred_mode || 'normal';
+            setUser(userData);
+            setMode(userMode);
+>>>>>>> Stashed changes
           } else {
             // 토큰이 유효하지 않으면 토큰 제거
             safeLocalStorage.removeItem('token');
           }
+<<<<<<< Updated upstream
         } catch (error) {
           console.error('자동 로그인 실패:', error);
           safeLocalStorage.removeItem('token');
         }
+=======
+        } else {
+          // 토큰이 유효하지 않으면 토큰 제거
+          safeLocalStorage.removeItem('token');
+        }
+      } catch (error) {
+        console.error('자동 로그인 실패:', error);
+        safeLocalStorage.removeItem('token');
+>>>>>>> Stashed changes
       }
     };
 
     checkAuth();
   }, []); // 초기 마운트 시 한 번만 실행
 
+<<<<<<< Updated upstream
+=======
+  // 로그인(또는 자동 로그인)으로 user가 설정되면 서버에서 사용자 설정을 가져와 적용
+  useEffect(() => {
+    const loadUserSettings = async () => {
+      const token = safeLocalStorage.getItem('token');
+      if (!user || !token) return;
+
+      try {
+        const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+        const response = await fetch(`${baseURL}/users/me/settings`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) return;
+
+        const settingsData = await response.json();
+        // 서버에서 저장된 설정 값으로 적용 (글자 크기만)
+        if (settingsData.fontScale) {
+          setFontScale(settingsData.fontScale);
+        }
+        // 다크 모드는 기기(localStorage) 기준으로 유지하므로
+        // 서버 값으로 덮어쓰지 않는다.
+      } catch (settingsError) {
+        console.error('설정 로드 실패:', settingsError);
+      }
+    };
+
+    loadUserSettings();
+  }, [user]);
+>>>>>>> Stashed changes
   const login = (userData, selectedMode) => {
     setUser(userData);
     setMode(selectedMode);
