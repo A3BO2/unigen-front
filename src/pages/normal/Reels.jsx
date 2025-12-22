@@ -2,13 +2,7 @@ import { useEffect, useState } from "react";
 import styled from "styled-components";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import {
-  Heart,
-  MessageCircle,
-  Send,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
+import { Heart, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
 
 import { getReel } from "../../services/post";
 
@@ -23,68 +17,82 @@ const Reels = () => {
   const [noMoreReels, setNoMoreReels] = useState(false);
   const FILE_BASE_URL = import.meta.env.VITE_BASE_URL;
 
-
-
   /* =========================
    * 릴스 가져오기
    ========================= */
   const fetchReel = async () => {
-  if (loading || noMoreReels) return;
-  setLoading(true);
+    if (loading || noMoreReels) return;
+    setLoading(true);
 
-  try {
-    const data = await getReel(cursor);
+    try {
+      const data = await getReel(cursor);
 
-    if (!data.reel) {
-      setNoMoreReels(true);
-      return;
-    }
+      if (!data.reel) {
+        setNoMoreReels(true);
+        return;
+      }
 
-    const reel = data.reel;
+      const reel = data.reel;
 
-    setReels((prev) => {
-      if (prev.some((r) => r.id === reel.id)) return prev;
+      setReels((prev) => {
+        if (prev.some((r) => r.id === reel.id)) return prev;
 
-      return [
-        ...prev,
-        {
-          id: reel.id,
-          video: reel.video_url
-            ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${reel.video_url}`
-            : null,
-          image: reel.image_url
-            ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${reel.image_url}`
-            : null,
-          user: {
-            id: reel.author_id,
-            name: `유저 ${reel.author_id}`,
-            avatar: "👵",
+        return [
+          ...prev,
+          {
+            id: reel.id,
+            video: reel.video_url
+              ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${
+                  reel.video_url
+                }`
+              : null,
+            image: reel.image_url
+              ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${
+                  reel.image_url
+                }`
+              : null,
+            user: {
+              id: reel.author_id,
+              name: reel.authorName || "알 수 없음", // 진짜 이름
+              avatar: reel.authorProfile ? ( // 프사 있으면 이미지 태그, 없으면 이모지
+                <img
+                  src={reel.authorProfile}
+                  alt="프사"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                "👤"
+              ),
+            },
+            caption: reel.content,
+            likes: reel.like_count,
+            comments: reel.comment_count,
+            liked: false,
+            saved: false,
+            isSeniorMode: reel.is_senior_mode,
+            createdAt: reel.created_at,
           },
-          caption: reel.content,
-          likes: reel.like_count,
-          comments: reel.comment_count,
-          liked: false,
-          saved: false,
-          isSeniorMode: reel.is_senior_mode,
-          createdAt: reel.created_at,
-        },
-      ];
-    });
+        ];
+      });
 
-    // ⭐ 핵심 안전장치
-    if (data.nextCursor === cursor) {
-      setNoMoreReels(true);
-      return;
+      // ⭐ 핵심 안전장치
+      if (data.nextCursor === cursor) {
+        setNoMoreReels(true);
+        return;
+      }
+
+      setCursor(data.nextCursor);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-
-    setCursor(data.nextCursor);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   /* =========================
    * 최초 1개 로딩
@@ -113,9 +121,7 @@ const Reels = () => {
           ? {
               ...reel,
               liked: !reel.liked,
-              likes: reel.liked
-                ? reel.likes - 1
-                : reel.likes + 1,
+              likes: reel.liked ? reel.likes - 1 : reel.likes + 1,
             }
           : reel
       )
@@ -130,79 +136,70 @@ const Reels = () => {
       <Container>
         <ReelsContainer onScroll={handleScroll}>
           {reels.map((reel) => (
-  <ReelWrapper key={reel.id}>
-    <VideoContainer>
-      {/* ✅ 영상 / 이미지 분기 렌더링 */}
-      {reel.video ? (
-        <Video
-          src={reel.video}
-          autoPlay
-          loop
-          muted={muted}
-          playsInline
-        />
-      ) : reel.image ? (
-        <Image
-          src={reel.image}
-          alt="reel image"
-        />
-      ) : null}
+            <ReelWrapper key={reel.id}>
+              <VideoContainer>
+                {/* ✅ 영상 / 이미지 분기 렌더링 */}
+                {reel.video ? (
+                  <Video
+                    src={reel.video}
+                    autoPlay
+                    loop
+                    muted={muted}
+                    playsInline
+                  />
+                ) : reel.image ? (
+                  <Image src={reel.image} alt="reel image" />
+                ) : null}
 
-      {/* 🔊 볼륨 버튼은 영상일 때만 */}
-      {reel.video && (
-        <VolumeButton onClick={() => setMuted(!muted)}>
-          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </VolumeButton>
-      )}
+                {/* 🔊 볼륨 버튼은 영상일 때만 */}
+                {reel.video && (
+                  <VolumeButton onClick={() => setMuted(!muted)}>
+                    {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                  </VolumeButton>
+                )}
 
-      <ReelInfo>
-        <UserInfo>
-          <Avatar>{reel.user.avatar}</Avatar>
-          <Username>{reel.user.name}</Username>
-          <FollowButton>팔로우</FollowButton>
-        </UserInfo>
-        <Caption>{reel.caption}</Caption>
-      </ReelInfo>
+                <ReelInfo>
+                  <UserInfo>
+                    <Avatar>{reel.user.avatar}</Avatar>
+                    <Username>{reel.user.name}</Username>
+                    <FollowButton>팔로우</FollowButton>
+                  </UserInfo>
+                  <Caption>{reel.caption}</Caption>
+                </ReelInfo>
 
-      <Actions>
-        <ActionButton onClick={() => handleLike(reel.id)}>
-          <Heart
-            size={28}
-            color="#fff"
-            fill={reel.liked ? "#fff" : "none"}
-          />
-          <ActionText>
-            {reel.likes.toLocaleString()}
-          </ActionText>
-        </ActionButton>
+                <Actions>
+                  <ActionButton onClick={() => handleLike(reel.id)}>
+                    <Heart
+                      size={28}
+                      color="#fff"
+                      fill={reel.liked ? "#fff" : "none"}
+                    />
+                    <ActionText>{reel.likes.toLocaleString()}</ActionText>
+                  </ActionButton>
 
-        <ActionButton>
-          <MessageCircle size={28} color="#fff" />
-          <ActionText>{reel.comments}</ActionText>
-        </ActionButton>
+                  <ActionButton>
+                    <MessageCircle size={28} color="#fff" />
+                    <ActionText>{reel.comments}</ActionText>
+                  </ActionButton>
 
-        <ActionButton>
-          <Send size={28} color="#fff" />
-        </ActionButton>
-      </Actions>
-    </VideoContainer>
-  </ReelWrapper>
-))}
+                  <ActionButton>
+                    <Send size={28} color="#fff" />
+                  </ActionButton>
+                </Actions>
+              </VideoContainer>
+            </ReelWrapper>
+          ))}
 
           {reels.length === 0 && noMoreReels && (
-  <EmptyState>
-    <EmptyText>릴스가 없습니다.</EmptyText>
-  </EmptyState>
-)}
-
-
-          
+            <EmptyState>
+              <EmptyText>릴스가 없습니다.</EmptyText>
+            </EmptyState>
+          )}
         </ReelsContainer>
       </Container>
     </>
   );
 };
-
 
 const Container = styled.div`
   min-height: 100vh;
@@ -386,11 +383,8 @@ const EmptyText = styled.p`
 const Image = styled.img`
   width: 100%;
   height: 100%;
-  object-fit: cover;   /* ⭐ 핵심 */
+  object-fit: cover; /* ⭐ 핵심 */
   background: black;
 `;
-
-
-
 
 export default Reels;
