@@ -58,6 +58,13 @@ export async function getReel(lastId) {
   });
 }
 
+export async function getStories() {
+  return await apifetch(`/posts/stories`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+}
+
 export async function createPost(formData) {
   const token = localStorage.getItem("token");
 
@@ -85,5 +92,3 @@ export async function createPost(formData) {
   }
   return data;
 }
-
-
