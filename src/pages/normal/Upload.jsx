@@ -70,14 +70,20 @@ const Upload = () => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      console.log("선택된 파일:", file, "타입:", contentType);
       setOriginalFile(file);
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreview(e.target.result);
+      const objectUrl = URL.createObjectURL(file);
+      console.log("생성된 URL:", objectUrl); // 👇 URL이 나오는지 확인
+      setPreview(objectUrl);
+
+      // 릴스면 자르기 생략
+      if (contentType === "reels") {
+        setFinalFile(file);
+        setStep("final");
+      } else {
         setStep("crop");
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -89,6 +95,8 @@ const Upload = () => {
   const handleNext = async () => {
     if (step === "crop") {
       if (contentType === "reels") {
+        // 릴스는 자르기/필터 없이 바로 원본 파일 설정
+        setFinalFile(originalFile);
         setStep("final");
       } else {
         // 자르기 단계 => 필터 단계로 넘어갈 때 실제로 이미지를 자름
@@ -199,7 +207,10 @@ const Upload = () => {
   const handleBack = () => {
     if (step === "final") {
       if (contentType === "reels") {
-        setStep("crop");
+        setStep("select");
+        setPreview(null);
+        setOriginalFile(null);
+        setFinalFile(null);
       } else {
         // 필터 단계로 돌아갈 때 롤백 수행
         setStep("filter");
@@ -229,6 +240,8 @@ const Upload = () => {
       const formData = new FormData();
       formData.append("images", finalFile); // 다 적용된 최종 파일
       formData.append("content", caption); // 글
+      // postType을 명시적으로 추가해야 벡엔드가 구분
+      formData.append("postType", contentType === "reels" ? "reel" : "feed");
 
       await createPost(formData);
 
@@ -400,7 +413,15 @@ const Upload = () => {
               >
                 {contentType === "reels" ? (
                   <ReelsFrame>
-                    <PreviewVideo src={preview} controls autoPlay loop />
+                    <PreviewVideo
+                      key={preview}
+                      src={preview}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
                   </ReelsFrame>
                 ) : (
                   // 라이브러리 사용
@@ -605,7 +626,15 @@ const Upload = () => {
               <FinalLeft>
                 {contentType === "reels" ? (
                   <ReelsFrame>
-                    <PreviewVideo src={preview} controls autoPlay loop />
+                    <PreviewVideo
+                      key={preview}
+                      src={preview}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
                   </ReelsFrame>
                 ) : (
                   <PreviewImageFinal
@@ -895,7 +924,7 @@ const ReelsFrame = styled.div`
 const PreviewVideo = styled.video`
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 `;
 
 const CropToolbar = styled.div`
@@ -1083,6 +1112,8 @@ const FinalContainer = styled.div`
   @media (max-width: 767px) {
     flex-direction: column;
     height: auto;
+    max-height: 80vh; /* 모달 크기 내에서 */
+    overflow-y: auto; /* 스크롤 가능하게 변경 */
   }
 `;
 
@@ -1098,6 +1129,8 @@ const FinalLeft = styled.div`
     width: 100%;
     padding: 16px 12px;
     min-height: 60vh;
+    flex: none; /* 남은 공간 다 차지하지 않게 설정 */
+    height: 350px; /* 적당한 높이 고정 */
   }
 `;
 
@@ -1117,8 +1150,11 @@ const FinalRight = styled.div`
 
   @media (max-width: 767px) {
     width: 100%;
+    flex: none; /* 크기 축소 방지 */
     border-left: none;
     border-top: 1px solid #dbdbdb;
+    height: auto; /* 내용물만큼 높이 확보 */
+    min-height: 200px; /* 최소 높이 보장 */
   }
 `;
 
