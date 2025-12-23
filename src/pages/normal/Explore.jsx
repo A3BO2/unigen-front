@@ -7,6 +7,7 @@ import { useApp } from "../../context/AppContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPosts, getReel } from "../../services/post";
+import { isFollowing, followUser, unfollowUser } from "../../services/user";
 import { getTimeAgo } from "../../util/date";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
@@ -20,6 +21,10 @@ const Explore = () => {
   const [loading, setLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null); // 선택된 피드 상세보기
+  const [isFollowingUser, setIsFollowingUser] = useState(false); // 팔로우 상태
+  const [isMine, setIsMine] = useState(false); // 내 게시물인지 여부
+  const [followStatusLoading, setFollowStatusLoading] = useState(false); // 팔로우 상태 확인 로딩
+  const [followLoading, setFollowLoading] = useState(false); // 팔로우 로딩 상태
   const observer = useRef();
   const isInitialMount = useRef(true); // 초기 마운트 추적
 
@@ -62,8 +67,9 @@ const Explore = () => {
         likes: item.likeCount,
         comments: item.commentCount,
         user: {
-          name: item.authorName || "사용자",
-          avatar: item.authorProfile || null,
+          id: item.author.id || item.authorId,
+          name: item.author.name || "사용자",
+          avatar: item.author.profileImageUrl || null,
         },
         caption: item.content || "",
         timestamp: item.createdAt || "",
@@ -82,6 +88,7 @@ const Explore = () => {
             likes: reelData.reel.like_count,
             comments: reelData.reel.comment_count,
             user: {
+              id: reelData.reel.author_id,
               name: reelData.reel.authorName || "사용자",
               avatar: reelData.reel.authorProfile || null,
             },
@@ -145,8 +152,58 @@ const Explore = () => {
       // 릴스는 Reels 페이지로 이동 (해당 릴스 ID와 함께)
       navigate(`/normal/reels?startId=${post.id}`);
     } else {
-      // 피드는 상세 모달 표시
+      // 피드는 상세 모달 표시 - 상태 초기화 후 설정
+      setFollowStatusLoading(true);
+      setIsFollowingUser(false);
+      setIsMine(false);
       setSelectedPost(post);
+    }
+  };
+
+  // 상세 모달이 열릴 때 팔로우 상태 확인
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (selectedPost && selectedPost.user.id) {
+        try {
+          const response = await isFollowing(selectedPost.user.id);
+          setIsFollowingUser(response.isFollowing);
+          setIsMine(response.isMine);
+        } catch (error) {
+          console.error("팔로우 상태 확인 실패:", error);
+          setIsFollowingUser(false);
+          setIsMine(false);
+        } finally {
+          setFollowStatusLoading(false);
+        }
+      } else if (!selectedPost) {
+        // 모달이 닫힐 때 상태 초기화
+        setFollowStatusLoading(false);
+        setIsFollowingUser(false);
+        setIsMine(false);
+      }
+    };
+    checkFollowStatus();
+  }, [selectedPost]);
+
+  // 팔로우/언팔로우 핸들러
+  const handleFollow = async () => {
+    if (!selectedPost || !selectedPost.user.id || followLoading) return;
+
+    setFollowLoading(true);
+    try {
+      if (isFollowingUser) {
+        // 언팔로우
+        await unfollowUser(selectedPost.user.id);
+        setIsFollowingUser(false);
+      } else {
+        // 팔로우
+        await followUser(selectedPost.user.id);
+        setIsFollowingUser(true);
+      }
+    } catch (error) {
+      console.error("팔로우/언팔로우 요청 실패:", error);
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -285,6 +342,19 @@ const Explore = () => {
                     <Username $darkMode={isDarkMode}>
                       {selectedPost.user.name}
                     </Username>
+                    {!followStatusLoading && !isMine && (
+                      <FollowButton
+                        onClick={handleFollow}
+                        $isFollowing={isFollowingUser}
+                        disabled={followLoading}
+                      >
+                        {followLoading
+                          ? "..."
+                          : isFollowingUser
+                          ? "팔로잉"
+                          : "팔로우"}
+                      </FollowButton>
+                    )}
                   </UserInfo>
                   <CloseButton
                     onClick={() => setSelectedPost(null)}
@@ -621,6 +691,29 @@ const Username = styled.span`
   font-size: 14px;
   font-weight: 600;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+`;
+
+const FollowButton = styled.button`
+  margin-left: 36px;
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+
+  background: ${(props) => (props.$isFollowing ? "#efefef" : "#0095f6")};
+  color: ${(props) => (props.$isFollowing ? "#262626" : "#fff")};
+
+  &:hover {
+    background: ${(props) => (props.$isFollowing ? "#dbdbdb" : "#1877f2")};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const CloseButton = styled.button`
