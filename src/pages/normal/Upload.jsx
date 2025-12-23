@@ -625,18 +625,74 @@ const Upload = () => {
             <FinalContainer>
               <FinalLeft>
                 {contentType === "reels" ? (
-                  <ReelsFrame>
-                    <PreviewVideo
-                      key={preview}
-                      src={preview}
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                    />
-                  </ReelsFrame>
+                  // 🎥 [릴스] .mov 파일인지 체크
+                  finalFile?.name.toLowerCase().endsWith(".mov") ||
+                  finalFile?.type === "video/quicktime" ? (
+                    // 1️⃣ .mov 파일일 경우: 미리보기 대신 안내 화면 표시
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        background: "#111",
+                        color: "#fff",
+                        textAlign: "center",
+                        gap: "20px",
+                      }}
+                    >
+                      <span style={{ fontSize: "50px" }}>🎬</span>
+                      <div>
+                        <p
+                          style={{
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          동영상 미리보기 불가
+                        </p>
+                        <p style={{ fontSize: "14px", color: "#aaa" }}>
+                          .mov 파일은 브라우저에서 재생할 수 없어요.
+                          <br />
+                          하지만 <b>업로드는 정상적으로 됩니다!</b>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    // 2️⃣ .mp4 등 지원되는 파일일 경우: 비디오 재생
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        background: "#000",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <video
+                        key={preview}
+                        src={preview}
+                        style={{
+                          width: "auto",
+                          height: "auto",
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                        }}
+                        controls
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      />
+                    </div>
+                  )
                 ) : (
+                  // 📷 [사진]
                   <PreviewImageFinal
                     src={preview}
                     alt="Preview"
