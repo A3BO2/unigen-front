@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import styled from 'styled-components';
-import { initKakaoSDK, loginWithKakao } from '../../utils/kakaoAuth';
-import KakaoSignupModal from '../../components/KakaoSignupModal';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+import styled from "styled-components";
+import { initKakaoSDK, loginWithKakao } from "../../utils/kakaoAuth";
+import KakaoSignupModal from "../../components/KakaoSignupModal";
+import { sendSmsCode, seniorAuthPhone } from "../../services/sms";
 
 const SeniorLogin = () => {
   const navigate = useNavigate();
   const { login } = useApp();
-  const [step, setStep] = useState('phone'); // phone, code
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
+  const [step, setStep] = useState("phone"); // phone, code
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showKakaoSignupModal, setShowKakaoSignupModal] = useState(false);
   const [kakaoAccessToken, setKakaoAccessToken] = useState(null);
@@ -32,34 +33,37 @@ const SeniorLogin = () => {
   }, []);
 
   // 카카오 인증 처리 공통 함수
-  const processKakaoAuth = useCallback(async (accessToken) => {
-    try {
-      const response = await fetch(
-        "http://localhost:3000/api/v1/senior/auth/kakao/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token: accessToken }),
-        }
-      );
-      const data = await response.json();
+  const processKakaoAuth = useCallback(
+    async (accessToken) => {
+      try {
+        const response = await fetch(
+          "http://localhost:3000/api/v1/senior/auth/kakao/login",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ access_token: accessToken }),
+          }
+        );
+        const data = await response.json();
 
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        login(data.data?.user || data.user, "senior");
-        window.history.replaceState({}, document.title, "/senior/home");
-        navigate("/senior/home", { replace: true });
-      } else if (data.needsSignup) {
-        setKakaoUserInfo(data.kakaoUser);
-        setShowKakaoSignupModal(true);
-      } else {
-        alert(data.message || "카카오 로그인 실패");
+        if (response.ok) {
+          localStorage.setItem("token", data.token);
+          login(data.data?.user || data.user, "senior");
+          window.history.replaceState({}, document.title, "/senior/home");
+          navigate("/senior/home", { replace: true });
+        } else if (data.needsSignup) {
+          setKakaoUserInfo(data.kakaoUser);
+          setShowKakaoSignupModal(true);
+        } else {
+          alert(data.message || "카카오 로그인 실패");
+        }
+      } catch (error) {
+        console.error("카카오 인증 처리 오류:", error);
+        alert("카카오 로그인 중 오류가 발생했습니다.");
       }
-    } catch (error) {
-      console.error("카카오 인증 처리 오류:", error);
-      alert("카카오 로그인 중 오류가 발생했습니다.");
-    }
-  }, [login, navigate]);
+    },
+    [login, navigate]
+  );
 
   // 카카오 로그인 리다이렉트 후 콜백 처리
   useEffect(() => {
@@ -70,8 +74,15 @@ const SeniorLogin = () => {
       const errorDescription = urlParams.get("error_description");
 
       if (error) {
-        console.error("카카오 로그인 오류:", errorDescription || "카카오 로그인에 실패했습니다.");
-        window.history.replaceState({}, document.title, window.location.pathname);
+        console.error(
+          "카카오 로그인 오류:",
+          errorDescription || "카카오 로그인에 실패했습니다."
+        );
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
         return;
       }
 
@@ -80,40 +91,63 @@ const SeniorLogin = () => {
           const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
           const currentPath = window.location.pathname;
           const redirectUri = window.location.origin + currentPath;
-          
-          const tokenResponse = await fetch("https://kauth.kakao.com/oauth/token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-            },
-            body: new URLSearchParams({
-              grant_type: "authorization_code",
-              client_id: kakaoAppKey,
-              redirect_uri: redirectUri,
-              code: code,
-            }),
-          });
+
+          const tokenResponse = await fetch(
+            "https://kauth.kakao.com/oauth/token",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/x-www-form-urlencoded;charset=utf-8",
+              },
+              body: new URLSearchParams({
+                grant_type: "authorization_code",
+                client_id: kakaoAppKey,
+                redirect_uri: redirectUri,
+                code: code,
+              }),
+            }
+          );
 
           const tokenData = await tokenResponse.json();
 
           if (!tokenResponse.ok) {
             console.error("카카오 토큰 발급 실패:", tokenData);
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
             return;
           }
 
           if (tokenData.access_token) {
             const accessToken = tokenData.access_token;
             setKakaoAccessToken(accessToken);
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
             await processKakaoAuth(accessToken);
           } else {
-            console.error("토큰 발급 실패: access_token이 없습니다.", tokenData);
-            window.history.replaceState({}, document.title, window.location.pathname);
+            console.error(
+              "토큰 발급 실패: access_token이 없습니다.",
+              tokenData
+            );
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
           }
         } catch (err) {
           console.error("카카오 토큰 교환 오류:", err);
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
         }
       }
     };
@@ -130,25 +164,13 @@ const SeniorLogin = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:3000/api/v1/senior/auth/send-code",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: cleanPhone }),
-        }
-      );
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("인증번호가 발송되었습니다.");
-      setStep('code');
-      } else {
-        alert(data.message || "인증번호 발송에 실패했습니다.");
-      }
+      // api 호출
+      await sendSmsCode(cleanPhone);
+      alert("인증번호가 발송되었습니다.");
+      setStep("code");
     } catch (error) {
       console.error("Error:", error);
-      alert("서버 연결 실패");
+      alert(error.message || "인증번호 발송에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -160,33 +182,25 @@ const SeniorLogin = () => {
       return;
     }
 
+    const cleanPhone = phoneNumber.replace(/-/g, "");
     setIsLoading(true);
     try {
-      const cleanPhone = phoneNumber.replace(/-/g, "");
-      const response = await fetch(
-        "http://localhost:3000/api/v1/senior/auth/phone",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: cleanPhone,
-            code: verificationCode,
-          }),
-        }
-      );
-      const data = await response.json();
+      // api 호출
+      // seniorAuthPhone은 검증 + 로그인까지 한 번에 수행
+      const data = await seniorAuthPhone(cleanPhone, verificationCode);
 
-      if (response.ok) {
+      // 성공 시 처리
+      if (data.token) {
         localStorage.setItem("token", data.token);
         login(data.data?.user || data.user, "senior");
         alert("로그인 성공!");
         navigate("/senior/home");
       } else {
-        alert(data.message || "인증에 실패했습니다.");
+        alert("로그인 정보가 올바르지 않습니다.");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("서버 연결 실패");
+      alert(error.message || "인증에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -252,15 +266,13 @@ const SeniorLogin = () => {
   return (
     <Container>
       <Header>
-        <BackButton onClick={() => navigate('/')}>
-          ← 뒤로
-        </BackButton>
+        <BackButton onClick={() => navigate("/")}>← 뒤로</BackButton>
       </Header>
 
       <Content>
         <Title>간단하게 시작하기</Title>
 
-        {step === 'phone' ? (
+        {step === "phone" ? (
           <>
             <Description>
               전화번호만 입력하시면
@@ -279,7 +291,10 @@ const SeniorLogin = () => {
               />
             </InputContainer>
 
-            <Button onClick={handleSendCode} disabled={phoneNumber.length < 10 || isLoading}>
+            <Button
+              onClick={handleSendCode}
+              disabled={phoneNumber.length < 10 || isLoading}
+            >
               {isLoading ? "발송 중..." : "인증번호 받기"}
             </Button>
           </>
@@ -299,17 +314,22 @@ const SeniorLogin = () => {
                 type="text"
                 placeholder="123456"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
+                onChange={(e) =>
+                  setVerificationCode(e.target.value.slice(0, 6))
+                }
                 maxLength={6}
                 autoFocus
               />
             </InputContainer>
 
-            <Button onClick={handleVerify} disabled={verificationCode.length !== 6 || isLoading}>
+            <Button
+              onClick={handleVerify}
+              disabled={verificationCode.length !== 6 || isLoading}
+            >
               {isLoading ? "인증 중..." : "시작하기"}
             </Button>
 
-            <ResendButton onClick={() => setStep('phone')}>
+            <ResendButton onClick={() => setStep("phone")}>
               전화번호 다시 입력
             </ResendButton>
           </>
@@ -326,7 +346,8 @@ const SeniorLogin = () => {
         </SocialButton>
 
         <TermsText>
-          계속 진행하시면 <TermsLink>이용약관</TermsLink>에 동의하는 것으로 간주됩니다
+          계속 진행하시면 <TermsLink>이용약관</TermsLink>에 동의하는 것으로
+          간주됩니다
         </TermsText>
       </Content>
 
@@ -423,19 +444,19 @@ const Button = styled.button`
   font-size: 22px;
   font-weight: 600;
   color: white;
-  background: ${props => props.disabled ? '#ccc' : '#667eea'};
+  background: ${(props) => (props.disabled ? "#ccc" : "#667eea")};
   padding: 20px;
   border-radius: 12px;
   margin-bottom: 16px;
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.disabled ? '#ccc' : '#5568d3'};
+    background: ${(props) => (props.disabled ? "#ccc" : "#5568d3")};
   }
 
   &:active {
-    transform: ${props => props.disabled ? 'none' : 'scale(0.98)'};
+    transform: ${(props) => (props.disabled ? "none" : "scale(0.98)")};
   }
 `;
 
