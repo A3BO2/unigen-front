@@ -1,13 +1,13 @@
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import styled from 'styled-components';
-import { ChevronRight, Moon, Sun, User } from 'lucide-react';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { useApp } from '../../context/AppContext';
-import { logoutWithKakao } from '../../utils/kakaoAuth';
-import { updateUserSettings } from '../../services/user';
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import styled from "styled-components";
+import { ChevronRight, Moon, Sun, User } from "lucide-react";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import { useApp } from "../../context/AppContext";
+import { logoutWithKakao } from "../../utils/kakaoAuth";
+import { updateUserSettings } from "../../services/user";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ const Settings = () => {
       setLoading(true);
       await updateUserSettings({ isDarkMode: newValue });
     } catch (error) {
-      console.error('다크 모드 설정 저장 실패:', error);
+      console.error("다크 모드 설정 저장 실패:", error);
       // 실패해도 로컬 다크 모드 상태는 그대로 둔다
     } finally {
       setLoading(false);
@@ -31,18 +31,18 @@ const Settings = () => {
   };
 
   const handleModeSwitch = () => {
-    switchMode('senior');
-    navigate('/senior/home');
+    switchMode("senior");
+    navigate("/senior/home");
   };
 
   const handleLogout = () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
+    if (confirm("로그아웃 하시겠습니까?")) {
       // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
-      if (user?.signup_mode === 'kakao') {
+      if (user?.signup_mode === "kakao") {
         logoutWithKakao();
       }
       logout();
-      navigate('/');
+      navigate("/");
     }
   };
 
@@ -66,9 +66,14 @@ const Settings = () => {
                 <IconWrapper $darkMode={isDarkMode}>
                   <User size={20} />
                 </IconWrapper>
-                <SettingLabel $darkMode={isDarkMode}>시니어 모드 전환</SettingLabel>
+                <SettingLabel $darkMode={isDarkMode}>
+                  시니어 모드 전환
+                </SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
 
             <SettingItem
@@ -89,52 +94,82 @@ const Settings = () => {
           </Section>
 
           <Section>
-            <SectionTitle $darkMode={isDarkMode}>계정</SectionTitle>
+            <SectionTitle $darkMode={isDarkMode}>계정 및 보안</SectionTitle>
 
-            <SettingItem $darkMode={isDarkMode} onClick={() => navigate('/account/privacy')}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={() => navigate("/change-password")}
+            >
               <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>개인정보 보호</SettingLabel>
+                <SettingLabel $darkMode={isDarkMode}>
+                  비밀번호 변경
+                </SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
 
-            <SettingItem $darkMode={isDarkMode} onClick={() => navigate('/account/security')}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={() => navigate("/account/security")}
+            >
               <SettingLeft>
                 <SettingLabel $darkMode={isDarkMode}>보안</SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
 
-            <SettingItem $darkMode={isDarkMode} onClick={() => navigate('/account/notifications')}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={() => navigate("/account/notifications")}
+            >
               <SettingLeft>
                 <SettingLabel $darkMode={isDarkMode}>알림 설정</SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
           </Section>
 
           <Section>
             <SectionTitle $darkMode={isDarkMode}>정보</SectionTitle>
 
-            <SettingItem $darkMode={isDarkMode} onClick={() => navigate('/about')}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={() => navigate("/about")}
+            >
               <SettingLeft>
                 <SettingLabel $darkMode={isDarkMode}>앱 정보</SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
 
-            <SettingItem $darkMode={isDarkMode} onClick={() => navigate('/help')}>
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={() => navigate("/help")}
+            >
               <SettingLeft>
                 <SettingLabel $darkMode={isDarkMode}>도움말</SettingLabel>
               </SettingLeft>
-              <ChevronRight size={20} color={isDarkMode ? '#8e8e8e' : '#8e8e8e'} />
+              <ChevronRight
+                size={20}
+                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+              />
             </SettingItem>
           </Section>
 
           <Section>
-            <LogoutButton onClick={handleLogout}>
-              로그아웃
-            </LogoutButton>
+            <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
           </Section>
         </Content>
       </Container>
@@ -146,7 +181,7 @@ const Container = styled.div`
   margin-left: 335px;
   margin-right: 335px;
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
   padding: 0 20px;
 
   @media (max-width: 1264px) {
@@ -164,20 +199,21 @@ const Header = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 30px 0 20px;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
-  background: ${props => props.$darkMode ? '#000' : 'white'};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
 `;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Content = styled.div`
   max-width: 600px;
   margin: 0 auto;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
   padding: 20px 0;
 `;
 
@@ -188,7 +224,7 @@ const Section = styled.div`
 const SectionTitle = styled.h2`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   padding: 16px 20px 8px;
 `;
 
@@ -201,11 +237,11 @@ const SettingItem = styled.div`
   transition: background 0.2s;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:active {
-    background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   }
 `;
 
@@ -219,19 +255,19 @@ const IconWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const SettingLabel = styled.span`
   font-size: 16px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Toggle = styled.div`
   width: 44px;
   height: 24px;
   border-radius: 12px;
-  background: ${props => props.$active ? '#0095f6' : '#dbdbdb'};
+  background: ${(props) => (props.$active ? "#0095f6" : "#dbdbdb")};
   position: relative;
   transition: background 0.3s;
   cursor: pointer;
@@ -244,7 +280,7 @@ const ToggleCircle = styled.div`
   background: white;
   position: absolute;
   top: 2px;
-  left: ${props => props.$active ? '22px' : '2px'};
+  left: ${(props) => (props.$active ? "22px" : "2px")};
   transition: left 0.3s;
 `;
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { X, Maximize2 } from "lucide-react";
+import { X, Maximize2, Loader2 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
@@ -58,6 +58,9 @@ const Upload = () => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
+  // 업로드 시 상태 관리 state(업로드 로딩 창)
+  const [isUploading, setIsUploading] = useState(false);
 
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
@@ -235,6 +238,10 @@ const Upload = () => {
       alert("업로드할 이미지가 없습니다.");
       return;
     }
+
+    // 업로드 시작 시 로딩 켜기
+    setIsUploading(true);
+
     try {
       // 서버로 보낼 FormData 만들기
       const formData = new FormData();
@@ -249,6 +256,8 @@ const Upload = () => {
       navigate("/normal/home");
     } catch (error) {
       console.log("업로드 에러:", error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -662,7 +671,7 @@ const Upload = () => {
                       </div>
                     </div>
                   ) : (
-                    // 2️⃣ .mp4 등 지원되는 파일일 경우: 비디오 재생
+                    /* 2️⃣ .mp4 등 일반 파일이면: 영상 재생 */
                     <div
                       style={{
                         width: "100%",
@@ -670,12 +679,12 @@ const Upload = () => {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        background: "#000",
+                        backgroundColor: "#000",
                         overflow: "hidden",
                       }}
                     >
                       <video
-                        key={preview}
+                        key={preview} // 소스 바뀔 때 새로고침
                         src={preview}
                         style={{
                           width: "auto",
@@ -692,7 +701,7 @@ const Upload = () => {
                     </div>
                   )
                 ) : (
-                  // 📷 [사진]
+                  /* 📷 [사진 로직] */
                   <PreviewImageFinal
                     src={preview}
                     alt="Preview"
@@ -700,6 +709,8 @@ const Upload = () => {
                   />
                 )}
               </FinalLeft>
+
+              {/* 👇 오른쪽 텍스트 입력창 (기존 그대로 유지) */}
               <FinalRight>
                 <UserInfo>
                   <Avatar>
@@ -733,6 +744,19 @@ const Upload = () => {
           )}
         </Modal>
       </Overlay>
+      {/* 업로드 중일 때 뜨는 전체화면 로딩창 */}
+      {isUploading && (
+        <LoadingOverlay>
+          <SpinningLoader>
+            <Loader2 size={48} color="#fff" />
+          </SpinningLoader>
+          <LoadingText>
+            게시물을 업로드하고 있습니다...
+            <br />
+            (동영상은 시간이 조금 걸릴 수 있어요)
+          </LoadingText>
+        </LoadingOverlay>
+      )}
     </>
   );
 };
@@ -1288,6 +1312,43 @@ const OptionItem = styled.div`
 const OptionLabel = styled.div`
   font-size: 14px;
   color: #262626;
+`;
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8); /* 배경을 어둡게 */
+  z-index: 9999; /* 모달보다 더 위에 뜨도록 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+`;
+
+// 빙글빙글 도는 애니메이션
+const SpinningLoader = styled.div`
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LoadingText = styled.p`
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.5;
 `;
 
 export default Upload;

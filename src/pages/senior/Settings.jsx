@@ -19,16 +19,38 @@ const Settings = () => {
   const [fontSize, setFontSize] = useState(fontScale || 'large');
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState(null);
+
+  // 전역 fontScale 이 바뀌면 로컬 상태도 동기화 (다른 화면에서 변경된 경우 대비)
+  useEffect(() => {
+    if (fontScale) {
+      setFontSize(fontScale);
+    }
+  }, [fontScale]);
+
+  // 현재 선택된 글자 크기에 따른 스케일 값 (이 페이지에 확실히 적용되도록 로컬에서도 CSS 변수 세팅)
+  const localScaleMap = {
+    small: 0.8,
+    medium: 1,
+    large: 1.5,
+  };
+  const currentScale = localScaleMap[fontSize] || 1;
 
   // 초기 설정 로드
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const settings = await getUserSettings();
+
+        // 1) 이 페이지 로컬 상태만 초기화 (서버 값 기준)
         setFontSize(settings.fontScale || 'large');
-        setNotificationsOn(settings.notificationsOn !== undefined ? settings.notificationsOn : true);
-        // AppContext도 업데이트
-        if (settings.fontScale) {
+        setNotificationsOn(
+          settings.notificationsOn !== undefined ? settings.notificationsOn : true
+        );
+
+        // 2) 전역 컨텍스트는 "처음 진입했을 때만" 맞춰 주고,
+        //    이후에는 사용자가 버튼으로 바꾼 값은 덮어쓰지 않는다.
+        if (!fontScale && settings.fontScale) {
           updateFontScale(settings.fontScale);
         }
       } catch (error) {
@@ -36,6 +58,8 @@ const Settings = () => {
       }
     };
     loadSettings();
+    // fontScale은 조건문 안에서만 참고하므로 의존성에서 제외해, 한 번만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateFontScale]);
 
   // 폰트 크기 변경 핸들러
@@ -73,6 +97,61 @@ const Settings = () => {
     }
   };
 
+  // 정각 알림 (매시간, 시간대에 따라 다른 메시지) 스케줄링
+  useEffect(() => {
+    if (!notificationsOn) return;
+
+    const timeouts = [];
+
+    const getMessageForHour = (hour) => {
+      if (hour === 6) return "좋은 아침입니다! 아침 6시입니다.";
+      if (hour === 12) return "안녕하세요, 점심 12시입니다. 밥 먹고 올까요?";
+      if (hour === 20) return "좋은 저녁입니다. 저녁 8시입니다.";
+      if (hour === 0) return "안녕히 주무세요. 자정 12시입니다.";
+      return `지금은 ${hour}시 정각입니다.`;
+    };
+
+    const scheduleNextHour = () => {
+      const now = new Date();
+      const next = new Date();
+      next.setMinutes(0, 0, 0);
+      // 이미 정각을 지난 경우 다음 정각(다음 시간)으로
+      if (next <= now) {
+        next.setHours(next.getHours() + 1);
+      }
+
+      const delay = next.getTime() - now.getTime();
+
+      const timeoutId = window.setTimeout(() => {
+        const currentHour = new Date().getHours();
+        const msg = getMessageForHour(currentHour);
+        // 1) 화면 상단에 5분 동안 표시
+        setNotificationMessage(msg);
+        window.setTimeout(() => {
+          setNotificationMessage((prev) => (prev === msg ? null : prev));
+        }, 5 * 60 * 1000);
+        // 다음 시간 정각 예약
+        scheduleNextHour();
+      }, delay);
+
+      timeouts.push(timeoutId);
+    };
+
+    scheduleNextHour();
+
+    // cleanup: 알림 끄거나 컴포넌트 언마운트 시 타이머 제거
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+    };
+  }, [notificationsOn]);
+
+  // 다크 모드 변경 핸들러
+  const handleDarkModeChange = () => {
+    // 전역 AppContext의 다크 모드 상태만 토글
+    // (다크 모드는 기기/브라우저 기준으로 관리하고 서버에는 저장하지 않음)
+    toggleDarkMode();
+  };
+
   const handleLogout = () => {
     if (confirm('로그아웃 하시겠습니까?')) {
       // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
@@ -85,19 +164,25 @@ const Settings = () => {
   };
 
   return (
-    <ThemeProvider theme={{ $darkMode: isDarkMode }}>
-      <Container $darkMode={isDarkMode}>
+    // 이 페이지에서는 테마 + 로컬 상태로 글자 크기를 확실하게 반영
+    <ThemeProvider theme={{ $darkMode: isDarkMode, $fontScale: currentScale }}>
+      <Container $darkMode={isDarkMode} $fontSize={fontSize}>
         <Header $darkMode={isDarkMode}>
           <BackButton onClick={() => navigate('/senior/profile')}>
             <ChevronLeft size={32} strokeWidth={2.5} />
           </BackButton>
-          <Title>설정</Title>
+          <Title $fontSize={fontSize}>설정</Title>
           <Spacer />
         </Header>
 
         <Content>
+          {notificationMessage && (
+            <NotificationBar $darkMode={isDarkMode}>
+              <NotificationText>{notificationMessage}</NotificationText>
+            </NotificationBar>
+          )}
           <Section>
-            <SectionTitle>글자 크기</SectionTitle>
+            <SectionTitle $fontSize={fontSize}>글자 크기</SectionTitle>
             <FontOptions>
               {fontOptions.map(option => (
                 <FontOptionButton
@@ -106,17 +191,17 @@ const Settings = () => {
                   $active={fontSize === option.value}
                   disabled={loading}
                 >
-                  <FontOptionLabel>{option.label}</FontOptionLabel>
-                  <FontOptionDesc>{option.description}</FontOptionDesc>
+                  <FontOptionLabel $fontSize={fontSize}>{option.label}</FontOptionLabel>
+                  <FontOptionDesc $fontSize={fontSize}>{option.description}</FontOptionDesc>
                 </FontOptionButton>
               ))}
             </FontOptions>
           </Section>
 
           <Section>
-            <SectionTitle>알림</SectionTitle>
+            <SectionTitle $fontSize={fontSize}>알림</SectionTitle>
             <SettingItem onClick={handleNotificationsChange} style={{ opacity: loading ? 0.6 : 1 }}>
-              <SettingLabel>알림 받기</SettingLabel>
+              <SettingLabel $fontSize={fontSize}>알림 받기</SettingLabel>
               <Toggle $active={notificationsOn}>
                 <ToggleCircle $active={notificationsOn} />
               </Toggle>
@@ -124,9 +209,9 @@ const Settings = () => {
           </Section>
 
           <Section>
-            <SectionTitle>화면</SectionTitle>
+            <SectionTitle $fontSize={fontSize}>화면</SectionTitle>
             <SettingItem onClick={handleDarkModeChange} style={{ opacity: loading ? 0.6 : 1 }}>
-              <SettingLabel>다크 모드</SettingLabel>
+              <SettingLabel $fontSize={fontSize}>다크 모드</SettingLabel>
               <Toggle $active={isDarkMode}>
                 <ToggleCircle $active={isDarkMode} />
               </Toggle>
@@ -135,17 +220,17 @@ const Settings = () => {
 
           <Section>
             <HelpBox>
-              <HelpText>
+              <HelpText $fontSize={fontSize}>
                 가족이나 보호자에게 QR 코드를 보여주면 설정을 함께 할 수 있어요.
               </HelpText>
-              <HelpButton onClick={() => navigate('/senior/help')}>
+              <HelpButton $fontSize={fontSize} onClick={() => navigate('/senior/help')}>
                 도우미 요청하기
               </HelpButton>
             </HelpBox>
           </Section>
 
           <Section>
-            <LogoutButton onClick={handleLogout}>
+            <LogoutButton $fontSize={fontSize} onClick={handleLogout}>
               로그아웃
             </LogoutButton>
           </Section>
@@ -188,7 +273,8 @@ const BackButton = styled.button`
 `;
 
 const Title = styled.h1`
-  font-size: calc(32px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '20px' : $fontSize === 'large' ? '34px' : '26px'};
   font-weight: 700;
   flex: 1;
   text-align: center;
@@ -202,12 +288,28 @@ const Content = styled.div`
   padding: 24px;
 `;
 
+// 정각 알림 바
+const NotificationBar = styled.div`
+  margin: 0 0 16px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: ${props => props.$darkMode ? '#1a1a1a' : '#e3f2fd'};
+  border: 2px solid ${props => props.$darkMode ? '#2a2a2a' : '#2196f3'};
+`;
+
+const NotificationText = styled.p`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${props => props.theme.$darkMode ? '#bbdefb' : '#0d47a1'};
+`;
+
 const Section = styled.div`
   margin-bottom: 40px;
 `;
 
 const SectionTitle = styled.h2`
-  font-size: calc(24px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '26px' : '20px'};
   font-weight: 700;
   margin-bottom: 16px;
   padding: 0 8px;
@@ -234,13 +336,15 @@ const FontOptionButton = styled.button`
 `;
 
 const FontOptionLabel = styled.div`
-  font-size: calc(22px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
   font-weight: 700;
   color: ${props => props.theme.$darkMode ? '#f5f5f5' : '#1f1f1f'};
 `;
 
 const FontOptionDesc = styled.div`
-  font-size: calc(16px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '11px' : $fontSize === 'large' ? '16px' : '14px'};
   color: ${props => props.theme.$darkMode ? '#d6d6d6' : '#555'};
   margin-top: 6px;
 `;
@@ -264,7 +368,8 @@ const SettingItem = styled.div`
 `;
 
 const SettingLabel = styled.span`
-  font-size: calc(22px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
   font-weight: 600;
 `;
 
@@ -277,7 +382,8 @@ const HelpBox = styled.div`
 `;
 
 const HelpText = styled.p`
-  font-size: calc(18px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '12px' : $fontSize === 'large' ? '18px' : '15px'};
   line-height: 1.5;
   color: ${props => props.theme.$darkMode ? '#ddd' : '#555'};
   margin-bottom: 16px;
@@ -286,7 +392,8 @@ const HelpText = styled.p`
 const HelpButton = styled.button`
   width: 100%;
   padding: 18px;
-  font-size: calc(22px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
   font-weight: 700;
   border-radius: 12px;
   background: #ffb703;
@@ -324,7 +431,8 @@ const LogoutButton = styled.button`
   padding: 20px;
   background: #ff4458;
   color: white;
-  font-size: calc(22px * var(--font-scale, 1));
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
   font-weight: 700;
   border-radius: 12px;
   cursor: pointer;
