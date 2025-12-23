@@ -1,92 +1,216 @@
-import { useState } from 'react';
-import styled, { ThemeProvider } from 'styled-components';
-import { Heart, MessageCircle } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import SeniorBottomNav from '../../components/senior/BottomNav';
+import { useState, useEffect, useRef } from "react";
+import styled, { ThemeProvider } from "styled-components";
+import { Heart, MessageCircle } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import SeniorBottomNav from "../../components/senior/BottomNav";
+import { getSeniorPosts } from "../../services/post";
 
-// Mock 데이터
-const INITIAL_POSTS = [
-  {
-    id: 1,
-    user: { name: '김할머니', avatar: '👵' },
-    content: '오늘 공원에 산책 다녀왔어요. 날씨가 정말 좋았답니다. 손주들도 보고 왔어요.',
-    photo: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
-    likes: 24,
-    timestamp: '2시간 전',
-    liked: false,
-    comments: [
-      { id: 1, user: { name: '박할아버지', avatar: '👴' }, text: '저도 오늘 산책했어요!', time: '1시간 전' },
-      { id: 2, user: { name: '최할머니', avatar: '👵' }, text: '손주들 만나셨군요. 좋으시겠어요.', time: '1시간 전' },
-      { id: 3, user: { name: '정할아버지', avatar: '👴' }, text: '날씨 정말 좋았죠~', time: '30분 전' },
-      { id: 4, user: { name: '강할머니', avatar: '👵' }, text: '공원 어디로 가셨어요?', time: '20분 전' },
-      { id: 5, user: { name: '윤할아버지', avatar: '👴' }, text: '다음에 같이 가요!', time: '10분 전' }
-    ]
-  },
-  {
-    id: 2,
-    user: { name: '박할아버지', avatar: '👴' },
-    content: '요즘 텃밭 가꾸는 재미가 쏠쏠하네요. 토마토가 잘 자라고 있습니다.',
-    photo: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=800&h=600&fit=crop',
-    likes: 18,
-    timestamp: '5시간 전',
-    liked: false,
-    comments: [
-      { id: 1, user: { name: '이할머니', avatar: '👵' }, text: '토마토 키우기 어렵지 않나요?', time: '4시간 전' },
-      { id: 2, user: { name: '김할머니', avatar: '👵' }, text: '저도 텃밭 시작해볼까 해요.', time: '3시간 전' },
-      { id: 3, user: { name: '최할아버지', avatar: '👴' }, text: '부럽네요!', time: '2시간 전' }
-    ]
-  },
-  {
-    id: 3,
-    user: { name: '이할머니', avatar: '👵' },
-    content: '손주가 그려준 그림을 받았어요. 너무 예쁘죠? 행복한 하루입니다.',
-    photo: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&h=600&fit=crop',
-    likes: 42,
-    timestamp: '1일 전',
-    liked: false,
-    comments: [
-      { id: 1, user: { name: '김할머니', avatar: '👵' }, text: '정말 예쁘네요!', time: '1일 전' },
-      { id: 2, user: { name: '박할아버지', avatar: '👴' }, text: '손주분이 재능이 있으시네요.', time: '1일 전' },
-      { id: 3, user: { name: '정할머니', avatar: '👵' }, text: '저도 손주 그림 받고 싶어요.', time: '20시간 전' },
-      { id: 4, user: { name: '최할아버지', avatar: '👴' }, text: '액자로 만들어두세요!', time: '18시간 전' },
-      { id: 5, user: { name: '강할머니', avatar: '👵' }, text: '너무 사랑스러워요.', time: '15시간 전' },
-      { id: 6, user: { name: '윤할아버지', avatar: '👴' }, text: '보기 좋습니다.', time: '12시간 전' },
-      { id: 7, user: { name: '서할머니', avatar: '👵' }, text: '손주가 몇 살인가요?', time: '10시간 전' },
-      { id: 8, user: { name: '장할아버지', avatar: '👴' }, text: '따뜻한 마음이 느껴져요.', time: '8시간 전' }
-    ]
-  }
-];
+const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+
+// URL에 baseURL을 붙이는 헬퍼 함수
+const getFullUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${baseURL}${url}`;
+};
 
 const Home = () => {
   const { isDarkMode } = useApp();
-  const [posts, setPosts] = useState(INITIAL_POSTS);
+  const [posts, setPosts] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasFollowData, setHasFollowData] = useState(true);
+  const [isAllMode, setIsAllMode] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [followPage, setFollowPage] = useState(0);
+  const [allPage, setAllPage] = useState(0);
+  const isModeTransitioning = useRef(false);
+  const loadedPostIds = useRef(new Set());
+  const POSTS_PER_PAGE = 5;
 
-  const handleLike = (postId) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          liked: !post.liked,
-          likes: post.liked ? post.likes - 1 : post.likes + 1
-        };
-      }
-      return post;
+  const formatPosts = (data, mode) => {
+    return data.map((post) => ({
+      ...post,
+      mode: mode,
+      photo: getFullUrl(post.photo),
+      user: {
+        ...post.user,
+        avatar: getFullUrl(post.user.avatar),
+      },
+      comments: post.comments.map((comment) => ({
+        ...comment,
+        user: {
+          ...comment.user,
+          avatar: getFullUrl(comment.user.avatar),
+        },
+      })),
     }));
   };
 
+  const loadPosts = async (loadMore = false) => {
+    // 이미 로딩 중이거나 더 이상 데이터가 없으면 스킵
+    if ((loadMore && isLoadingMore) || (loadMore && !hasMore)) return;
+
+    // 모드 전환 중이면 스킵 (중복 로드 방지)
+    if (isModeTransitioning.current) return;
+
+    try {
+      if (loadMore) {
+        setIsLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      // 페이지를 먼저 증가시킴 (0-based에서 1-based로)
+      const currentPage = isAllMode ? allPage + 1 : followPage + 1;
+      const all = isAllMode; // all 파라미터로 전체/팔로우 구분
+
+      const data = await getSeniorPosts(null, currentPage, POSTS_PER_PAGE, all);
+
+      if (data && data.length > 0) {
+        const formattedPosts = formatPosts(data, isAllMode ? "all" : "follow");
+
+        // 중복 제거: 이미 로드된 게시물 필터링
+        const newPosts = formattedPosts.filter(
+          (post) => !loadedPostIds.current.has(post.id)
+        );
+
+        if (newPosts.length > 0) {
+          // 새 게시물 ID들을 Set에 추가
+          newPosts.forEach((post) => loadedPostIds.current.add(post.id));
+
+          if (loadMore) {
+            setPosts((prev) => [...prev, ...newPosts]);
+          } else {
+            setPosts(newPosts);
+          }
+
+          // 페이지 증가 (로드 성공 후)
+          if (isAllMode) {
+            setAllPage((prev) => prev + 1);
+          } else {
+            setFollowPage((prev) => prev + 1);
+          }
+
+          // 받아온 데이터가 요청한 크기보다 작으면 더 이상 데이터가 없음
+          if (data.length < POSTS_PER_PAGE) {
+            if (!isAllMode && hasFollowData) {
+              // 팔로우 데이터가 끝났으니 전체 모드로 전환
+              isModeTransitioning.current = true;
+              setHasFollowData(false);
+              setIsAllMode(true);
+              setHasMore(true);
+            } else {
+              setHasMore(false);
+            }
+          }
+
+          setError(null);
+        } else if (loadMore) {
+          // 중복만 있고 새 게시물이 없으면 더 로드
+          if (isAllMode) {
+            setAllPage((prev) => prev + 1);
+          } else {
+            setFollowPage((prev) => prev + 1);
+          }
+          // 재귀 호출하지 않고 hasMore만 체크
+          if (data.length < POSTS_PER_PAGE) {
+            setHasMore(false);
+          }
+          return;
+        }
+      } else {
+        // 데이터가 없으면
+        if (!isAllMode && hasFollowData) {
+          // 팔로우 데이터가 없으니 전체 모드로 전환
+          isModeTransitioning.current = true;
+          setHasFollowData(false);
+          setIsAllMode(true);
+          setHasMore(true);
+        } else {
+          setHasMore(false);
+        }
+      }
+    } catch (err) {
+      console.error("게시물을 불러오는데 실패했습니다:", err);
+      setError(err.message);
+      if (!loadMore) {
+        setPosts([]);
+      }
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  // isAllMode가 변경되면 새로운 데이터 로드
+  useEffect(() => {
+    if (isAllMode && !hasFollowData && hasMore && isModeTransitioning.current) {
+      // 모드 전환 플래그 리셋
+      isModeTransitioning.current = false;
+      // 약간의 지연 후 로드 (상태 업데이트 완료 대기)
+      setTimeout(() => {
+        loadPosts(true);
+      }, 100);
+    }
+  }, [isAllMode, hasFollowData, hasMore]);
+
+  // 무한 스크롤 구현
+  useEffect(() => {
+    const handleScroll = () => {
+      // 로딩 중이거나 더 이상 데이터가 없으면 중단
+      if (isLoadingMore || loading || !hasMore) return;
+
+      const scrollTop =
+        document.documentElement.scrollTop || document.body.scrollTop;
+      const scrollHeight =
+        document.documentElement.scrollHeight || document.body.scrollHeight;
+      const clientHeight =
+        document.documentElement.clientHeight || window.innerHeight;
+
+      // 스크롤이 하단에서 200px 이내에 도달하면 더 로드
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        loadPosts(true);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isLoadingMore, loading, hasMore]);
+
+  const handleLike = (postId) => {
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            liked: !post.liked,
+            likes: post.liked ? post.likes - 1 : post.likes + 1,
+          };
+        }
+        return post;
+      })
+    );
+  };
+
   const toggleComments = (postId) => {
-    setExpandedComments(prev => ({
+    setExpandedComments((prev) => ({
       ...prev,
-      [postId]: !prev[postId]
+      [postId]: !prev[postId],
     }));
   };
 
   const handleCommentChange = (postId, value) => {
-    setCommentInputs(prev => ({
+    setCommentInputs((prev) => ({
       ...prev,
-      [postId]: value
+      [postId]: value,
     }));
   };
 
@@ -98,24 +222,26 @@ const Home = () => {
 
     const newComment = {
       id: Date.now(),
-      user: { name: '나', avatar: '😊' },
+      user: { name: "나", avatar: "😊" },
       text: commentText,
-      time: '방금 전'
+      time: "방금 전",
     };
 
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...post.comments, newComment]
-        };
-      }
-      return post;
-    }));
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            comments: [...post.comments, newComment],
+          };
+        }
+        return post;
+      })
+    );
 
-    setCommentInputs(prev => ({
+    setCommentInputs((prev) => ({
       ...prev,
-      [postId]: ''
+      [postId]: "",
     }));
   };
 
@@ -126,82 +252,148 @@ const Home = () => {
           <Logo>친구소식</Logo>
         </Header>
 
+        {loading && (
+          <LoadingContainer>
+            <LoadingText>게시물을 불러오는 중...</LoadingText>
+          </LoadingContainer>
+        )}
+
+        {error && (
+          <ErrorContainer>
+            <ErrorText>게시물을 불러오지 못했습니다</ErrorText>
+            <ErrorSubText>{error}</ErrorSubText>
+          </ErrorContainer>
+        )}
+
         <Feed>
-        {posts.map((post) => (
-          <Post key={post.id}>
-            <PostHeader>
-              <UserInfo>
-                <Avatar>{post.user.avatar}</Avatar>
-                <UserDetails>
-                  <Username>{post.user.name}</Username>
-                  <Timestamp>{post.timestamp}</Timestamp>
-                </UserDetails>
-              </UserInfo>
-            </PostHeader>
+          {posts.map((post, index) => (
+            <div key={post.id}>
+              {index > 0 &&
+                posts[index - 1].mode === "follow" &&
+                post.mode === "all" && (
+                  <InfoContainer>
+                    <InfoText>
+                      팔로우한 친구들의 게시물을 모두 확인했어요
+                    </InfoText>
+                    <InfoSubText>이제 모든 게시물을 보여드릴게요</InfoSubText>
+                  </InfoContainer>
+                )}
+              <Post>
+                <PostHeader>
+                  <UserInfo>
+                    <Avatar>
+                      {post.user.avatar &&
+                      (post.user.avatar.startsWith("http") ||
+                        post.user.avatar.startsWith("/")) ? (
+                        <AvatarImage
+                          src={post.user.avatar}
+                          alt={post.user.name}
+                        />
+                      ) : (
+                        post.user.avatar || "👤"
+                      )}
+                    </Avatar>
+                    <UserDetails>
+                      <Username>{post.user.name}</Username>
+                      <Timestamp>{post.timestamp}</Timestamp>
+                    </UserDetails>
+                  </UserInfo>
+                </PostHeader>
 
-            <Content>{post.content}</Content>
+                <Content>{post.content}</Content>
 
-            {post.photo && (
-              <PostImage src={post.photo} alt="게시물 사진" />
-            )}
+                {post.photo && <PostImage src={post.photo} alt="게시물 사진" />}
 
-            <PostActions>
-              <ActionButton onClick={() => handleLike(post.id)} $liked={post.liked}>
-                <Heart
-                  size={36}
-                  strokeWidth={3}
-                  fill={post.liked ? '#ff4458' : 'none'}
-                />
-                <ActionText $liked={post.liked}>{post.likes}</ActionText>
-              </ActionButton>
-              <ActionButton onClick={() => toggleComments(post.id)}>
-                <MessageCircle size={36} strokeWidth={3} />
-                <ActionText>{post.comments.length}</ActionText>
-              </ActionButton>
-            </PostActions>
-
-            {expandedComments[post.id] && (
-              <CommentsSection>
-                <CommentsHeader>댓글 {post.comments.length}개</CommentsHeader>
-
-                <CommentInputSection>
-                  <CommentInputWrapper>
-                    <CommentInput
-                      placeholder="댓글을 입력하세요..."
-                      value={commentInputs[post.id] || ''}
-                      onChange={(e) => handleCommentChange(post.id, e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleCommentSubmit(post.id);
-                        }
-                      }}
+                <PostActions>
+                  <ActionButton
+                    onClick={() => handleLike(post.id)}
+                    $liked={post.liked}
+                  >
+                    <Heart
+                      size={36}
+                      strokeWidth={3}
+                      fill={post.liked ? "#ff4458" : "none"}
                     />
-                    <CommentSubmitButton onClick={() => handleCommentSubmit(post.id)}>
-                      등록
-                    </CommentSubmitButton>
-                  </CommentInputWrapper>
-                </CommentInputSection>
+                    <ActionText $liked={post.liked}>{post.likes}</ActionText>
+                  </ActionButton>
+                  <ActionButton onClick={() => toggleComments(post.id)}>
+                    <MessageCircle size={36} strokeWidth={3} />
+                    <ActionText>{post.comments.length}</ActionText>
+                  </ActionButton>
+                </PostActions>
 
-                <CommentsList>
-                  {post.comments.map((comment) => (
-                    <CommentItem key={comment.id}>
-                      <CommentAvatar>{comment.user.avatar}</CommentAvatar>
-                      <CommentContent>
-                        <CommentHeader>
-                          <CommentUsername>{comment.user.name}</CommentUsername>
-                          <CommentTime>{comment.time}</CommentTime>
-                        </CommentHeader>
-                        <CommentText>{comment.text}</CommentText>
-                      </CommentContent>
-                    </CommentItem>
-                  ))}
-                </CommentsList>
-              </CommentsSection>
-            )}
-          </Post>
-        ))}
+                {expandedComments[post.id] && (
+                  <CommentsSection>
+                    <CommentsHeader>
+                      댓글 {post.comments.length}개
+                    </CommentsHeader>
+
+                    <CommentInputSection>
+                      <CommentInputWrapper>
+                        <CommentInput
+                          placeholder="댓글을 입력하세요..."
+                          value={commentInputs[post.id] || ""}
+                          onChange={(e) =>
+                            handleCommentChange(post.id, e.target.value)
+                          }
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleCommentSubmit(post.id);
+                            }
+                          }}
+                        />
+                        <CommentSubmitButton
+                          onClick={() => handleCommentSubmit(post.id)}
+                        >
+                          등록
+                        </CommentSubmitButton>
+                      </CommentInputWrapper>
+                    </CommentInputSection>
+
+                    <CommentsList>
+                      {post.comments.map((comment) => (
+                        <CommentItem key={comment.id}>
+                          <CommentAvatar>
+                            {comment.user.avatar &&
+                            (comment.user.avatar.startsWith("http") ||
+                              comment.user.avatar.startsWith("/")) ? (
+                              <AvatarImage
+                                src={comment.user.avatar}
+                                alt={comment.user.name}
+                              />
+                            ) : (
+                              comment.user.avatar || "👤"
+                            )}
+                          </CommentAvatar>
+                          <CommentContent>
+                            <CommentHeader>
+                              <CommentUsername>
+                                {comment.user.name}
+                              </CommentUsername>
+                              <CommentTime>{comment.time}</CommentTime>
+                            </CommentHeader>
+                            <CommentText>{comment.text}</CommentText>
+                          </CommentContent>
+                        </CommentItem>
+                      ))}
+                    </CommentsList>
+                  </CommentsSection>
+                )}
+              </Post>
+            </div>
+          ))}
         </Feed>
+
+        {isLoadingMore && (
+          <LoadingMoreContainer>
+            <LoadingText>더 많은 게시물을 불러오는 중...</LoadingText>
+          </LoadingMoreContainer>
+        )}
+
+        {!hasMore && posts.length > 0 && !loading && (
+          <EndMessage>모든 게시물을 확인했습니다 🎉</EndMessage>
+        )}
 
         <SeniorBottomNav />
       </Container>
@@ -211,8 +403,8 @@ const Home = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.theme.$darkMode ? '#000' : '#fff'};
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   padding-bottom: 80px;
 
   @media (min-width: 768px) {
@@ -224,8 +416,9 @@ const Container = styled.div`
 const Header = styled.header`
   position: sticky;
   top: 0;
-  background: ${props => props.theme.$darkMode ? '#000' : '#fff'};
-  border-bottom: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
+  border-bottom: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   padding: 24px;
   z-index: 10;
 `;
@@ -243,13 +436,89 @@ const Feed = styled.div`
   max-width: 100%;
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 24px;
+`;
+
+const LoadingText = styled.p`
+  font-size: calc(22px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#fff3cd")};
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#ffc107")};
+  border-radius: 12px;
+  margin: 20px 24px;
+`;
+
+const ErrorText = styled.p`
+  font-size: calc(22px * var(--font-scale, 1));
+  font-weight: 700;
+  color: ${(props) => (props.theme.$darkMode ? "#ffc107" : "#856404")};
+`;
+
+const ErrorSubText = styled.p`
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+`;
+
+const InfoContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#e3f2fd")};
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#2196f3")};
+  border-radius: 12px;
+  margin: 20px 24px;
+`;
+
+const InfoText = styled.p`
+  font-size: calc(22px * var(--font-scale, 1));
+  font-weight: 700;
+  color: ${(props) => (props.theme.$darkMode ? "#2196f3" : "#1976d2")};
+`;
+
+const InfoSubText = styled.p`
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+`;
+
+const LoadingMoreContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 24px;
+`;
+
+const EndMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  font-size: calc(20px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+  font-weight: 500;
+`;
+
 const Post = styled.article`
-  border-bottom: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  border-bottom: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   padding: 28px;
   transition: background 0.2s;
 
   &:active {
-    background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   }
 `;
 
@@ -270,13 +539,21 @@ const Avatar = styled.div`
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: calc(32px * var(--font-scale, 1));
   flex-shrink: 0;
-  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
+  overflow: hidden;
+`;
+
+const AvatarImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 `;
 
 const UserDetails = styled.div`
@@ -288,19 +565,19 @@ const UserDetails = styled.div`
 const Username = styled.span`
   font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
 `;
 
 const Timestamp = styled.span`
   font-size: calc(18px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const Content = styled.p`
   font-size: calc(24px * var(--font-scale, 1));
   line-height: 1.7;
   margin-bottom: 24px;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
 `;
 
@@ -322,14 +599,15 @@ const ActionButton = styled.button`
   display: flex;
   align-items: center;
   gap: 16px;
-  color: ${props => props.$liked ? '#ff4458' : (props.theme.$darkMode ? '#999' : '#666')};
+  color: ${(props) =>
+    props.$liked ? "#ff4458" : props.theme.$darkMode ? "#999" : "#666"};
   padding: 16px 20px;
   border-radius: 12px;
   min-height: 56px;
   transition: all 0.2s;
 
   &:active {
-    background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
     transform: scale(0.95);
   }
 
@@ -345,27 +623,30 @@ const ActionButton = styled.button`
 const ActionText = styled.span`
   font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${props => props.$liked ? '#ff4458' : (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) =>
+    props.$liked ? "#ff4458" : props.theme.$darkMode ? "#fff" : "#000"};
   min-width: 36px;
 `;
 
 const CommentsSection = styled.div`
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  border-top: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
 `;
 
 const CommentsHeader = styled.h3`
   font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   margin-bottom: 20px;
 `;
 
 const CommentInputSection = styled.div`
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  border-bottom: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
 `;
 
 const CommentInputWrapper = styled.div`
@@ -376,18 +657,19 @@ const CommentInputWrapper = styled.div`
 
 const CommentInput = styled.textarea`
   flex: 1;
-  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
-  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   border-radius: 12px;
   padding: 16px;
   font-size: calc(20px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   resize: none;
   min-height: 80px;
   line-height: 1.5;
 
   &::placeholder {
-    color: ${props => props.theme.$darkMode ? '#6a6a6a' : '#999'};
+    color: ${(props) => (props.theme.$darkMode ? "#6a6a6a" : "#999")};
   }
 
   &:focus {
@@ -423,7 +705,8 @@ const CommentItem = styled.div`
   display: flex;
   gap: 16px;
   padding: 16px 0;
-  border-bottom: 1px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#f0f0f0'};
+  border-bottom: 1px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#f0f0f0")};
 
   &:last-child {
     border-bottom: none;
@@ -434,13 +717,15 @@ const CommentAvatar = styled.div`
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: calc(28px * var(--font-scale, 1));
   flex-shrink: 0;
-  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
+  overflow: hidden;
 `;
 
 const CommentContent = styled.div`
@@ -459,18 +744,18 @@ const CommentHeader = styled.div`
 const CommentUsername = styled.span`
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
 `;
 
 const CommentTime = styled.span`
   font-size: calc(16px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const CommentText = styled.p`
   font-size: calc(20px * var(--font-scale, 1));
   line-height: 1.6;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
 `;
 
