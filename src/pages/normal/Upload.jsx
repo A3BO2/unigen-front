@@ -634,10 +634,10 @@ const Upload = () => {
             <FinalContainer>
               <FinalLeft>
                 {contentType === "reels" ? (
-                  /* 🎥 [릴스 로직 시작] */
-                  finalFile?.name?.toLowerCase().endsWith(".mov") ||
+                  // 🎥 [릴스] .mov 파일인지 체크
+                  finalFile?.name.toLowerCase().endsWith(".mov") ||
                   finalFile?.type === "video/quicktime" ? (
-                    /* 1️⃣ .mov 파일이면: 안내 화면 표시 */
+                    // 1️⃣ .mov 파일일 경우: 미리보기 대신 안내 화면 표시
                     <div
                       style={{
                         width: "100%",
