@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { KeyRound, ChevronLeft } from "lucide-react";
+import { changePassword } from "../../services/sms";
 
 const ChangePassword = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { phone, code } = location.state || {};
+
+  // '설정'에서 왔는지, '비번 찾기'에서 왔는지 모드 결정
+  // phone과 code가 있으면 -> 비번 찾기 모드 (로그인 X)
+  // 없으면 -> 설정 변경 모드 (로그인 O)
+  const isForgotMode = !!(phone && code);
   const [passwords, setPasswords] = useState({
     currentPassword: "", // 설정에서 들어왔을 때만 필요할 수 있음 (선택 사항)
     newPassword: "",
@@ -18,7 +26,7 @@ const ChangePassword = () => {
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (passwords.newPassword.length < 4) {
@@ -30,11 +38,36 @@ const ChangePassword = () => {
       setError("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
       return;
     }
-    // TODO: 여기서 실제 서버로 비밀번호 변경 요청을 보냅니다.
-    // await updatePassword(passwords.newPassword);
 
-    alert("비밀번호가 성공적으로 변경되었습니다.");
-    navigate("./login/normal");
+    try {
+      let payload = {};
+
+      if (isForgotMode) {
+        payload = { phone, code, newPassword: passwords.newPassword };
+      } else {
+        if (!passwords.currentPassword) {
+          setError("현재 비밀번호를 입력하세요.");
+          return;
+        }
+        payload = {
+          currentPassword: passwords.currentPassword,
+          newPassword: passwords.newPassword,
+        };
+      }
+
+      await changePassword(payload);
+
+      if (isForgotMode) {
+        alert("비밀번호가 변경되었습니다.");
+        navigate("/login/normal");
+      } else {
+        alert("비밀번호가 변경되었습니다.");
+        navigate(-1);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "비밀번호 변경 실패");
+    }
   };
 
   return (
@@ -53,9 +86,22 @@ const ChangePassword = () => {
           </KeyIcon>
         </IconWrapper>
 
-        <Description>새로운 비밀번호를 입력해 주세요.</Description>
+        <Description>
+          {isForgotMode
+            ? "새로운 비밀번호를 설정해 주세요."
+            : "안전을 위해 주기적으로 비밀번호를 변경해 주세요."}
+        </Description>
 
         <Form onSubmit={handleSubmit}>
+          {!isForgotMode && (
+            <Input
+              type="password"
+              name="currentPassword"
+              placeholder="현재 비밀번호"
+              value={passwords.currentPassword}
+              onChange={handleChange}
+            />
+          )}
           <Input
             type="password"
             name="newPassword"

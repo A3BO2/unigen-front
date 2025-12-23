@@ -11,8 +11,16 @@ const ForgotPassword = () => {
   const [step, setStep] = useState("input_phone");
   const [loading, setLoading] = useState(false);
 
-  const handleSendCode = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    if (step === "input_phone") {
+      handleSendCode();
+    } else {
+      handleVerifyCode();
+    }
+  };
+
+  const handleSendCode = async () => {
     if (!phone) return alert("전화번호를 입력해주세요.");
 
     const cleanPhone = phone.replace(/-/g, "");
@@ -20,7 +28,7 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      await sendSmsCode(cleanPhone);
+      await sendSmsCode(cleanPhone, "find_pw");
       alert("인증 번호가 발송되었습니다.");
       setStep("input_code");
     } catch (error) {
@@ -41,7 +49,7 @@ const ForgotPassword = () => {
       await verifySmsCode(cleanPhone, authCode);
       alert("인증 완료. 비밀번호를 재설정합니다.");
       navigate("/change-password", {
-        state: { phone: cleanPhone },
+        state: { phone: cleanPhone, code: authCode },
       });
     } catch (error) {
       console.error(error);
@@ -49,6 +57,11 @@ const ForgotPassword = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setStep("input_phone");
+    setAuthCode("");
   };
 
   return (
@@ -62,28 +75,57 @@ const ForgotPassword = () => {
 
         <Title>비밀번호 찾기</Title>
 
-        {/* 단계별 화면 렌더링 */}
-        {step === "input_phone" ? (
+        <Description>
+          가입하신 휴대폰 번호를 입력해주세요.
+          <br />
+          인증번호를 보내드립니다.
+        </Description>
+
+        {/* 폼 하나로 통합: 단계에 따라 제출 시 실행되는 함수가 다름 */}
+        <Form onSubmit={handleSubmit}>
+          {/* 1. 전화번호 칸 (항상 보임) */}
+          <Input
+            type="tel"
+            placeholder="휴대폰 번호 (- 없이 입력)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            // 인증번호 입력 단계가 되면 수정 못하게 막음
+            readOnly={step === "input_code"}
+            required
+          />
+
+          {/* 2. 인증번호 칸 (인증 단계일 때만 아래에 생김) */}
+          {step === "input_code" && (
+            <Input
+              type="text"
+              placeholder="인증번호 6자리"
+              value={authCode}
+              onChange={(e) => setAuthCode(e.target.value)}
+              maxLength={6}
+              required
+              autoFocus // 나타날 때 바로 커서 이동
+              autoComplete="one-time-code" // 자동완성 방지
+            />
+          )}
+
+          {/* 3. 버튼 (단계에 따라 글자 변경) */}
+          <SubmitButton type="submit" disabled={loading}>
+            {loading
+              ? "처리 중..."
+              : step === "input_phone"
+              ? "인증번호 받기"
+              : "인증하기"}
+          </SubmitButton>
+        </Form>
+
+        {/* 4. 번호 다시 입력하기 버튼 (인증 단계일 때만 보임) */}
+        {step === "input_code" && (
+          <ResendLink onClick={handleRetry}>전화번호 다시 입력하기</ResendLink>
+        )}
+
+        {/* 5. 회원가입/로그인 링크 (첫 단계에서만 보임) */}
+        {step === "input_phone" && (
           <>
-            <Description>
-              가입하신 휴대폰 번호를 입력해주세요.
-              <br />
-              인증번호를 보내드립니다.
-            </Description>
-
-            <Form onSubmit={handleSendCode}>
-              <Input
-                type="tel"
-                placeholder="휴대폰 번호 (- 없이 입력)"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-              <SubmitButton type="submit" disabled={loading}>
-                {loading ? "발송 중..." : "인증번호 받기"}
-              </SubmitButton>
-            </Form>
-
             <Divider>
               <DividerLine />
               <DividerText>또는</DividerText>
@@ -93,36 +135,6 @@ const ForgotPassword = () => {
             <SignupLink onClick={() => navigate("/login/normal?mode=signup")}>
               새 계정 만들기
             </SignupLink>
-          </>
-        ) : (
-          <>
-            <SuccessDescription>
-              {phone}(으)로 전송된
-              <br />
-              6자리 인증번호를 입력해주세요.
-            </SuccessDescription>
-
-            <Form onSubmit={(e) => e.preventDefault()}>
-              <Input
-                type="text"
-                placeholder="인증번호 6자리"
-                value={authCode}
-                onChange={(e) => setAuthCode(e.target.value)}
-                maxLength={6}
-              />
-              <SubmitButton
-                type="button"
-                onClick={handleVerifyCode}
-                disabled={loading}
-              >
-                {loading ? "확인 중..." : "인증하기"}
-              </SubmitButton>
-            </Form>
-
-            {/* 번호 다시 입력하기 버튼 */}
-            <ResendLink onClick={() => setStep("input_phone")}>
-              전화번호 다시 입력하기
-            </ResendLink>
           </>
         )}
       </FormContainer>
