@@ -65,6 +65,21 @@ export async function getStories() {
   });
 }
 
+export async function getSeniorPosts(mode, page = 1, size = 5, all) {
+  const params = new URLSearchParams();
+  if (mode) params.append("mode", mode);
+  if (page) params.append("page", page);
+  if (size) params.append("size", size);
+  if (all) params.append("all", all);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return await apifetch(`/posts/seniorFeed${query}`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+}
+
 export async function createPost(formData) {
   const token = localStorage.getItem("token");
 
