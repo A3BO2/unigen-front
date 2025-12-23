@@ -1,17 +1,67 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { Lock } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { Lock } from "lucide-react";
+import { sendSmsCode, verifySmsCode } from "../../services/sms";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [contact, setContact] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [authCode, setAuthCode] = useState();
+  const [step, setStep] = useState("input_phone");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // 실제로는 여기서 비밀번호 재설정 이메일/SMS를 보내는 API를 호출
-    setIsSubmitted(true);
+    if (step === "input_phone") {
+      handleSendCode();
+    } else {
+      handleVerifyCode();
+    }
+  };
+
+  const handleSendCode = async () => {
+    if (!phone) return alert("전화번호를 입력해주세요.");
+
+    const cleanPhone = phone.replace(/-/g, "");
+    if (cleanPhone.length < 10) return alert("올바른 전화번호를 입력해주세요.");
+
+    setLoading(true);
+    try {
+      await sendSmsCode(cleanPhone, "find_pw");
+      alert("인증 번호가 발송되었습니다.");
+      setStep("input_code");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "인증번호 발송에 실패하였습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!authCode) return alert("인증번호를 입력해주세요.");
+
+    const cleanPhone = phone.replace(/-/g, "");
+    setLoading(true);
+
+    try {
+      await verifySmsCode(cleanPhone, authCode);
+      alert("인증 완료. 비밀번호를 재설정합니다.");
+      navigate("/change-password", {
+        state: { phone: cleanPhone, code: authCode },
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "인증번호가 올바르지 않습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setStep("input_phone");
+    setAuthCode("");
   };
 
   return (
@@ -23,50 +73,73 @@ const ForgotPassword = () => {
           </LockIcon>
         </IconWrapper>
 
-        <Title>로그인에 문제가 있나요?</Title>
+        <Title>비밀번호 찾기</Title>
 
-        {!isSubmitted ? (
+        <Description>
+          가입하신 휴대폰 번호를 입력해주세요.
+          <br />
+          인증번호를 보내드립니다.
+        </Description>
+
+        {/* 폼 하나로 통합: 단계에 따라 제출 시 실행되는 함수가 다름 */}
+        <Form onSubmit={handleSubmit}>
+          {/* 1. 전화번호 칸 (항상 보임) */}
+          <Input
+            type="tel"
+            placeholder="휴대폰 번호 (- 없이 입력)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            // 인증번호 입력 단계가 되면 수정 못하게 막음
+            readOnly={step === "input_code"}
+            required
+          />
+
+          {/* 2. 인증번호 칸 (인증 단계일 때만 아래에 생김) */}
+          {step === "input_code" && (
+            <Input
+              type="text"
+              placeholder="인증번호 6자리"
+              value={authCode}
+              onChange={(e) => setAuthCode(e.target.value)}
+              maxLength={6}
+              required
+              autoFocus // 나타날 때 바로 커서 이동
+              autoComplete="one-time-code" // 자동완성 방지
+            />
+          )}
+
+          {/* 3. 버튼 (단계에 따라 글자 변경) */}
+          <SubmitButton type="submit" disabled={loading}>
+            {loading
+              ? "처리 중..."
+              : step === "input_phone"
+              ? "인증번호 받기"
+              : "인증하기"}
+          </SubmitButton>
+        </Form>
+
+        {/* 4. 번호 다시 입력하기 버튼 (인증 단계일 때만 보임) */}
+        {step === "input_code" && (
+          <ResendLink onClick={handleRetry}>전화번호 다시 입력하기</ResendLink>
+        )}
+
+        {/* 5. 회원가입/로그인 링크 (첫 단계에서만 보임) */}
+        {step === "input_phone" && (
           <>
-            <Description>
-              이메일 주소 또는 전화번호를 입력하시면 계정에 다시 액세스할 수 있는 링크를 보내드립니다.
-            </Description>
-
-            <Form onSubmit={handleSubmit}>
-              <Input
-                type="text"
-                placeholder="이메일 주소 또는 전화번호"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                required
-              />
-              <SubmitButton type="submit">
-                로그인 링크 보내기
-              </SubmitButton>
-            </Form>
-
             <Divider>
               <DividerLine />
               <DividerText>또는</DividerText>
               <DividerLine />
             </Divider>
 
-            <SignupLink onClick={() => navigate('/login/normal?mode=signup')}>
+            <SignupLink onClick={() => navigate("/login/normal?mode=signup")}>
               새 계정 만들기
             </SignupLink>
-          </>
-        ) : (
-          <>
-            <SuccessDescription>
-              {contact}(으)로 로그인 링크를 보내드렸습니다. 스팸 폴더도 확인해 주세요.
-            </SuccessDescription>
-            <SubmitButton onClick={() => setIsSubmitted(false)}>
-              확인
-            </SubmitButton>
           </>
         )}
       </FormContainer>
 
-      <BackToLogin onClick={() => navigate('/login/normal')}>
+      <BackToLogin onClick={() => navigate("/login/normal")}>
         로그인으로 돌아가기
       </BackToLogin>
     </Container>
@@ -182,9 +255,12 @@ const SubmitButton = styled.button`
   &:hover {
     background: #1877f2;
   }
-
   &:active {
     opacity: 0.7;
+  }
+  &:disabled {
+    background: #b2dffc;
+    cursor: not-allowed;
   }
 `;
 
@@ -238,6 +314,21 @@ const BackToLogin = styled.button`
   @media (max-width: 450px) {
     background: transparent;
     border: none;
+  }
+`;
+
+// ▼ [추가] 새로 만든 버튼 스타일
+const ResendLink = styled.button`
+  font-size: 13px;
+  color: #8e8e8e;
+  margin-top: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:hover {
+    color: #262626;
   }
 `;
 
