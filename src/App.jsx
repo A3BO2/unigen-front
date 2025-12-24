@@ -33,7 +33,7 @@ function RootRedirect() {
   const { mode } = useApp();
 
   // localStorage에서 직접 토큰 확인 (AppContext의 비동기 로딩 전에도 확인 가능)
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   // 토큰이 있으면 홈으로 리다이렉트
   // user 정보는 AppContext의 useEffect에서 비동기로 로드되므로, 토큰만 확인
