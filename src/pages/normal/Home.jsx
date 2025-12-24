@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import {
@@ -14,6 +14,7 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { getPosts, getStories } from "../../services/post";
+import { isFollowing, followUser, unfollowUser } from "../../services/user";
 import { getTimeAgo } from "../../util/date";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
@@ -23,6 +24,10 @@ const Home = () => {
   const { isDarkMode } = useApp();
   const [posts, setPosts] = useState([]);
   const [showComments, setShowComments] = useState(null);
+  const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const [isMine, setIsMine] = useState(false);
+  const [followStatusLoading, setFollowStatusLoading] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -61,20 +66,24 @@ const Home = () => {
         }
 
         // API 데이터를 stories 형식으로 변환
+        const toAbsolute = (url) => {
+          if (!url) return null;
+          return url.startsWith("http") ? url : `${baseURL}${url}`;
+        };
+
         const transformedStories = data.stories
           .filter((story) => story && story.items && story.items.length > 0)
           .map((story) => ({
             id: story.userId,
             user: {
               name: story.author?.name || "알 수 없음",
-              avatar: story.author?.profileImageUrl
-                ? `${baseURL}${story.author.profileImageUrl}`
-                : null,
+              avatar: toAbsolute(story.author?.profileImageUrl),
             },
             items: story.items.map((item) => ({
               id: item.id,
               type: "image",
-              url: `${baseURL}${item.imageUrl}`,
+              url: toAbsolute(item.imageUrl),
+              createdAt: item.createdAt, // 원본 데이터 유지
               timestamp: getTimeAgo(item.createdAt),
             })),
           }));
@@ -109,6 +118,7 @@ const Home = () => {
       const transformedPosts = data.items.map((item) => ({
         id: item.id,
         user: {
+          id: item.author.id || item.authorId,
           name: item.author.name,
           avatar: item.author.profileImageUrl,
         },
@@ -136,11 +146,13 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 초기 로딩
   useEffect(() => {
     loadPosts(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 한 번만 실행
 
   // Intersection Observer로 무한 스크롤 구현
@@ -169,6 +181,62 @@ const Home = () => {
       }
     };
   }, [hasMore, loading, loadPosts]);
+
+  // 댓글 모달이 열릴 때 팔로우 상태 확인
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (showComments) {
+        const selectedPost = posts.find((p) => p.id === showComments);
+        if (selectedPost && selectedPost.user.id) {
+          setFollowStatusLoading(true);
+          try {
+            const response = await isFollowing(selectedPost.user.id);
+            setIsFollowingUser(response.isFollowing);
+            setIsMine(response.isMine);
+          } catch (error) {
+            console.error("팔로우 상태 확인 실패:", error);
+            setIsFollowingUser(false);
+            setIsMine(false);
+          } finally {
+            setFollowStatusLoading(false);
+          }
+        }
+      } else {
+        // 모달이 닫힐 때 상태 초기화
+        setFollowStatusLoading(false);
+        setIsFollowingUser(false);
+        setIsMine(false);
+      }
+    };
+    checkFollowStatus();
+  }, [showComments, posts]);
+
+  // 댓글 모달 열기 핸들러
+  const handleShowComments = (postId) => {
+    setFollowStatusLoading(true);
+    setShowComments(postId);
+  };
+
+  // 팔로우/언팔로우 핸들러
+  const handleFollow = async () => {
+    const selectedPost = posts.find((p) => p.id === showComments);
+    if (!selectedPost || !selectedPost.user.id || followLoading) return;
+
+    setFollowLoading(true);
+    try {
+      if (isFollowingUser) {
+        await unfollowUser(selectedPost.user.id);
+        setIsFollowingUser(false);
+      } else {
+        await followUser(selectedPost.user.id);
+        setIsFollowingUser(true);
+      }
+    } catch (error) {
+      console.error("팔로우/언팔로우 요청 실패:", error);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const handleLike = (postId) => {
     setPosts(
@@ -272,9 +340,13 @@ const Home = () => {
         const newProgress = prev + 2; // 5초 동안 진행 (100 / 50 frames)
 
         if (newProgress >= 100) {
-          // 마지막 스토리의 마지막 아이템이면 100%에서 멈춤
+          // 마지막 스토리의 마지막 아이템이면 스토리 뷰어 닫기
           if (isLastStoryItem) {
             clearInterval(interval);
+            // 약간의 딜레이 후 닫기 (마지막 스토리를 완전히 보여주기 위해)
+            setTimeout(() => {
+              closeStoryViewer();
+            }, 300);
             return 100;
           }
 
@@ -301,7 +373,13 @@ const Home = () => {
                   setIsImageLoaded(false);
                   return 0; // 다음 스토리의 첫 번째 아이템
                 }
-                return prevItemIndex;
+                // 마지막 스토리의 마지막 아이템이면 닫기
+                else {
+                  setTimeout(() => {
+                    closeStoryViewer();
+                  }, 300);
+                  return prevItemIndex;
+                }
               });
 
               // 다음 스토리로 이동
@@ -330,6 +408,7 @@ const Home = () => {
     isImageLoaded,
     currentStoryIndex,
     currentStoryItemIndex,
+    closeStoryViewer,
   ]);
 
   // 키보드 네비게이션 (좌우 화살표)
@@ -471,7 +550,7 @@ const Home = () => {
                   </Caption>
                   <Comments
                     $darkMode={isDarkMode}
-                    onClick={() => setShowComments(post.id)}
+                    onClick={() => handleShowComments(post.id)}
                   >
                     댓글 12개 모두 보기
                   </Comments>
@@ -516,7 +595,7 @@ const Home = () => {
                   />
                 </ModalLeft>
                 <ModalRight>
-                  <ModalHeader>
+                  <ModalHeader $darkMode={isDarkMode}>
                     <UserInfo>
                       <Avatar>
                         {posts.find((p) => p.id === showComments)?.user.avatar}
@@ -524,6 +603,19 @@ const Home = () => {
                       <Username $darkMode={isDarkMode}>
                         {posts.find((p) => p.id === showComments)?.user.name}
                       </Username>
+                      {!followStatusLoading && !isMine && (
+                        <FollowButton
+                          onClick={handleFollow}
+                          $isFollowing={isFollowingUser}
+                          disabled={followLoading}
+                        >
+                          {followLoading
+                            ? "..."
+                            : isFollowingUser
+                            ? "팔로잉"
+                            : "팔로우"}
+                        </FollowButton>
+                      )}
                     </UserInfo>
                   </ModalHeader>
 
@@ -675,7 +767,10 @@ const Home = () => {
                     <StoryUsername>
                       {stories[currentStoryIndex].user.name}
                     </StoryUsername>
-                    <StoryTime>5분 전</StoryTime>
+                    <StoryTime>
+                      {stories[currentStoryIndex].items[currentStoryItemIndex]
+                        ?.timestamp || "방금 전"}
+                    </StoryTime>
                   </UserInfo>
                   <StoryCloseButton onClick={closeStoryViewer}>
                     ✕
@@ -992,6 +1087,29 @@ const Username = styled.span`
   transition: opacity 0.2s;
 `;
 
+const FollowButton = styled.button`
+  margin-left: 36px;
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+
+  background: ${(props) => (props.$isFollowing ? "#efefef" : "#0095f6")};
+  color: ${(props) => (props.$isFollowing ? "#262626" : "#fff")};
+
+  &:hover {
+    background: ${(props) => (props.$isFollowing ? "#dbdbdb" : "#1877f2")};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const UserInfo = styled.div`
   display: flex;
   align-items: center;
@@ -1239,7 +1357,8 @@ const ModalHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid #efefef;
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#363636" : "#efefef")};
 `;
 
 const CloseButton = styled.button`
@@ -1462,7 +1581,12 @@ const StoryTime = styled.span`
 const StoryCloseButton = styled.button`
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   border-radius: 50%;
+  border: none;
+  outline: none;
+  padding: 0;
   background: transparent;
   color: white;
   display: flex;
@@ -1471,9 +1595,14 @@ const StoryCloseButton = styled.button`
   cursor: pointer;
   font-size: 24px;
   transition: background 0.2s;
+  box-sizing: border-box;
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  &:focus {
+    outline: none;
   }
 `;
 

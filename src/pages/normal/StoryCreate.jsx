@@ -15,6 +15,7 @@ const StoryCreate = () => {
   const [step, setStep] = useState("select"); // select, edit
   const [preview, setPreview] = useState(null);
   const [originalfile, setOriginalFile] = useState(null);
+  const [originalPreview, setOriginalPreview] = useState(null);
   const [caption, setCaption] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -39,12 +40,13 @@ const StoryCreate = () => {
     if (selectedFile) {
       setOriginalFile(selectedFile); // 원본 파일 저장
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreview(e.target.result);
-        setStep("edit");
-      };
-      reader.readAsDataURL(selectedFile);
+      // FileReader 대신 URL.createObjectURL 사용 (더 빠르고 간단함)
+      const objectUrl = URL.createObjectURL(selectedFile);
+
+      setPreview(objectUrl); // 현재 화면에 보일 이미지 (나중에 잘린 걸로 바뀜)
+      setOriginalPreview(objectUrl); // [추가] 원본 보존용 (절대 안 바뀜)
+
+      setStep("edit");
     }
   };
 
@@ -57,8 +59,10 @@ const StoryCreate = () => {
 
   // 자르기 시작
   const startCropping = () => {
-    setPrevCrop(crop);
-    setPrevZoom(zoom);
+    // setPrevCrop(crop);
+    // setPrevZoom(zoom);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
     setIsCropping(true);
     setShowStyleControls(false);
   };
@@ -69,8 +73,29 @@ const StoryCreate = () => {
     setIsCropping(false);
   };
 
-  const completeCropping = () => {
-    setIsCropping(false);
+  const completeCropping = async () => {
+    try {
+      // 현재 설정된 크롭 영역(croppedAreaPixels)을 기반으로 이미지를 자름
+      // 텍스트는 아직 합치지 않고 null로 보냄
+      const croppedBlob = await getFinalImage(
+        originalPreview,
+        croppedAreaPixels,
+        null
+      );
+
+      // 잘린 이미지를 변환하여 미리보기 업데이트
+      const newPreviewUrl = URL.createObjectURL(croppedBlob);
+      setPreview(newPreviewUrl);
+
+      setCroppedAreaPixels(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+
+      setIsCropping(false);
+    } catch (err) {
+      console.error("Crop error:", err);
+      alert("이미지 자르기 실패!");
+    }
   };
 
   const handlePost = async () => {
@@ -184,7 +209,7 @@ const StoryCreate = () => {
                 <StoryFrame ref={previewAreaRef}>
                   {isCropping ? (
                     <Cropper
-                      image={preview} // selectedImage -> preview
+                      image={originalPreview}
                       crop={crop}
                       zoom={zoom}
                       aspect={9 / 16}
@@ -356,6 +381,7 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
     const finalX = x * scaleX;
     const finalY = y * scaleY;
     const finalFontSize = fontSize * scaleFont;
+    const lineHeight = finalFontSize * 1.2;
 
     ctx.font = `700 ${finalFontSize}px sans-serif`;
     ctx.fillStyle = color;
@@ -367,7 +393,27 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
     ctx.shadowOffsetX = 2 * scaleFont;
     ctx.shadowOffsetY = 2 * scaleFont;
 
-    ctx.fillText(text, finalX, finalY);
+    const maxWidth = width * 0.9;
+    const words = text.split("");
+    let line = "";
+    let currentY = finalY;
+
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n];
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+
+      // 현재 줄이 최대 너비를 넘어가면
+      if (testWidth > maxWidth && n > 0) {
+        ctx.fillText(line, finalX, currentY); // 현재 줄 그리고
+        line = words[n]; // 다음 줄 첫 글자로 설정
+        currentY += lineHeight; // Y좌표 내리기
+      } else {
+        line = testLine; // 아직 안 넘었으면 글자 추가
+      }
+    }
+
+    ctx.fillText(text, finalX, currentY);
   }
 
   return new Promise((resolve) => {
@@ -663,6 +709,11 @@ const DraggableText = styled.div`
   user-select: none;
   white-space: nowrap;
   padding: 8px;
+  white-space: pre-wrap; /* 줄바꿈 허용 */
+  word-break: break-all; /* 긴 단어도 강제로 줄바꿈 */
+  max-width: 90%; /* 화면 너비의 90%를 넘지 않도록 제한 */
+  text-align: center; /* 가운데 정렬 (선택사항) */
+  line-height: 1.2; /* 줄 간격 */
   /* 드래그할 때 테두리 보여주기 (선택사항) */
   &:active {
     border: 1px dashed white;
