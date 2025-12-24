@@ -1,7 +1,7 @@
 const baseURL = import.meta.env.VITE_API_BASE_URL; // http://localhost:3000/api/v1
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   return {
     Authorization: token ? `Bearer ${token}` : "",
     "Content-Type": "application/json",
