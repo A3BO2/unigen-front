@@ -53,6 +53,42 @@ const Home = () => {
   const [stories, setStories] = useState([]);
   const [storiesLoading, setStoriesLoading] = useState(false);
 
+  // 메뉴 토글 함수
+  const toggleMenu = (postId) => {
+    if (activateMenuPostId === postId) {
+      setActivateMenuPostId(null);
+    } else {
+      setActivateMenuPostId(postId);
+    }
+  };
+
+  // 수정 핸들러
+  const handleUpdate = async (post) => {
+    navigate(`/feed/update/${post.id}`, {
+      state: {
+        content: post.caption,
+        imageUrl: post.image,
+      },
+    });
+    setActivateMenuPostId(null);
+  };
+
+  // 삭제 핸들러
+  const handleDelete = async (postId) => {
+    if (!window.confirm("정말로 게시물을 삭제하시겠습니까?")) return;
+
+    try {
+      await deletePost(postId);
+      alert("삭제되었습니다.");
+
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setActivateMenuPostId(null);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "삭제 실패");
+    }
+  };
+
   // 스토리 데이터 로드
   useEffect(() => {
     const loadStories = async () => {
@@ -419,6 +455,14 @@ const Home = () => {
     };
   }, [showStoryViewer, goToNextStoryItem, goToPrevStoryItem, closeStoryViewer]);
 
+  console.log("내 ID (user.id):", user?.id);
+  console.log("내 ID (user.userId):", user?.userId);
+
+  // 만약 posts가 있다면 첫 번째 글의 작성자 ID도 확인
+  if (posts.length > 0) {
+    console.log("글쓴이 ID (post.user.id):", posts[0].user.id);
+    console.log("타입 비교:", typeof user?.id, typeof posts[0].user.id);
+  }
   return (
     <>
       <LeftSidebar />
@@ -485,12 +529,49 @@ const Home = () => {
               <Post key={post.id} $darkMode={isDarkMode}>
                 <PostHeader>
                   <UserInfo>
-                    <Avatar>{post.user.avatar}</Avatar>
+                    <Avatar>
+                      {post.user.avatar && (
+                        <img src={post.user.avatar} alt="" />
+                      )}
+                    </Avatar>
                     <Username $darkMode={isDarkMode}>{post.user.name}</Username>
                   </UserInfo>
-                  <MoreButton $darkMode={isDarkMode}>
-                    <MoreHorizontal size={24} />
-                  </MoreButton>
+                  {user?.id === post.user.id && (
+                    <div style={{ position: "relative" }}>
+                      <MoreButton
+                        $darkMode={isDarkMode}
+                        onClick={() => toggleMenu(post.id)}
+                      >
+                        <MoreHorizontal size={24} />
+                      </MoreButton>
+
+                      {/* 메뉴 드롭다운 */}
+                      {activateMenuPostId === post.id && (
+                        <>
+                          {/* 메뉴 밖 클릭 시 닫기 위한 투명 배경 */}
+                          <MenuOverlay
+                            onClick={() => setActivateMenuPostId(null)}
+                          />
+
+                          <DropdownMenu $darkMode={isDarkMode}>
+                            <MenuItem
+                              onClick={() => handleUpdate(post)}
+                              $darkMode={isDarkMode}
+                            >
+                              수정
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => handleDelete(post.id)}
+                              $darkMode={isDarkMode}
+                              $danger
+                            >
+                              삭제
+                            </MenuItem>
+                          </DropdownMenu>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </PostHeader>
 
                 <PostImage
@@ -1657,6 +1738,51 @@ const StoryActionIcons = styled.div`
     &:hover {
       opacity: 0.7;
     }
+  }
+`;
+
+const MenuOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: default;
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#555" : "#dbdbdb")};
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 100px;
+  z-index: 20;
+  overflow: hidden;
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#333" : "#f0f0f0")};
+  color: ${(props) =>
+    props.$danger ? "#ed4956" : props.$darkMode ? "#fff" : "#262626"};
+  font-weight: ${(props) => (props.$danger ? "700" : "400")};
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: ${(props) => (props.$darkMode ? "#333" : "#fafafa")};
   }
 `;
 
