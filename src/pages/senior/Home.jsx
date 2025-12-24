@@ -5,13 +5,9 @@ import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { getSeniorPosts } from "../../services/post";
 
-const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
-
-// URL에 baseURL을 붙이는 헬퍼 함수
 const getFullUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${baseURL}${url}`;
 };
 
 const Home = () => {

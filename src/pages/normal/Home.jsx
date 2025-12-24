@@ -15,9 +15,8 @@ import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { getPosts, getStories } from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
+import { isMyStory, getStoryViewers, watchStory } from "../../services/story";
 import { getTimeAgo } from "../../util/date";
-
-const baseURL = import.meta.env.VITE_BASE_URL;
 
 const Home = () => {
   const navigate = useNavigate();
@@ -50,6 +49,12 @@ const Home = () => {
   const [stories, setStories] = useState([]);
   const [storiesLoading, setStoriesLoading] = useState(false);
 
+  // 내 스토리 관련 state
+  const [isCurrentStoryMine, setIsCurrentStoryMine] = useState(false);
+  const [showViewersModal, setShowViewersModal] = useState(false);
+  const [storyViewers, setStoryViewers] = useState([]);
+  const [viewersLoading, setViewersLoading] = useState(false);
+
   // 스토리 데이터 로드
   useEffect(() => {
     const loadStories = async () => {
@@ -68,7 +73,7 @@ const Home = () => {
         // API 데이터를 stories 형식으로 변환
         const toAbsolute = (url) => {
           if (!url) return null;
-          return url.startsWith("http") ? url : `${baseURL}${url}`;
+          return url.startsWith("http") ? url : `${url}`;
         };
 
         const transformedStories = data.stories
@@ -122,7 +127,7 @@ const Home = () => {
           name: item.author.name,
           avatar: item.author.profileImageUrl,
         },
-        image: `${baseURL}${item.imageUrl}`,
+        image: `${item.imageUrl}`,
         likes: item.likeCount,
         caption: item.content,
         timestamp: getTimeAgo(item.createdAt),
@@ -254,13 +259,36 @@ const Home = () => {
   };
 
   // 스토리 관련 함수
-  const openStoryViewer = useCallback((storyIndex) => {
+  const openStoryViewer = useCallback(async (storyIndex) => {
     setCurrentStoryIndex(storyIndex);
     setCurrentStoryItemIndex(0);
     setStoryProgress(0);
     setIsImageLoaded(false);
     progressCompleteRef.current = false;
     setShowStoryViewer(true);
+    setIsCurrentStoryMine(false);
+
+    // 현재 스토리의 첫 번째 아이템 ID로 API 호출
+    const currentStory = storiesRef.current[storyIndex];
+    if (currentStory && currentStory.items && currentStory.items[0]) {
+      const storyItemId = currentStory.items[0].id;
+
+      // 내 스토리인지 확인
+      try {
+        const isMineResponse = await isMyStory(storyItemId);
+        setIsCurrentStoryMine(isMineResponse.isMine);
+      } catch (error) {
+        console.error("내 스토리 확인 실패:", error);
+        setIsCurrentStoryMine(false);
+      }
+
+      // 스토리 조회 기록
+      try {
+        await watchStory(storyItemId);
+      } catch (error) {
+        console.error("스토리 조회 기록 실패:", error);
+      }
+    }
   }, []);
 
   const closeStoryViewer = useCallback(() => {
@@ -270,6 +298,9 @@ const Home = () => {
     setStoryProgress(0);
     setIsImageLoaded(false);
     progressCompleteRef.current = false;
+    setIsCurrentStoryMine(false);
+    setShowViewersModal(false);
+    setStoryViewers([]);
     if (storyTimerRef.current) {
       clearInterval(storyTimerRef.current);
     }
@@ -321,9 +352,63 @@ const Home = () => {
     }
   }, [currentStoryIndex, currentStoryItemIndex, stories]);
 
+  // 스토리 아이템이 변경될 때 watchStory 호출
+  useEffect(() => {
+    if (!showStoryViewer) return;
+
+    const currentStory = storiesRef.current[currentStoryIndex];
+    if (
+      currentStory &&
+      currentStory.items &&
+      currentStory.items[currentStoryItemIndex]
+    ) {
+      const storyItemId = currentStory.items[currentStoryItemIndex].id;
+
+      // 스토리 조회 기록
+      watchStory(storyItemId).catch((error) => {
+        console.error("스토리 조회 기록 실패:", error);
+      });
+    }
+  }, [showStoryViewer, currentStoryIndex, currentStoryItemIndex]);
+
+  // 활동(조회자 목록) 모달 열기
+  const openViewersModal = async () => {
+    const currentStory = stories[currentStoryIndex];
+    if (
+      !currentStory ||
+      !currentStory.items ||
+      !currentStory.items[currentStoryItemIndex]
+    )
+      return;
+
+    const storyItemId = currentStory.items[currentStoryItemIndex].id;
+    setViewersLoading(true);
+    setShowViewersModal(true);
+
+    try {
+      const response = await getStoryViewers(storyItemId);
+      if (response.success) {
+        setStoryViewers(response.viewers || []);
+      } else {
+        setStoryViewers([]);
+      }
+    } catch (error) {
+      console.error("조회자 목록 조회 실패:", error);
+      setStoryViewers([]);
+    } finally {
+      setViewersLoading(false);
+    }
+  };
+
+  // 조회자 모달 닫기
+  const closeViewersModal = () => {
+    setShowViewersModal(false);
+    setStoryViewers([]);
+  };
+
   // 스토리 자동 진행
   useEffect(() => {
-    if (!showStoryViewer || !isImageLoaded) return;
+    if (!showStoryViewer || !isImageLoaded || showViewersModal) return;
 
     const currentStory = storiesRef.current[currentStoryIndex];
     if (!currentStory || !currentStory.items) return;
@@ -409,6 +494,7 @@ const Home = () => {
     currentStoryIndex,
     currentStoryItemIndex,
     closeStoryViewer,
+    showViewersModal,
   ]);
 
   // 키보드 네비게이션 (좌우 화살표)
@@ -809,6 +895,17 @@ const Home = () => {
 
                 {/* 하단 인터랙션 */}
                 <StoryFooter>
+                  {/* 내 스토리일 때 활동 버튼 표시 */}
+                  {isCurrentStoryMine && (
+                    <ActivityButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openViewersModal();
+                      }}
+                    >
+                      활동
+                    </ActivityButton>
+                  )}
                   <StoryReplyInput>
                     <input placeholder="메시지 보내기" />
                     <StoryActionIcons>
@@ -817,6 +914,58 @@ const Home = () => {
                     </StoryActionIcons>
                   </StoryReplyInput>
                 </StoryFooter>
+
+                {/* 조회자 모달 */}
+                {showViewersModal && (
+                  <ViewersModalOverlay
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeViewersModal();
+                    }}
+                  >
+                    <ViewersModal onClick={(e) => e.stopPropagation()}>
+                      <ViewersModalHeader>
+                        <ViewersModalTitle>스토리 조회자</ViewersModalTitle>
+                        <ViewersModalCloseButton onClick={closeViewersModal}>
+                          ✕
+                        </ViewersModalCloseButton>
+                      </ViewersModalHeader>
+                      <ViewersModalContent>
+                        {viewersLoading ? (
+                          <ViewersLoadingContainer>
+                            <Loader2 size={24} className="spinner" />
+                            <span>로딩 중...</span>
+                          </ViewersLoadingContainer>
+                        ) : storyViewers.length === 0 ? (
+                          <ViewersEmptyMessage>
+                            아직 조회한 사람이 없습니다.
+                          </ViewersEmptyMessage>
+                        ) : (
+                          storyViewers.map((viewer) => (
+                            <ViewerItem key={viewer.userId}>
+                              <ViewerAvatar>
+                                {viewer.profileImageUrl ? (
+                                  <img
+                                    src={viewer.profileImageUrl}
+                                    alt={viewer.userName}
+                                  />
+                                ) : (
+                                  "👤"
+                                )}
+                              </ViewerAvatar>
+                              <ViewerInfo>
+                                <ViewerName>{viewer.userName}</ViewerName>
+                                <ViewerTime>
+                                  {getTimeAgo(viewer.viewedAt)}
+                                </ViewerTime>
+                              </ViewerInfo>
+                            </ViewerItem>
+                          ))
+                        )}
+                      </ViewersModalContent>
+                    </ViewersModal>
+                  </ViewersModalOverlay>
+                )}
               </StoryViewerContainer>
             </StoryViewerOverlay>
           )}
@@ -1683,6 +1832,164 @@ const StoryActionIcons = styled.div`
       opacity: 0.7;
     }
   }
+`;
+
+// 활동 버튼 스타일
+const ActivityButton = styled.button`
+  position: absolute;
+  left: 16px;
+  bottom: 80px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 15;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+// 조회자 모달 스타일
+const ViewersModalOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+`;
+
+const ViewersModal = styled.div`
+  width: 100%;
+  max-height: 60%;
+  background: #262626;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const ViewersModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #363636;
+`;
+
+const ViewersModalTitle = styled.h3`
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+`;
+
+const ViewersModalCloseButton = styled.button`
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+
+  &:hover {
+    opacity: 0.7;
+  }
+`;
+
+const ViewersModalContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+`;
+
+const ViewersLoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: white;
+
+  .spinner {
+    animation: ${spinAnimation} 1s linear infinite;
+  }
+`;
+
+const ViewersEmptyMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: #a8a8a8;
+  font-size: 14px;
+`;
+
+const ViewerItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #363636;
+  }
+`;
+
+const ViewerAvatar = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: #fafafa;
+  border: 1px solid #dbdbdb;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const ViewerInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ViewerName = styled.div`
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const ViewerTime = styled.div`
+  color: #a8a8a8;
+  font-size: 12px;
+  margin-top: 2px;
 `;
 
 export default Home;
