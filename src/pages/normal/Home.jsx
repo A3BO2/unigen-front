@@ -177,7 +177,7 @@ const Home = () => {
         // [수정 포인트 1] URL 변환 헬퍼 함수 추가 (스토리 로직과 동일하게)
         const toAbsolute = (url) => {
           if (!url) return null;
-          return url.startsWith("http") ? url : `${baseURL}${url}`;
+          return url.startsWith("http") ? url : `${url}`;
         };
 
         // API 데이터를 posts 형식으로 변환
