@@ -2,7 +2,7 @@ import styled from "styled-components";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import { Heart, MessageCircle, Send, Play } from "lucide-react";
+import { Heart, MessageCircle, Play } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -438,9 +438,6 @@ const Explore = () => {
                     </ActionButton>
                     <ActionButton $darkMode={isDarkMode}>
                       <MessageCircle size={24} strokeWidth={1.5} />
-                    </ActionButton>
-                    <ActionButton $darkMode={isDarkMode}>
-                      <Send size={24} strokeWidth={1.5} />
                     </ActionButton>
                   </ActionButtons>
                   <Likes $darkMode={isDarkMode}>

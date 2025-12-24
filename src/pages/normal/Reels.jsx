@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useSearchParams } from "react-router-dom";
+// import { useSearchParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import { Heart, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
+import { Heart, MessageCircle, Volume2, VolumeX } from "lucide-react";
 
 import { getReel } from "../../services/post";
 
@@ -11,15 +11,15 @@ const Reels = () => {
   /* =========================
    * 상태
    ========================= */
-  const [searchParams] = useSearchParams();
-  const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
+  // const [searchParams] = useSearchParams();
+  // const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
 
   const [reels, setReels] = useState([]);
   const [cursor, setCursor] = useState(null);
   const [loading, setLoading] = useState(false);
   const [muted, setMuted] = useState(true);
   const [noMoreReels, setNoMoreReels] = useState(false);
-  const [initialLoaded, setInitialLoaded] = useState(false);
+  // const [initialLoaded, setInitialLoaded] = useState(false);
   const FILE_BASE_URL = import.meta.env.VITE_BASE_URL;
   const [volume, setVolume] = useState(0); // 0 ~ 1
   const [showVolume, setShowVolume] = useState(false);
@@ -267,10 +267,6 @@ const Reels = () => {
             <ActionButton onClick={(e) => e.stopPropagation()}>
               <MessageCircle size={28} color="#fff" />
               <ActionText>{reel.comments}</ActionText>
-            </ActionButton>
-
-            <ActionButton onClick={(e) => e.stopPropagation()}>
-              <Send size={28} color="#fff" />
             </ActionButton>
           </Actions>
         </VideoContainer>

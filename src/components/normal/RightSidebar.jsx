@@ -1,76 +1,75 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import styled from 'styled-components';
 
-// Mock 추천 사용자 데이터
-const SUGGESTIONS = [
-  { id: 1, username: 'yang2ro', name: '양이로', avatar: '👤', followedBy: '친구 1명이 팔로우합니다' },
-  { id: 2, username: 'ainbigi_', name: '아인비기', avatar: '👤', followedBy: '친구 2명이 팔로우합니다' },
-  { id: 3, username: 'ch_umii', name: '추미', avatar: '👤', followedBy: '친구 1명이 팔로우합니다' },
-  { id: 4, username: 'nahui0529', name: '나희', avatar: '👤', followedBy: '친구 3명이 팔로우합니다' },
-  { id: 5, username: 'choi_doran', name: '최도란', avatar: '👤', followedBy: '친구 1명이 팔로우합니다' },
-];
+const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
 const RightSidebar = () => {
   const navigate = useNavigate();
-  const { user, isDarkMode } = useApp();
-  const [suggestions, setSuggestions] = useState(SUGGESTIONS);
+  const { user, isDarkMode, switchMode } = useApp();
 
-  const handleFollow = (userId) => {
-    setSuggestions(suggestions.filter(s => s.id !== userId));
+  const handleSwitchMode = () => {
+    switchMode('senior');
+    navigate('/senior/home');
   };
+
+  // profile_image 처리: http:// 또는 https://로 시작하는 URL은 그대로 사용
+  const profileImageUrl = (() => {
+    const imageUrl = user?.profile_image;
+    if (!imageUrl) return null;
+    
+    const urlString = String(imageUrl).trim();
+    if (urlString === '') return null;
+    
+    // http:// 또는 https://로 시작하면 그대로 반환
+    if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
+      return urlString;
+    }
+    
+    // 상대 경로면 baseURL 붙이기
+    return `${baseURL}${urlString}`;
+  })();
 
   return (
     <Container $darkMode={isDarkMode}>
       <UserProfile>
         <Avatar onClick={() => navigate('/normal/profile')}>
-          <img src="https://i.pravatar.cc/150?img=1" alt="" />
+          {profileImageUrl ? (
+            <img 
+              src={profileImageUrl} 
+              alt={user?.name || '프로필'} 
+            />
+          ) : (
+            <DefaultAvatar $darkMode={isDarkMode}>
+              <span>👤</span>
+            </DefaultAvatar>
+          )}
         </Avatar>
         <UserInfo onClick={() => navigate('/normal/profile')}>
-          <Username $darkMode={isDarkMode}>{user?.name || 'togeunalikyelwo'}</Username>
-          <Name $darkMode={isDarkMode}>{user?.email || '회원님을 위한 추천'}</Name>
+          <Username $darkMode={isDarkMode}>{user?.username || 'username'}</Username>
+          <Name $darkMode={isDarkMode}>{user?.name || '이름'}</Name>
         </UserInfo>
-        <SwitchButton>전환</SwitchButton>
+        <SwitchButton onClick={handleSwitchMode}>전환</SwitchButton>
       </UserProfile>
 
-      <SuggestionsSection>
-        <SuggestionsHeader>
-          <SuggestionsTitle $darkMode={isDarkMode}>회원님을 위한 추천</SuggestionsTitle>
-          <SeeAllButton>모두 보기</SeeAllButton>
-        </SuggestionsHeader>
+      <Divider $darkMode={isDarkMode} />
 
-        <SuggestionsList>
-          {suggestions.map((suggestion) => (
-            <SuggestionItem key={suggestion.id}>
-              <SuggestionAvatar>
-                <img src={`https://i.pravatar.cc/150?img=${suggestion.id + 10}`} alt="" />
-              </SuggestionAvatar>
-              <SuggestionInfo>
-                <SuggestionUsername $darkMode={isDarkMode}>{suggestion.username}</SuggestionUsername>
-                <SuggestionMeta $darkMode={isDarkMode}>{suggestion.followedBy}</SuggestionMeta>
-              </SuggestionInfo>
-              <FollowButton onClick={() => handleFollow(suggestion.id)}>
-                팔로우
-              </FollowButton>
-            </SuggestionItem>
-          ))}
-        </SuggestionsList>
-      </SuggestionsSection>
+      <AdvertisementSection $darkMode={isDarkMode}>
+        <AdvertisementImage 
+          src="/advertisement1.png" 
+          alt="광고 1"
+          onClick={() => window.open('https://ryuzyproject.tistory.com/', '_blank')}
+          $clickable={true}
+        />
+        <AdvertisementImage 
+          src="/advertisement2.png" 
+          alt="광고 2"
+          $clickable={false}
+        />
+      </AdvertisementSection>
 
       <Footer>
-        <FooterLinks>
-          <FooterLink href="#" $darkMode={isDarkMode}>정보</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>채용 정보</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>도움말</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>API</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>개인정보처리방침</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>약관</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>위치</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>언어</FooterLink>
-          <FooterLink href="#" $darkMode={isDarkMode}>Meta Verified</FooterLink>
-        </FooterLinks>
-        <Copyright $darkMode={isDarkMode}>© 2025 UNIGEN FROM META</Copyright>
+        <Copyright $darkMode={isDarkMode}>© 2025 UNIGEN FROM A3BO2</Copyright>
       </Footer>
     </Container>
   );
@@ -109,11 +108,28 @@ const Avatar = styled.div`
   border-radius: 50%;
   cursor: pointer;
   overflow: hidden;
+  flex-shrink: 0;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+`;
+
+const DefaultAvatar = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: ${props => props.$darkMode ? '#262626' : '#fafafa'};
+  border: 1px solid ${props => props.$darkMode ? '#363636' : '#dbdbdb'};
+  border-radius: 50%;
+
+  span {
+    font-size: 24px;
   }
 `;
 
@@ -138,127 +154,44 @@ const SwitchButton = styled.button`
   font-weight: 600;
   color: #0095f6;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
 
   &:hover {
     color: #00376b;
   }
 `;
 
-const SuggestionsSection = styled.div`
+const Divider = styled.div`
+  width: 100%;
+  height: 1px;
+  background: ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  margin: 24px 0;
+`;
+
+const AdvertisementSection = styled.div`
   margin-bottom: 24px;
-`;
-
-const SuggestionsHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-`;
-
-const SuggestionsTitle = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.$darkMode ? '#8e8e8e' : '#8e8e8e'};
-`;
-
-const SeeAllButton = styled.button`
-  font-size: 12px;
-  font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
-  cursor: pointer;
-
-  &:hover {
-    color: ${props => props.$darkMode ? '#8e8e8e' : '#8e8e8e'};
-  }
-`;
-
-const SuggestionsList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-`;
-
-const SuggestionItem = styled.div`
-  display: flex;
-  align-items: center;
   gap: 12px;
 `;
 
-const SuggestionAvatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  overflow: hidden;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-`;
-
-const SuggestionInfo = styled.div`
-  flex: 1;
-  cursor: pointer;
-`;
-
-const SuggestionUsername = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+const AdvertisementImage = styled.img`
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: ${props => props.$clickable ? 'pointer' : 'default'};
+  transition: transform 0.2s, opacity 0.2s;
 
   &:hover {
-    opacity: 0.6;
-  }
-`;
-
-const SuggestionMeta = styled.div`
-  font-size: 12px;
-  color: ${props => props.$darkMode ? '#8e8e8e' : '#8e8e8e'};
-`;
-
-const FollowButton = styled.button`
-  font-size: 12px;
-  font-weight: 600;
-  color: #0095f6;
-  cursor: pointer;
-
-  &:hover {
-    color: #00376b;
+    transform: scale(1.02);
+    opacity: 0.9;
   }
 `;
 
 const Footer = styled.footer`
   margin-top: 32px;
-`;
-
-const FooterLinks = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-bottom: 16px;
-`;
-
-const FooterLink = styled.a`
-  font-size: 11px;
-  color: ${props => props.$darkMode ? '#8e8e8e' : '#c7c7c7'};
-  cursor: pointer;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  &::after {
-    content: '·';
-    margin-left: 8px;
-    color: ${props => props.$darkMode ? '#8e8e8e' : '#c7c7c7'};
-  }
-
-  &:last-child::after {
-    display: none;
-  }
 `;
 
 const Copyright = styled.div`

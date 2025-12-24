@@ -4,7 +4,6 @@ import styled, { keyframes } from "styled-components";
 import {
   Heart,
   MessageCircle,
-  Send,
   MoreHorizontal,
   Plus,
   Loader2,
@@ -534,9 +533,6 @@ const Home = () => {
                     <ActionButton $darkMode={isDarkMode}>
                       <MessageCircle size={24} strokeWidth={1.5} />
                     </ActionButton>
-                    <ActionButton $darkMode={isDarkMode}>
-                      <Send size={24} strokeWidth={1.5} />
-                    </ActionButton>
                   </LeftActions>
                 </PostActions>
 
@@ -704,9 +700,6 @@ const Home = () => {
                       <ActionButton>
                         <MessageCircle size={24} strokeWidth={1.5} />
                       </ActionButton>
-                      <ActionButton>
-                        <Send size={24} strokeWidth={1.5} />
-                      </ActionButton>
                     </ActionButtons>
                     <Likes>
                       좋아요{" "}
@@ -813,7 +806,6 @@ const Home = () => {
                     <input placeholder="메시지 보내기" />
                     <StoryActionIcons>
                       <Heart size={24} />
-                      <Send size={24} />
                     </StoryActionIcons>
                   </StoryReplyInput>
                 </StoryFooter>

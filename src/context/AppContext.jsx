@@ -64,8 +64,15 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       safeLocalStorage.setItem("user", JSON.stringify(user));
+      // profile_image URL도 별도로 저장
+      if (user.profile_image) {
+        safeLocalStorage.setItem("userProfileImage", user.profile_image);
+      } else {
+        safeLocalStorage.removeItem("userProfileImage");
+      }
     } else {
       safeLocalStorage.removeItem("user");
+      safeLocalStorage.removeItem("userProfileImage");
     }
   }, [user]);
 
@@ -169,7 +176,37 @@ export const AppProvider = ({ children }) => {
 
     loadUserSettings();
   }, [user]);
-  const login = (userData, selectedMode) => {
+  const login = async (userData, selectedMode) => {
+    // profile_image가 없으면 /auth/me로 프로필 이미지 가져오기
+    if (!userData.profile_image) {
+      try {
+        const token = safeLocalStorage.getItem("token");
+        if (token) {
+          const baseURL =
+            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+          const response = await fetch(`${baseURL}/auth/me`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token.trim()}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.user) {
+              // profile_image가 있으면 userData에 추가
+              if (data.data.user.profile_image) {
+                userData.profile_image = data.data.user.profile_image;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("프로필 이미지 가져오기 실패:", error);
+      }
+    }
+    
     setUser(userData);
     setMode(selectedMode);
   };
