@@ -2,7 +2,7 @@ import axios from "axios";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL; // http://localhost:3000/api/v1
 
-async function apifetch(url, options) {
+export async function apifetch(url, options) {
   const res = await fetch(`${baseURL}${url}`, {
     ...options,
     headers: {
@@ -24,7 +24,7 @@ async function apifetch(url, options) {
   return data;
 }
 
-function getHeaders() {
+export function getHeaders() {
   const token = sessionStorage.getItem("token"); // 로컬 스토리지에서 토큰을 가져옴
   console.log("Authorization Token:", token);
   return {
