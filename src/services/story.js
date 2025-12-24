@@ -1,7 +1,7 @@
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export async function createStory(formData) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   const res = await fetch(`${baseURL}/stories`, {
     method: "POST",

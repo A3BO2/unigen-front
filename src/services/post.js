@@ -25,7 +25,7 @@ async function apifetch(url, options) {
 }
 
 function getHeaders() {
-  const token = localStorage.getItem("token"); // 로컬 스토리지에서 토큰을 가져옴
+  const token = sessionStorage.getItem("token"); // 로컬 스토리지에서 토큰을 가져옴
   console.log("Authorization Token:", token);
   return {
     Authorization: token ? `Bearer ${token}` : "",
@@ -100,7 +100,7 @@ export async function getSeniorPosts(mode, page = 1, size = 5, all) {
 }
 
 export async function createPost(formData) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   // apifetch 대신 fetch를 직접 사용해서 Content-Type 문제를 회피
   const res = await fetch(`${baseURL}/posts`, {
