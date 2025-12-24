@@ -15,12 +15,13 @@ import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { getPosts, getStories } from "../../services/post";
 import { getTimeAgo } from "../../util/date";
+import { deletePost } from "../../services/post";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
 
 const Home = () => {
   const navigate = useNavigate();
-  const { isDarkMode } = useApp();
+  const { user, isDarkMode } = useApp();
   const [posts, setPosts] = useState([]);
   const [showComments, setShowComments] = useState(null);
   const [page, setPage] = useState(1);
@@ -28,6 +29,8 @@ const Home = () => {
   const [hasMore, setHasMore] = useState(true);
   const observerTarget = useRef(null);
   const loadedPagesRef = useRef(new Set()); // 이미 로드된 페이지 추적
+
+  const [activateMenuPostId, setActivateMenuPostId] = useState(null); // 현재 열린 메뉴의 포스트 ID(null이면 닫힘)
 
   // 스토리 관련 state
   const [showStoryViewer, setShowStoryViewer] = useState(false);
@@ -109,6 +112,7 @@ const Home = () => {
       const transformedPosts = data.items.map((item) => ({
         id: item.id,
         user: {
+          id: item.author.id,
           name: item.author.name,
           avatar: item.author.profileImageUrl,
         },
