@@ -78,7 +78,7 @@ export async function getReel(lastId) {
 }
 
 export async function getStories() {
-  return await apifetch(`/posts/stories`, {
+  return await apifetch(`/stories`, {
     method: "GET",
     headers: getHeaders(),
   });
