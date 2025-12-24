@@ -4,6 +4,13 @@ import { Heart, MessageCircle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { getSeniorPosts } from "../../services/post";
+import {
+  getCommentsByPostId,
+  addCommentToPost,
+  likePost,
+  unlikePost,
+} from "../../services/senior";
+import { getTimeAgo } from "../../util/date";
 
 const getFullUrl = (url) => {
   if (!url) return null;
@@ -15,6 +22,8 @@ const Home = () => {
   const [posts, setPosts] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
+  const [loadingComments, setLoadingComments] = useState({});
+  const [submittingComment, setSubmittingComment] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -181,7 +190,14 @@ const Home = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isLoadingMore, loading, hasMore]);
 
-  const handleLike = (postId) => {
+  const handleLike = async (postId) => {
+    // 현재 포스트의 좋아요 상태 확인
+    const currentPost = posts.find((post) => post.id === postId);
+    if (!currentPost) return;
+
+    const isCurrentlyLiked = currentPost.liked;
+
+    // 낙관적 업데이트 (UI 먼저 변경)
     setPosts(
       posts.map((post) => {
         if (post.id === postId) {
@@ -194,13 +210,73 @@ const Home = () => {
         return post;
       })
     );
+
+    try {
+      // 서버에 좋아요/취소 요청
+      if (isCurrentlyLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
+    } catch (err) {
+      console.error("좋아요 처리에 실패했습니다:", err);
+      // 실패 시 원래 상태로 롤백
+      setPosts(
+        posts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              liked: isCurrentlyLiked,
+              likes: isCurrentlyLiked ? currentPost.likes : currentPost.likes,
+            };
+          }
+          return post;
+        })
+      );
+    }
   };
 
-  const toggleComments = (postId) => {
+  const toggleComments = async (postId) => {
+    const isCurrentlyExpanded = expandedComments[postId];
+
+    // 댓글 섹션 토글
     setExpandedComments((prev) => ({
       ...prev,
       [postId]: !prev[postId],
     }));
+
+    // 댓글을 열 때만 서버에서 불러오기
+    if (!isCurrentlyExpanded) {
+      setLoadingComments((prev) => ({ ...prev, [postId]: true }));
+      try {
+        const response = await getCommentsByPostId(postId);
+        if (response.success && response.data) {
+          // API 응답을 컴포넌트 형식으로 변환
+          const formattedComments = response.data.map((comment) => ({
+            id: comment.commentId,
+            user: {
+              name: comment.authorName,
+              avatar: comment.authorProfileImage,
+            },
+            text: comment.content,
+            time: getTimeAgo(comment.createdAt),
+          }));
+
+          // 해당 포스트의 댓글 업데이트
+          setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+              post.id === postId
+                ? { ...post, comments: formattedComments }
+                : post
+            )
+          );
+        }
+      } catch (err) {
+        console.error("댓글을 불러오는데 실패했습니다:", err);
+      } finally {
+        setLoadingComments((prev) => ({ ...prev, [postId]: false }));
+      }
+    }
   };
 
   const handleCommentChange = (postId, value) => {
@@ -210,35 +286,55 @@ const Home = () => {
     }));
   };
 
-  const handleCommentSubmit = (postId) => {
+  const handleCommentSubmit = async (postId) => {
     const commentText = commentInputs[postId];
     if (!commentText || !commentText.trim()) {
       return;
     }
 
-    const newComment = {
-      id: Date.now(),
-      user: { name: "나", avatar: "😊" },
-      text: commentText,
-      time: "방금 전",
-    };
+    // 이미 제출 중이면 중복 요청 방지
+    if (submittingComment[postId]) return;
 
-    setPosts(
-      posts.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            comments: [...post.comments, newComment],
-          };
+    setSubmittingComment((prev) => ({ ...prev, [postId]: true }));
+
+    try {
+      const response = await addCommentToPost(postId, commentText.trim());
+
+      if (response.success) {
+        // 댓글 목록 새로고침
+        const commentsResponse = await getCommentsByPostId(postId);
+        if (commentsResponse.success && commentsResponse.data) {
+          const formattedComments = commentsResponse.data.map((comment) => ({
+            id: comment.commentId,
+            user: {
+              name: comment.authorName,
+              avatar: comment.authorProfileImage,
+            },
+            text: comment.content,
+            time: getTimeAgo(comment.createdAt),
+          }));
+
+          setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+              post.id === postId
+                ? { ...post, comments: formattedComments }
+                : post
+            )
+          );
         }
-        return post;
-      })
-    );
 
-    setCommentInputs((prev) => ({
-      ...prev,
-      [postId]: "",
-    }));
+        // 입력창 초기화
+        setCommentInputs((prev) => ({
+          ...prev,
+          [postId]: "",
+        }));
+      }
+    } catch (err) {
+      console.error("댓글 작성에 실패했습니다:", err);
+      alert("댓글 작성에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setSubmittingComment((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   return (
@@ -338,42 +434,51 @@ const Home = () => {
                               handleCommentSubmit(post.id);
                             }
                           }}
+                          disabled={submittingComment[post.id]}
                         />
                         <CommentSubmitButton
                           onClick={() => handleCommentSubmit(post.id)}
+                          disabled={submittingComment[post.id]}
+                          $isSubmitting={submittingComment[post.id]}
                         >
-                          등록
+                          {submittingComment[post.id] ? "등록중..." : "등록"}
                         </CommentSubmitButton>
                       </CommentInputWrapper>
                     </CommentInputSection>
 
-                    <CommentsList>
-                      {post.comments.map((comment) => (
-                        <CommentItem key={comment.id}>
-                          <CommentAvatar>
-                            {comment.user.avatar &&
-                            (comment.user.avatar.startsWith("http") ||
-                              comment.user.avatar.startsWith("/")) ? (
-                              <AvatarImage
-                                src={comment.user.avatar}
-                                alt={comment.user.name}
-                              />
-                            ) : (
-                              comment.user.avatar || "👤"
-                            )}
-                          </CommentAvatar>
-                          <CommentContent>
-                            <CommentHeader>
-                              <CommentUsername>
-                                {comment.user.name}
-                              </CommentUsername>
-                              <CommentTime>{comment.time}</CommentTime>
-                            </CommentHeader>
-                            <CommentText>{comment.text}</CommentText>
-                          </CommentContent>
-                        </CommentItem>
-                      ))}
-                    </CommentsList>
+                    {loadingComments[post.id] ? (
+                      <CommentLoadingText>
+                        댓글을 불러오는 중...
+                      </CommentLoadingText>
+                    ) : (
+                      <CommentsList>
+                        {post.comments.map((comment) => (
+                          <CommentItem key={comment.id}>
+                            <CommentAvatar>
+                              {comment.user.avatar &&
+                              (comment.user.avatar.startsWith("http") ||
+                                comment.user.avatar.startsWith("/")) ? (
+                                <AvatarImage
+                                  src={comment.user.avatar}
+                                  alt={comment.user.name}
+                                />
+                              ) : (
+                                comment.user.avatar || "👤"
+                              )}
+                            </CommentAvatar>
+                            <CommentContent>
+                              <CommentHeader>
+                                <CommentUsername>
+                                  {comment.user.name}
+                                </CommentUsername>
+                                <CommentTime>{comment.time}</CommentTime>
+                              </CommentHeader>
+                              <CommentText>{comment.text}</CommentText>
+                            </CommentContent>
+                          </CommentItem>
+                        ))}
+                      </CommentsList>
+                    )}
                   </CommentsSection>
                 )}
               </Post>
@@ -675,21 +780,34 @@ const CommentInput = styled.textarea`
 `;
 
 const CommentSubmitButton = styled.button`
-  background: #0095f6;
+  background: ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   color: #fff;
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   padding: 16px 28px;
   border-radius: 12px;
   min-height: 80px;
-  border: 2px solid #0095f6;
+  border: 2px solid ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   transition: all 0.2s;
+  cursor: ${(props) => (props.$isSubmitting ? "not-allowed" : "pointer")};
+  opacity: ${(props) => (props.$isSubmitting ? 0.7 : 1)};
 
   &:active {
-    transform: scale(0.95);
-    background: #1877f2;
-    border-color: #1877f2;
+    transform: ${(props) => (props.$isSubmitting ? "none" : "scale(0.95)")};
+    background: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
+    border-color: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
   }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+`;
+
+const CommentLoadingText = styled.p`
+  text-align: center;
+  padding: 24px;
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const CommentsList = styled.div`
