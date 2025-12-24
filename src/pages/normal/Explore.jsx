@@ -10,8 +10,6 @@ import { getPosts, getReel } from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
 import { getTimeAgo } from "../../util/date";
 
-const baseURL = import.meta.env.VITE_BASE_URL;
-
 const Explore = () => {
   const { isDarkMode } = useApp();
   const navigate = useNavigate();
@@ -63,7 +61,7 @@ const Explore = () => {
       const transformedFeeds = feedData.items.map((item) => ({
         id: item.id,
         type: "feed",
-        image: `${baseURL}${item.imageUrl}`,
+        image: `${item.imageUrl}`,
         likes: item.likeCount,
         comments: item.commentCount,
         user: {
@@ -84,7 +82,7 @@ const Explore = () => {
           transformedReel = {
             id: reelData.reel.id,
             type: "reel",
-            image: `${baseURL}${reelData.reel.image_url}`,
+            image: `${reelData.reel.image_url}`,
             likes: reelData.reel.like_count,
             comments: reelData.reel.comment_count,
             user: {

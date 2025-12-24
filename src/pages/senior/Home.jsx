@@ -4,14 +4,18 @@ import { Heart, MessageCircle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { getSeniorPosts } from "../../services/post";
+import {
+  getCommentsByPostId,
+  addCommentToPost,
+  likePost,
+  unlikePost,
+} from "../../services/senior";
+import { isFollowing, followUser, unfollowUser } from "../../services/user";
+import { getTimeAgo } from "../../util/date";
 
-const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
-
-// URL에 baseURL을 붙이는 헬퍼 함수
 const getFullUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `${baseURL}${url}`;
 };
 
 const Home = () => {
@@ -19,6 +23,10 @@ const Home = () => {
   const [posts, setPosts] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
+  const [loadingComments, setLoadingComments] = useState({});
+  const [submittingComment, setSubmittingComment] = useState({});
+  const [followStatus, setFollowStatus] = useState({});
+  const [followLoading, setFollowLoading] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -32,29 +40,92 @@ const Home = () => {
   const POSTS_PER_PAGE = 5;
 
   const formatPosts = (data, mode) => {
-    return data.map((post) => ({
-      ...post,
-      mode: mode,
-      photo: getFullUrl(post.photo),
-      user: {
-        ...post.user,
-        avatar: getFullUrl(post.user.avatar),
-      },
-      comments: post.comments.map((comment) => ({
-        ...comment,
+    return data.map((post) => {
+      const userId =
+        post.user?.authorId ||
+        post.author?.id ||
+        post.authorId ||
+        post.user?.id;
+
+      return {
+        ...post,
+        mode: mode,
+        photo: getFullUrl(post.photo),
         user: {
-          ...comment.user,
-          avatar: getFullUrl(comment.user.avatar),
+          ...post.user,
+          id: userId,
+          avatar: getFullUrl(post.user?.avatar),
         },
-      })),
+        comments: (post.comments || []).map((comment) => ({
+          ...comment,
+          user: {
+            ...comment.user,
+            avatar: getFullUrl(comment.user?.avatar),
+          },
+        })),
+      };
+    });
+  };
+
+  const checkFollowStatus = async (userId) => {
+    if (!userId || followStatus[userId]) return;
+
+    try {
+      const result = await isFollowing(userId);
+      setFollowStatus((prev) => ({
+        ...prev,
+        [userId]: {
+          isFollowing: result.isFollowing,
+          isMine: result.isMine,
+        },
+      }));
+    } catch (err) {
+      console.error("팔로우 상태 확인 실패:", err);
+    }
+  };
+
+  const handleFollow = async (userId) => {
+    if (!userId || followLoading[userId]) return;
+
+    const currentStatus = followStatus[userId];
+    const isCurrentlyFollowing = currentStatus?.isFollowing;
+    setFollowStatus((prev) => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        isFollowing: !isCurrentlyFollowing,
+      },
     }));
+    setFollowLoading((prev) => ({ ...prev, [userId]: true }));
+
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollowUser(userId);
+      } else {
+        await followUser(userId);
+      }
+    } catch (err) {
+      console.error("팔로우 처리 실패:", err);
+      // 실패 시 롤백
+      setFollowStatus((prev) => ({
+        ...prev,
+        [userId]: {
+          ...prev[userId],
+          isFollowing: isCurrentlyFollowing,
+        },
+      }));
+      alert(
+        isCurrentlyFollowing
+          ? "언팔로우에 실패했습니다."
+          : "팔로우에 실패했습니다."
+      );
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [userId]: false }));
+    }
   };
 
   const loadPosts = async (loadMore = false) => {
-    // 이미 로딩 중이거나 더 이상 데이터가 없으면 스킵
     if ((loadMore && isLoadingMore) || (loadMore && !hasMore)) return;
-
-    // 모드 전환 중이면 스킵 (중복 로드 방지)
     if (isModeTransitioning.current) return;
 
     try {
@@ -64,23 +135,25 @@ const Home = () => {
         setLoading(true);
       }
 
-      // 페이지를 먼저 증가시킴 (0-based에서 1-based로)
       const currentPage = isAllMode ? allPage + 1 : followPage + 1;
-      const all = isAllMode; // all 파라미터로 전체/팔로우 구분
+      const all = isAllMode;
 
       const data = await getSeniorPosts(null, currentPage, POSTS_PER_PAGE, all);
 
       if (data && data.length > 0) {
         const formattedPosts = formatPosts(data, isAllMode ? "all" : "follow");
 
-        // 중복 제거: 이미 로드된 게시물 필터링
         const newPosts = formattedPosts.filter(
           (post) => !loadedPostIds.current.has(post.id)
         );
 
         if (newPosts.length > 0) {
-          // 새 게시물 ID들을 Set에 추가
           newPosts.forEach((post) => loadedPostIds.current.add(post.id));
+
+          const uniqueUserIds = [
+            ...new Set(newPosts.map((post) => post.user.id).filter(Boolean)),
+          ];
+          uniqueUserIds.forEach((userId) => checkFollowStatus(userId));
 
           if (loadMore) {
             setPosts((prev) => [...prev, ...newPosts]);
@@ -88,17 +161,14 @@ const Home = () => {
             setPosts(newPosts);
           }
 
-          // 페이지 증가 (로드 성공 후)
           if (isAllMode) {
             setAllPage((prev) => prev + 1);
           } else {
             setFollowPage((prev) => prev + 1);
           }
 
-          // 받아온 데이터가 요청한 크기보다 작으면 더 이상 데이터가 없음
           if (data.length < POSTS_PER_PAGE) {
             if (!isAllMode && hasFollowData) {
-              // 팔로우 데이터가 끝났으니 전체 모드로 전환
               isModeTransitioning.current = true;
               setHasFollowData(false);
               setIsAllMode(true);
@@ -110,22 +180,28 @@ const Home = () => {
 
           setError(null);
         } else if (loadMore) {
-          // 중복만 있고 새 게시물이 없으면 더 로드
-          if (isAllMode) {
-            setAllPage((prev) => prev + 1);
+          // 중복 데이터만 있는 경우 - 팔로우 모드에서는 전체 모드로 전환
+          if (!isAllMode && hasFollowData) {
+            isModeTransitioning.current = true;
+            setHasFollowData(false);
+            setIsAllMode(true);
+            setHasMore(true);
           } else {
-            setFollowPage((prev) => prev + 1);
-          }
-          // 재귀 호출하지 않고 hasMore만 체크
-          if (data.length < POSTS_PER_PAGE) {
-            setHasMore(false);
+            // 전체 모드에서 중복만 있으면 페이지 증가 후 계속 시도
+            if (isAllMode) {
+              setAllPage((prev) => prev + 1);
+            } else {
+              setFollowPage((prev) => prev + 1);
+            }
+            if (data.length < POSTS_PER_PAGE) {
+              setHasMore(false);
+            }
           }
           return;
         }
       } else {
-        // 데이터가 없으면
+        // 데이터가 비어있는 경우
         if (!isAllMode && hasFollowData) {
-          // 팔로우 데이터가 없으니 전체 모드로 전환
           isModeTransitioning.current = true;
           setHasFollowData(false);
           setIsAllMode(true);
@@ -148,24 +224,21 @@ const Home = () => {
 
   useEffect(() => {
     loadPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // isAllMode가 변경되면 새로운 데이터 로드
   useEffect(() => {
     if (isAllMode && !hasFollowData && hasMore && isModeTransitioning.current) {
-      // 모드 전환 플래그 리셋
       isModeTransitioning.current = false;
-      // 약간의 지연 후 로드 (상태 업데이트 완료 대기)
       setTimeout(() => {
         loadPosts(true);
       }, 100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAllMode, hasFollowData, hasMore]);
 
-  // 무한 스크롤 구현
   useEffect(() => {
     const handleScroll = () => {
-      // 로딩 중이거나 더 이상 데이터가 없으면 중단
       if (isLoadingMore || loading || !hasMore) return;
 
       const scrollTop =
@@ -175,7 +248,6 @@ const Home = () => {
       const clientHeight =
         document.documentElement.clientHeight || window.innerHeight;
 
-      // 스크롤이 하단에서 200px 이내에 도달하면 더 로드
       if (scrollTop + clientHeight >= scrollHeight - 200) {
         loadPosts(true);
       }
@@ -185,7 +257,12 @@ const Home = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isLoadingMore, loading, hasMore]);
 
-  const handleLike = (postId) => {
+  const handleLike = async (postId) => {
+    const currentPost = posts.find((post) => post.id === postId);
+    if (!currentPost) return;
+
+    const isCurrentlyLiked = currentPost.liked;
+
     setPosts(
       posts.map((post) => {
         if (post.id === postId) {
@@ -198,13 +275,71 @@ const Home = () => {
         return post;
       })
     );
+
+    try {
+      if (isCurrentlyLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
+    } catch (err) {
+      console.error("좋아요 처리에 실패했습니다:", err);
+      setPosts(
+        posts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              liked: isCurrentlyLiked,
+              likes: isCurrentlyLiked ? currentPost.likes : currentPost.likes,
+            };
+          }
+          return post;
+        })
+      );
+    }
   };
 
-  const toggleComments = (postId) => {
+  const toggleComments = async (postId) => {
+    const isCurrentlyExpanded = expandedComments[postId];
+
+    // 댓글 섹션 토글
     setExpandedComments((prev) => ({
       ...prev,
       [postId]: !prev[postId],
     }));
+
+    // 댓글을 열 때만 서버에서 불러오기
+    if (!isCurrentlyExpanded) {
+      setLoadingComments((prev) => ({ ...prev, [postId]: true }));
+      try {
+        const response = await getCommentsByPostId(postId);
+        if (response.success && response.data) {
+          // API 응답을 컴포넌트 형식으로 변환
+          const formattedComments = response.data.map((comment) => ({
+            id: comment.commentId,
+            user: {
+              name: comment.authorName,
+              avatar: comment.authorProfileImage,
+            },
+            text: comment.content,
+            time: getTimeAgo(comment.createdAt),
+          }));
+
+          // 해당 포스트의 댓글 업데이트
+          setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+              post.id === postId
+                ? { ...post, comments: formattedComments }
+                : post
+            )
+          );
+        }
+      } catch (err) {
+        console.error("댓글을 불러오는데 실패했습니다:", err);
+      } finally {
+        setLoadingComments((prev) => ({ ...prev, [postId]: false }));
+      }
+    }
   };
 
   const handleCommentChange = (postId, value) => {
@@ -214,35 +349,52 @@ const Home = () => {
     }));
   };
 
-  const handleCommentSubmit = (postId) => {
+  const handleCommentSubmit = async (postId) => {
     const commentText = commentInputs[postId];
     if (!commentText || !commentText.trim()) {
       return;
     }
 
-    const newComment = {
-      id: Date.now(),
-      user: { name: "나", avatar: "😊" },
-      text: commentText,
-      time: "방금 전",
-    };
+    if (submittingComment[postId]) return;
 
-    setPosts(
-      posts.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            comments: [...post.comments, newComment],
-          };
+    setSubmittingComment((prev) => ({ ...prev, [postId]: true }));
+
+    try {
+      const response = await addCommentToPost(postId, commentText.trim());
+
+      if (response.success) {
+        const commentsResponse = await getCommentsByPostId(postId);
+        if (commentsResponse.success && commentsResponse.data) {
+          const formattedComments = commentsResponse.data.map((comment) => ({
+            id: comment.commentId,
+            user: {
+              name: comment.authorName,
+              avatar: comment.authorProfileImage,
+            },
+            text: comment.content,
+            time: getTimeAgo(comment.createdAt),
+          }));
+
+          setPosts((prevPosts) =>
+            prevPosts.map((post) =>
+              post.id === postId
+                ? { ...post, comments: formattedComments }
+                : post
+            )
+          );
         }
-        return post;
-      })
-    );
 
-    setCommentInputs((prev) => ({
-      ...prev,
-      [postId]: "",
-    }));
+        setCommentInputs((prev) => ({
+          ...prev,
+          [postId]: "",
+        }));
+      }
+    } catch (err) {
+      console.error("댓글 작성에 실패했습니다:", err);
+      alert("댓글 작성에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setSubmittingComment((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   return (
@@ -266,11 +418,15 @@ const Home = () => {
         )}
 
         <Feed>
-          {posts.map((post, index) => (
-            <div key={post.id}>
-              {index > 0 &&
-                posts[index - 1].mode === "follow" &&
-                post.mode === "all" && (
+          {posts.map((post, index) => {
+            const showModeTransition =
+              index > 0 &&
+              posts[index - 1].mode === "follow" &&
+              post.mode === "all";
+
+            return (
+              <div key={post.id}>
+                {showModeTransition && (
                   <InfoContainer>
                     <InfoText>
                       팔로우한 친구들의 게시물을 모두 확인했어요
@@ -278,111 +434,146 @@ const Home = () => {
                     <InfoSubText>이제 모든 게시물을 보여드릴게요</InfoSubText>
                   </InfoContainer>
                 )}
-              <Post>
-                <PostHeader>
-                  <UserInfo>
-                    <Avatar>
-                      {post.user.avatar &&
-                      (post.user.avatar.startsWith("http") ||
-                        post.user.avatar.startsWith("/")) ? (
-                        <AvatarImage
-                          src={post.user.avatar}
-                          alt={post.user.name}
-                        />
-                      ) : (
-                        post.user.avatar || "👤"
-                      )}
-                    </Avatar>
-                    <UserDetails>
-                      <Username>{post.user.name}</Username>
-                      <Timestamp>{post.timestamp}</Timestamp>
-                    </UserDetails>
-                  </UserInfo>
-                </PostHeader>
-
-                <Content>{post.content}</Content>
-
-                {post.photo && <PostImage src={post.photo} alt="게시물 사진" />}
-
-                <PostActions>
-                  <ActionButton
-                    onClick={() => handleLike(post.id)}
-                    $liked={post.liked}
-                  >
-                    <Heart
-                      size={36}
-                      strokeWidth={3}
-                      fill={post.liked ? "#ff4458" : "none"}
-                    />
-                    <ActionText $liked={post.liked}>{post.likes}</ActionText>
-                  </ActionButton>
-                  <ActionButton onClick={() => toggleComments(post.id)}>
-                    <MessageCircle size={36} strokeWidth={3} />
-                    <ActionText>{post.comments.length}</ActionText>
-                  </ActionButton>
-                </PostActions>
-
-                {expandedComments[post.id] && (
-                  <CommentsSection>
-                    <CommentsHeader>
-                      댓글 {post.comments.length}개
-                    </CommentsHeader>
-
-                    <CommentInputSection>
-                      <CommentInputWrapper>
-                        <CommentInput
-                          placeholder="댓글을 입력하세요..."
-                          value={commentInputs[post.id] || ""}
-                          onChange={(e) =>
-                            handleCommentChange(post.id, e.target.value)
+                <Post>
+                  <PostHeader>
+                    <UserInfo>
+                      <Avatar>
+                        {post.user.avatar &&
+                        (post.user.avatar.startsWith("http") ||
+                          post.user.avatar.startsWith("/")) ? (
+                          <AvatarImage
+                            src={post.user.avatar}
+                            alt={post.user.name}
+                          />
+                        ) : (
+                          post.user.avatar || "👤"
+                        )}
+                      </Avatar>
+                      <UserDetails>
+                        <Username>{post.user.name}</Username>
+                        <Timestamp>{post.timestamp}</Timestamp>
+                      </UserDetails>
+                    </UserInfo>
+                    {post.user?.id &&
+                      followStatus[post.user.id]?.isMine !== true && (
+                        <FollowButton
+                          onClick={() => handleFollow(post.user.id)}
+                          $isFollowing={followStatus[post.user.id]?.isFollowing}
+                          $isLoading={
+                            followLoading[post.user.id] ||
+                            !followStatus[post.user.id]
                           }
-                          onKeyPress={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleCommentSubmit(post.id);
-                            }
-                          }}
-                        />
-                        <CommentSubmitButton
-                          onClick={() => handleCommentSubmit(post.id)}
+                          disabled={
+                            followLoading[post.user.id] ||
+                            !followStatus[post.user.id]
+                          }
                         >
-                          등록
-                        </CommentSubmitButton>
-                      </CommentInputWrapper>
-                    </CommentInputSection>
+                          {followLoading[post.user.id]
+                            ? "처리중..."
+                            : !followStatus[post.user.id]
+                            ? "확인중..."
+                            : followStatus[post.user.id]?.isFollowing
+                            ? "팔로잉"
+                            : "팔로우"}
+                        </FollowButton>
+                      )}
+                  </PostHeader>
 
-                    <CommentsList>
-                      {post.comments.map((comment) => (
-                        <CommentItem key={comment.id}>
-                          <CommentAvatar>
-                            {comment.user.avatar &&
-                            (comment.user.avatar.startsWith("http") ||
-                              comment.user.avatar.startsWith("/")) ? (
-                              <AvatarImage
-                                src={comment.user.avatar}
-                                alt={comment.user.name}
-                              />
-                            ) : (
-                              comment.user.avatar || "👤"
-                            )}
-                          </CommentAvatar>
-                          <CommentContent>
-                            <CommentHeader>
-                              <CommentUsername>
-                                {comment.user.name}
-                              </CommentUsername>
-                              <CommentTime>{comment.time}</CommentTime>
-                            </CommentHeader>
-                            <CommentText>{comment.text}</CommentText>
-                          </CommentContent>
-                        </CommentItem>
-                      ))}
-                    </CommentsList>
-                  </CommentsSection>
-                )}
-              </Post>
-            </div>
-          ))}
+                  <Content>{post.content}</Content>
+
+                  {post.photo && (
+                    <PostImage src={post.photo} alt="게시물 사진" />
+                  )}
+
+                  <PostActions>
+                    <ActionButton
+                      onClick={() => handleLike(post.id)}
+                      $liked={post.liked}
+                    >
+                      <Heart
+                        size={36}
+                        strokeWidth={3}
+                        fill={post.liked ? "#ff4458" : "none"}
+                      />
+                      <ActionText $liked={post.liked}>{post.likes}</ActionText>
+                    </ActionButton>
+                    <ActionButton onClick={() => toggleComments(post.id)}>
+                      <MessageCircle size={36} strokeWidth={3} />
+                      <ActionText>{post.comments.length}</ActionText>
+                    </ActionButton>
+                  </PostActions>
+
+                  {expandedComments[post.id] && (
+                    <CommentsSection>
+                      <CommentsHeader>
+                        댓글 {post.comments.length}개
+                      </CommentsHeader>
+
+                      <CommentInputSection>
+                        <CommentInputWrapper>
+                          <CommentInput
+                            placeholder="댓글을 입력하세요..."
+                            value={commentInputs[post.id] || ""}
+                            onChange={(e) =>
+                              handleCommentChange(post.id, e.target.value)
+                            }
+                            onKeyPress={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleCommentSubmit(post.id);
+                              }
+                            }}
+                            disabled={submittingComment[post.id]}
+                          />
+                          <CommentSubmitButton
+                            onClick={() => handleCommentSubmit(post.id)}
+                            disabled={submittingComment[post.id]}
+                            $isSubmitting={submittingComment[post.id]}
+                          >
+                            {submittingComment[post.id] ? "등록중..." : "등록"}
+                          </CommentSubmitButton>
+                        </CommentInputWrapper>
+                      </CommentInputSection>
+
+                      {loadingComments[post.id] ? (
+                        <CommentLoadingText>
+                          댓글을 불러오는 중...
+                        </CommentLoadingText>
+                      ) : (
+                        <CommentsList>
+                          {post.comments.map((comment) => (
+                            <CommentItem key={comment.id}>
+                              <CommentAvatar>
+                                {comment.user.avatar &&
+                                (comment.user.avatar.startsWith("http") ||
+                                  comment.user.avatar.startsWith("/")) ? (
+                                  <AvatarImage
+                                    src={comment.user.avatar}
+                                    alt={comment.user.name}
+                                  />
+                                ) : (
+                                  comment.user.avatar || "👤"
+                                )}
+                              </CommentAvatar>
+                              <CommentContent>
+                                <CommentHeader>
+                                  <CommentUsername>
+                                    {comment.user.name}
+                                  </CommentUsername>
+                                  <CommentTime>{comment.time}</CommentTime>
+                                </CommentHeader>
+                                <CommentText>{comment.text}</CommentText>
+                              </CommentContent>
+                            </CommentItem>
+                          ))}
+                        </CommentsList>
+                      )}
+                    </CommentsSection>
+                  )}
+                </Post>
+              </div>
+            );
+          })}
         </Feed>
 
         {isLoadingMore && (
@@ -573,6 +764,52 @@ const Timestamp = styled.span`
   color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
+const FollowButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: calc(18px * var(--font-scale, 1));
+  font-weight: 700;
+  min-width: 100px;
+  transition: all 0.2s;
+  cursor: ${(props) => (props.$isLoading ? "not-allowed" : "pointer")};
+  opacity: ${(props) => (props.$isLoading ? 0.7 : 1)};
+
+  background: ${(props) => {
+    if (props.$isLoading) return props.theme.$darkMode ? "#333" : "#ccc";
+    if (props.$isFollowing) return props.theme.$darkMode ? "#333" : "#e0e0e0";
+    return "#0095f6";
+  }};
+
+  color: ${(props) => {
+    if (props.$isFollowing) return props.theme.$darkMode ? "#fff" : "#000";
+    return "#fff";
+  }};
+
+  border: 2px solid
+    ${(props) => {
+      if (props.$isLoading) return props.theme.$darkMode ? "#333" : "#ccc";
+      if (props.$isFollowing) return props.theme.$darkMode ? "#444" : "#ccc";
+      return "#0095f6";
+    }};
+
+  &:active {
+    transform: ${(props) => (props.$isLoading ? "none" : "scale(0.95)")};
+  }
+
+  &:hover:not(:disabled) {
+    background: ${(props) => {
+      if (props.$isFollowing)
+        return props.theme.$darkMode ? "#ff4458" : "#ffebee";
+      return "#1877f2";
+    }};
+    border-color: ${(props) => {
+      if (props.$isFollowing) return "#ff4458";
+      return "#1877f2";
+    }};
+    color: ${(props) => (props.$isFollowing ? "#ff4458" : "#fff")};
+  }
+`;
+
 const Content = styled.p`
   font-size: calc(24px * var(--font-scale, 1));
   line-height: 1.7;
@@ -679,21 +916,34 @@ const CommentInput = styled.textarea`
 `;
 
 const CommentSubmitButton = styled.button`
-  background: #0095f6;
+  background: ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   color: #fff;
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   padding: 16px 28px;
   border-radius: 12px;
   min-height: 80px;
-  border: 2px solid #0095f6;
+  border: 2px solid ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   transition: all 0.2s;
+  cursor: ${(props) => (props.$isSubmitting ? "not-allowed" : "pointer")};
+  opacity: ${(props) => (props.$isSubmitting ? 0.7 : 1)};
 
   &:active {
-    transform: scale(0.95);
-    background: #1877f2;
-    border-color: #1877f2;
+    transform: ${(props) => (props.$isSubmitting ? "none" : "scale(0.95)")};
+    background: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
+    border-color: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
   }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+`;
+
+const CommentLoadingText = styled.p`
+  text-align: center;
+  padding: 24px;
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const CommentsList = styled.div`
