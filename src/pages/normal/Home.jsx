@@ -424,7 +424,7 @@ const Home = () => {
     }
   }, [currentStoryIndex, currentStoryItemIndex, stories]);
 
-  // 스토리 아이템이 변경될 때 watchStory 호출
+  // 스토리 아이템이 변경될 때 watchStory 호출 및 내 스토리 여부 확인
   useEffect(() => {
     if (!showStoryViewer) return;
 
@@ -435,6 +435,16 @@ const Home = () => {
       currentStory.items[currentStoryItemIndex]
     ) {
       const storyItemId = currentStory.items[currentStoryItemIndex].id;
+
+      // 내 스토리인지 확인
+      isMyStory(storyItemId)
+        .then((isMineResponse) => {
+          setIsCurrentStoryMine(isMineResponse.isMine);
+        })
+        .catch((error) => {
+          console.error("내 스토리 확인 실패:", error);
+          setIsCurrentStoryMine(false);
+        });
 
       // 스토리 조회 기록
       watchStory(storyItemId).catch((error) => {
