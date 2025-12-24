@@ -49,16 +49,8 @@ const Reels = () => {
           ...prev,
           {
             id: reel.id,
-            video: reel.video_url
-              ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${
-                  reel.video_url
-                }`
-              : null,
-            image: reel.image_url
-              ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${
-                  reel.image_url
-                }`
-              : null,
+            video: reel.video_url ? `${reel.video_url}` : null,
+            image: reel.image_url ? `${reel.image_url}` : null,
             user: {
               id: reel.author_id,
               name: reel.authorName || "알 수 없음", // 진짜 이름

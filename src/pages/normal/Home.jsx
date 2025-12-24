@@ -83,6 +83,11 @@ const Home = () => {
 
       setPosts((prev) => prev.filter((post) => post.id !== postId));
       setActivateMenuPostId(null);
+
+      // 모달 창이 열려있었다면 닫기
+      if (showComments === postId) {
+        setShowComments(null);
+      }
     } catch (error) {
       console.error(error);
       alert(error.message || "삭제 실패");
@@ -142,51 +147,79 @@ const Home = () => {
   }, []);
 
   // 포스트 데이터 불러오기
-  const loadPosts = useCallback(async (pageNum) => {
-    // 이미 로드 중이거나, 더 이상 데이터가 없거나, 이미 로드된 페이지면 스킵
-    if (loading || !hasMore || loadedPagesRef.current.has(pageNum)) return;
+  const loadPosts = useCallback(
+    async (pageNum) => {
+      // 이미 로드 중이거나, 더 이상 데이터가 없거나, 이미 로드된 페이지면 스킵
+      if (loading || !hasMore || loadedPagesRef.current.has(pageNum)) return;
 
-    loadedPagesRef.current.add(pageNum); // 페이지 로딩 시작 표시
-    setLoading(true);
+      loadedPagesRef.current.add(pageNum); // 페이지 로딩 시작 표시
+      setLoading(true);
 
-    try {
-      const data = await getPosts("normal", pageNum, POSTS_PER_PAGE);
-      console.log(`페이지 ${pageNum} 로드:`, data.items[0]);
+      try {
+        const data = await getPosts("normal", pageNum, POSTS_PER_PAGE);
 
-      // API 데이터를 posts 형식으로 변환
-      const transformedPosts = data.items.map((item) => ({
-        id: item.id,
-        user: {
-          id: item.author.id || item.authorId,
-          name: item.author.name,
-          avatar: item.author.profileImageUrl,
-        },
-        image: `${baseURL}${item.imageUrl}`,
-        likes: item.likeCount,
-        caption: item.content,
-        timestamp: getTimeAgo(item.createdAt),
-        liked: false,
-        comments: item.commentCount,
-      }));
+        // [수정 1] 데이터가 제대로 왔는지 확인 (방어 코드)
+        if (!data || !data.items) {
+          console.warn(
+            "데이터가 비어있거나 형식이 올바르지 않습니다. 로딩을 중단합니다."
+          );
+          setHasMore(false); // 더 이상 요청하지 않음
+          return;
+        }
 
-      // 중복 제거: 기존 포스트 ID와 비교하여 새로운 포스트만 추가
-      setPosts((prevPosts) => {
-        const existingIds = new Set(prevPosts.map((p) => p.id));
-        const newPosts = transformedPosts.filter(
-          (post) => !existingIds.has(post.id)
-        );
-        return [...prevPosts, ...newPosts];
-      });
+        console.log(`페이지 ${pageNum} 로드:`, data.items[0]);
 
-      setHasMore(data.items.length === POSTS_PER_PAGE);
-    } catch (error) {
-      console.error("포스트 로딩 실패:", error);
-      loadedPagesRef.current.delete(pageNum); // 실패시 재시도 가능하도록
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        // [수정 포인트 1] URL 변환 헬퍼 함수 추가 (스토리 로직과 동일하게)
+        const toAbsolute = (url) => {
+          if (!url) return null;
+          return url.startsWith("http") ? url : `${baseURL}${url}`;
+        };
+
+        // API 데이터를 posts 형식으로 변환
+        const transformedPosts = data.items.map((item) => ({
+          id: item.id,
+          user: {
+            id: item.author.id || item.authorId,
+            name: item.author.name,
+            avatar: toAbsolute(item.author.profileImageUrl),
+          },
+          image: toAbsolute(`${item.imageUrl}`),
+          likes: item.likeCount,
+          caption: item.content,
+          timestamp: getTimeAgo(item.createdAt),
+          liked: false,
+          comments: item.commentCount,
+        }));
+
+        // 중복 제거: 기존 포스트 ID와 비교하여 새로운 포스트만 추가
+        setPosts((prevPosts) => {
+          const existingIds = new Set(prevPosts.map((p) => p.id));
+          const newPosts = transformedPosts.filter(
+            (post) => !existingIds.has(post.id)
+          );
+          return [...prevPosts, ...newPosts];
+        });
+
+        // [수정 2] 가져온 개수가 요청한 개수보다 적으면 마지막 페이지로 간주
+        if (data.items.length < POSTS_PER_PAGE) {
+          setHasMore(false);
+        } else {
+          setHasMore(data.hasNext); // 백엔드에서 hasNext를 준다면 사용
+        }
+
+        setHasMore(data.items.length === POSTS_PER_PAGE);
+      } catch (error) {
+        console.error("포스트 로딩 실패:", error);
+        // [수정 3] 에러가 나면 무한 스크롤 멈춤 (안 그러면 계속 71, 72 페이지 요청함)
+        setHasMore(false);
+        loadedPagesRef.current.delete(pageNum); // 실패시 재시도 가능하도록
+      } finally {
+        setLoading(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [loading, hasMore]
+  );
 
   // 초기 로딩
   useEffect(() => {
@@ -591,7 +624,7 @@ const Home = () => {
 
                 <PostImage
                   src={post.image}
-                  alt=""
+                  alt="게시물 이미지"
                   onDoubleClick={() => handleLike(post.id)}
                 />
 
@@ -668,148 +701,167 @@ const Home = () => {
           </Feed>
         </MainContent>
 
+        {/* 댓글 모달 부분 시작 */}
         {showComments && (
           <CommentsOverlay onClick={() => setShowComments(null)}>
             <CommentsModal onClick={(e) => e.stopPropagation()}>
-              <ModalContent>
-                <ModalLeft>
-                  <PostImageModal
-                    src={posts.find((p) => p.id === showComments)?.image}
-                    alt=""
-                  />
-                </ModalLeft>
-                <ModalRight>
-                  <ModalHeader $darkMode={isDarkMode}>
-                    <UserInfo>
-                      <Avatar>
-                        {posts.find((p) => p.id === showComments)?.user.avatar}
-                      </Avatar>
-                      <Username $darkMode={isDarkMode}>
-                        {posts.find((p) => p.id === showComments)?.user.name}
-                      </Username>
-                      {!followStatusLoading && !isMine && (
-                        <FollowButton
-                          onClick={handleFollow}
-                          $isFollowing={isFollowingUser}
-                          disabled={followLoading}
-                        >
-                          {followLoading
-                            ? "..."
-                            : isFollowingUser
-                            ? "팔로잉"
-                            : "팔로우"}
-                        </FollowButton>
-                      )}
-                    </UserInfo>
-                  </ModalHeader>
+              {/* [깔끔하게 변수 처리] 현재 보고 있는 포스트 찾기 */}
+              {(() => {
+                const selectedPost = posts.find((p) => p.id === showComments);
+                if (!selectedPost) return null; // 삭제된 글이면 아무것도 안 보여줌
 
-                  <CommentsSection>
-                    <CommentItem>
-                      <CommentAvatar>
-                        {posts.find((p) => p.id === showComments)?.user.avatar}
-                      </CommentAvatar>
-                      <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          {posts.find((p) => p.id === showComments)?.user.name}
-                        </CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>
-                          {posts.find((p) => p.id === showComments)?.caption}
-                        </CommentText>
-                        <CommentTime $darkMode={isDarkMode}>
-                          {posts.find((p) => p.id === showComments)?.timestamp}
-                        </CommentTime>
-                      </CommentContent>
-                    </CommentItem>
+                return (
+                  <ModalContent>
+                    {/* 왼쪽: 이미지 영역 */}
+                    <ModalLeft>
+                      <PostImageModal
+                        src={selectedPost.image}
+                        alt="post info"
+                      />
+                    </ModalLeft>
 
-                    <CommentItem>
-                      <CommentAvatar>👴</CommentAvatar>
-                      <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          최할아버지
-                        </CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>
-                          정말 아름다운 사진이네요!
-                        </CommentText>
-                        <CommentTime $darkMode={isDarkMode}>
-                          1시간 전
-                        </CommentTime>
-                      </CommentContent>
-                    </CommentItem>
+                    {/* 오른쪽: 헤더 + 댓글(본문) + 입력창 */}
+                    <ModalRight>
+                      {/* 1. 모달 헤더 (여기에 ... 버튼 추가됨) */}
+                      <ModalHeader $darkMode={isDarkMode}>
+                        <UserInfo>
+                          <Avatar>
+                            {selectedPost.user.avatar ? (
+                              <img src={selectedPost.user.avatar} alt="" />
+                            ) : (
+                              "👤"
+                            )}
+                          </Avatar>
+                          <Username $darkMode={isDarkMode}>
+                            {selectedPost.user.name}
+                          </Username>
 
-                    <CommentItem>
-                      <CommentAvatar>👵</CommentAvatar>
-                      <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          정할머니
-                        </CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>
-                          저도 가보고 싶어요 ㅎㅎ
-                        </CommentText>
-                        <CommentTime $darkMode={isDarkMode}>
-                          30분 전
-                        </CommentTime>
-                      </CommentContent>
-                    </CommentItem>
+                          {/* 팔로우 버튼 (내 글 아닐 때만 & 팔로우 안 했을 때만) */}
+                          {!followStatusLoading && !isMine && (
+                            <FollowButton
+                              onClick={handleFollow}
+                              $isFollowing={isFollowingUser}
+                              disabled={followLoading}
+                            >
+                              {followLoading
+                                ? "..."
+                                : isFollowingUser
+                                ? "팔로잉"
+                                : "팔로우"}
+                            </FollowButton>
+                          )}
+                        </UserInfo>
 
-                    <CommentItem>
-                      <CommentAvatar>👴</CommentAvatar>
-                      <CommentContent>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          강할아버지
-                        </CommentUsername>
-                        <CommentText $darkMode={isDarkMode}>
-                          날씨가 참 좋았겠습니다
-                        </CommentText>
-                        <CommentTime $darkMode={isDarkMode}>
-                          15분 전
-                        </CommentTime>
-                      </CommentContent>
-                    </CommentItem>
-                  </CommentsSection>
+                        {/* ★ [핵심] 내 글일 때만 수정/삭제 메뉴 표시 */}
+                        {user?.id === selectedPost.user.id && (
+                          <div style={{ position: "relative" }}>
+                            <MoreButton
+                              $darkMode={isDarkMode}
+                              onClick={() => toggleMenu(selectedPost.id)}
+                            >
+                              <MoreHorizontal size={24} />
+                            </MoreButton>
 
-                  <ModalActions>
-                    <ActionButtons>
-                      <ActionButton onClick={() => handleLike(showComments)}>
-                        <Heart
-                          size={24}
-                          fill={
-                            posts.find((p) => p.id === showComments)?.liked
-                              ? "#ed4956"
-                              : "none"
-                          }
-                          color={
-                            posts.find((p) => p.id === showComments)?.liked
-                              ? "#ed4956"
-                              : "#262626"
-                          }
-                          strokeWidth={1.5}
-                        />
-                      </ActionButton>
-                      <ActionButton>
-                        <MessageCircle size={24} strokeWidth={1.5} />
-                      </ActionButton>
-                      <ActionButton>
-                        <Send size={24} strokeWidth={1.5} />
-                      </ActionButton>
-                    </ActionButtons>
-                    <Likes>
-                      좋아요{" "}
-                      {posts
-                        .find((p) => p.id === showComments)
-                        ?.likes.toLocaleString()}
-                      개
-                    </Likes>
-                    <Timestamp>
-                      {posts.find((p) => p.id === showComments)?.timestamp}
-                    </Timestamp>
-                  </ModalActions>
+                            {/* 드롭다운 메뉴 */}
+                            {activateMenuPostId === selectedPost.id && (
+                              <>
+                                <MenuOverlay
+                                  onClick={() => setActivateMenuPostId(null)}
+                                />
+                                <DropdownMenu $darkMode={isDarkMode}>
+                                  <MenuItem
+                                    onClick={() => handleUpdate(selectedPost)}
+                                    $darkMode={isDarkMode}
+                                  >
+                                    수정
+                                  </MenuItem>
+                                  <MenuItem
+                                    onClick={() =>
+                                      handleDelete(selectedPost.id)
+                                    }
+                                    $darkMode={isDarkMode}
+                                    $danger
+                                  >
+                                    삭제
+                                  </MenuItem>
+                                </DropdownMenu>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </ModalHeader>
 
-                  <CommentInputBox>
-                    <input placeholder="댓글 달기..." />
-                    <PostButton>게시</PostButton>
-                  </CommentInputBox>
-                </ModalRight>
-              </ModalContent>
+                      {/* 2. 댓글 목록 섹션 (하드코딩 삭제됨) */}
+                      <CommentsSection>
+                        {/* 게시물 본문(Caption)을 첫 번째 댓글처럼 표시 */}
+                        <CommentItem>
+                          <CommentAvatar>
+                            {selectedPost.user.avatar ? (
+                              <img src={selectedPost.user.avatar} alt="" />
+                            ) : (
+                              "👤"
+                            )}
+                          </CommentAvatar>
+                          <CommentContent>
+                            <CommentUsername $darkMode={isDarkMode}>
+                              {selectedPost.user.name}
+                            </CommentUsername>
+                            <CommentText $darkMode={isDarkMode}>
+                              {selectedPost.caption}
+                            </CommentText>
+                            <CommentTime $darkMode={isDarkMode}>
+                              {selectedPost.timestamp}
+                            </CommentTime>
+                          </CommentContent>
+                        </CommentItem>
+
+                        {/* 여기에 실제 댓글 리스트 매핑 (현재는 API가 댓글을 안 줘서 비워둠) */}
+                        {/* {selectedPost.comments.map(comment => ...)} */}
+                      </CommentsSection>
+
+                      {/* 3. 하단 액션 버튼 (좋아요 등) */}
+                      <ModalActions>
+                        <ActionButtons>
+                          <ActionButton
+                            onClick={() => handleLike(showComments)}
+                          >
+                            <Heart
+                              size={24}
+                              fill={selectedPost.liked ? "#ed4956" : "none"}
+                              color={
+                                selectedPost.liked
+                                  ? "#ed4956"
+                                  : isDarkMode
+                                  ? "#fff"
+                                  : "#262626"
+                              }
+                              strokeWidth={1.5}
+                            />
+                          </ActionButton>
+                          <ActionButton>
+                            <MessageCircle size={24} strokeWidth={1.5} />
+                          </ActionButton>
+                          <ActionButton>
+                            <Send size={24} strokeWidth={1.5} />
+                          </ActionButton>
+                        </ActionButtons>
+                        <Likes $darkMode={isDarkMode}>
+                          좋아요 {selectedPost.likes.toLocaleString()}개
+                        </Likes>
+                        <Timestamp $darkMode={isDarkMode}>
+                          {selectedPost.timestamp}
+                        </Timestamp>
+                      </ModalActions>
+
+                      {/* 4. 댓글 입력창 */}
+                      <CommentInputBox>
+                        <input placeholder="댓글 달기..." />
+                        <PostButton>게시</PostButton>
+                      </CommentInputBox>
+                    </ModalRight>
+                  </ModalContent>
+                );
+              })()}
             </CommentsModal>
           </CommentsOverlay>
         )}
