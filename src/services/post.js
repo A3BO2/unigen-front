@@ -126,3 +126,31 @@ export async function createPost(formData) {
   }
   return data;
 }
+
+// =========================
+// 좋아요 (피드/릴스 공용)
+// =========================
+
+// 좋아요 추가
+export async function likePost(postId) {
+  return await apifetch(`/posts/${postId}/like`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+}
+
+// 좋아요 취소
+export async function unlikePost(postId) {
+  return await apifetch(`/posts/${postId}/like`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+}
+
+// 좋아요 여부 확인
+export async function isPostLike(postId) {
+  return await apifetch(`/posts/${postId}/is-liked`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+}
