@@ -13,7 +13,9 @@ import {
   deleteComment,
 } from "../../services/comment";
 
-import { getReel } from "../../services/post";
+import { getReel, likePost,
+unlikePost,
+isPostLike, } from "../../services/post";
 
 const Reels = () => {
   /* =========================
@@ -106,6 +108,20 @@ const myUser = JSON.parse(sessionStorage.getItem("user"));
           },
         ];
       });
+      // ✅ 좋아요 상태 조회 (UI 영향 없음)
+      try {
+        const likeRes = await isPostLike(reel.id);
+        setReels((prev) =>
+          prev.map((r) =>
+            r.id === reel.id
+              ? { ...r, liked: likeRes.isLiked }
+              : r
+          )
+        );
+      } catch (e) {
+        console.error("좋아요 상태 조회 실패", e);
+      }
+
 
       // ⭐ 안전장치(서버가 같은 cursor를 주면 무한루프 방지)
       if (data.nextCursor === cursor) {
@@ -225,19 +241,46 @@ useEffect(() => {
   /* =========================
    * 좋아요 (UI 임시)
    ========================= */
-  const handleLike = (id) => {
+  const handleLike = async (reelId) => {
+  const target = reels.find((r) => r.id === reelId);
+  if (!target) return;
+
+  // optimistic update
+  setReels((prev) =>
+    prev.map((r) =>
+      r.id === reelId
+        ? {
+            ...r,
+            liked: !r.liked,
+            likes: r.liked ? r.likes - 1 : r.likes + 1,
+          }
+        : r
+    )
+  );
+
+  try {
+    if (target.liked) {
+      await unlikePost(reelId);
+    } else {
+      await likePost(reelId);
+    }
+  } catch (err) {
+    console.error("좋아요 실패 → 롤백", err);
+
+    // 롤백
     setReels((prev) =>
-      prev.map((reel) =>
-        reel.id === id
+      prev.map((r) =>
+        r.id === reelId
           ? {
-              ...reel,
-              liked: !reel.liked,
-              likes: reel.liked ? reel.likes - 1 : reel.likes + 1,
+              ...r,
+              liked: target.liked,
+              likes: target.likes,
             }
-          : reel
+          : r
       )
     );
-  };
+  }
+};
 
   const handleCreateComment = async () => {
   if (!commentInput.trim()) return;
