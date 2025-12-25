@@ -39,3 +39,4 @@ export async function deleteComment(commentId) {
     headers: getHeaders(), // 🔥 핵심
   });
 }
+
