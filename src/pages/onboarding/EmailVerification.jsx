@@ -26,7 +26,7 @@ const EmailVerification = () => {
     }
   }, [countdown, isExpired]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (verificationCode.length !== 6) {
@@ -41,7 +41,7 @@ const EmailVerification = () => {
 
     // 실제로는 서버에서 인증번호 확인
     // 여기서는 데모를 위해 바로 로그인 처리
-    login(userInfo, 'normal');
+    await login(userInfo, 'normal');
     navigate('/normal/home');
   };
 

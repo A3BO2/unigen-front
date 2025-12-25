@@ -1,17 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { useSearchParams } from "react-router-dom";
+// import { useSearchParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import { Heart, MessageCircle, Volume2, VolumeX } from "lucide-react";
-import { getTimeAgo } from "../../util/date";
-
-// ✅ 댓글 API 서비스 import
-import {
-  fetchComments,
-  createComment,
-  deleteComment,
-} from "../../services/comment";
+import { Heart, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
 
 import { getReel } from "../../services/post";
 
@@ -19,33 +11,21 @@ const Reels = () => {
   /* =========================
    * 상태
    ========================= */
-  const [searchParams] = useSearchParams();
-  const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
+  // const [searchParams] = useSearchParams();
+  // const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
 
   const [reels, setReels] = useState([]);
   const [cursor, setCursor] = useState(null);
   const [loading, setLoading] = useState(false);
   const [noMoreReels, setNoMoreReels] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
-
   const FILE_BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // 🔊 전역 볼륨(원하면 릴스별로도 가능하지만 일단 전역 유지)
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0); // 0 ~ 1
-
-  // ✅ “볼륨 UI 열림”은 현재 릴스 하나만 열리게
-  const [openVolumeReelId, setOpenVolumeReelId] = useState(null);
-
-  // ✅ video DOM들을 잡아서 volume/muted를 실제 엘리먼트에 동기화
-  const videoRefs = useRef({}); // { [reelId]: HTMLVideoElement }
-
-const [showComments, setShowComments] = useState(null); // postId | null
-const [comments, setComments] = useState([]);
-const [commentInput, setCommentInput] = useState("");
-const [commentLoading, setCommentLoading] = useState(false);
-const myUser = JSON.parse(sessionStorage.getItem("user"));
-
+  const [showVolume, setShowVolume] = useState(false);
+  
 
   /* =========================
    * 릴스 가져오기
@@ -73,10 +53,14 @@ const myUser = JSON.parse(sessionStorage.getItem("user"));
           {
             id: reel.id,
             video: reel.video_url
-              ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${reel.video_url}`
+              ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${
+                  reel.video_url
+                }`
               : null,
             image: reel.image_url
-              ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${reel.image_url}`
+              ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${
+                  reel.image_url
+                }`
               : null,
             user: {
               id: reel.author_id,
@@ -178,10 +162,11 @@ useEffect(() => {
   useEffect(() => {
     if (reels.length === 0) return;
 
-    const lastReel = document.querySelector(
-      `[data-reel-id="${reels[reels.length - 1].id}"]`
-    );
-    if (!lastReel) return;
+  const lastReel = document.querySelector(
+    `[data-reel-id="${reels[reels.length - 1].id}"]`
+  );
+
+  if (!lastReel) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -192,9 +177,10 @@ useEffect(() => {
       { threshold: 0.6 }
     );
 
-    observer.observe(lastReel);
-    return () => observer.disconnect();
-  }, [reels, loading, noMoreReels]);
+  observer.observe(lastReel);
+
+  return () => observer.disconnect();
+}, [reels, loading, noMoreReels]);
 
   /* =========================
    * 🔊 volume/muted 실제 video에 동기화
@@ -211,9 +197,11 @@ useEffect(() => {
    * 영상 클릭 시 재생/정지 토글
    ========================= */
   const togglePlay = (e) => {
-    const video = e.currentTarget;
-    if (!(video instanceof HTMLVideoElement)) return;
-    if (!video.src) return;
+
+  const video = e.currentTarget;
+
+  if (!(video instanceof HTMLVideoElement)) return;
+  if (!video.src) return;
 
     if (video.paused) {
       video.play().catch(() => {});
@@ -271,168 +259,113 @@ useEffect(() => {
       <BottomNav />
 
       <Container>
-        <ReelsContainer>
-          {reels.map((reel) => {
-            const isOpen = openVolumeReelId === reel.id;
+  <ReelsContainer>
+    {reels.map((reel) => (
+      <ReelWrapper key={reel.id} data-reel-id={reel.id}>
+        <VideoContainer>
+          {/* ✅ 영상 / 이미지 분기 */}
+          {reel.video ? (
+            <Video
+              src={reel.video}
+              autoPlay
+              loop
+              muted={muted}
+              playsInline
+              onClick={togglePlay}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              style={{ cursor: "pointer" }}
+              ref={(el) => {
+              if (el) el.volume = volume;
+            }}
+            />
+          ) : reel.image ? (
+            <Image src={reel.image} alt="reel image" />
+          ) : null}
 
-            return (
-              <ReelWrapper key={reel.id} data-reel-id={reel.id}>
-                <VideoContainer>
-                  {/* ✅ 영상 / 이미지 분기 */}
-                  {reel.video ? (
-                    <Video
-                      src={reel.video}
-                      autoPlay
-                      loop
-                      muted={muted}
-                      playsInline
-                      onClick={togglePlay}
-                      style={{ cursor: "pointer" }}
-                      ref={(el) => {
-                        if (!el) return;
-                        videoRefs.current[reel.id] = el;
-                        el.muted = muted;
-                        el.volume = muted ? 0 : volume;
-                      }}
-                    />
-                  ) : reel.image ? (
-                    <Image src={reel.image} alt="reel image" />
-                  ) : null}
-<OverlayUI>
-                  <ReelInfo>
-                    <UserInfo>
-                      <Avatar>{reel.user.avatar}</Avatar>
-                      <Username>{reel.user.name}</Username>
-                      <FollowButton>팔로우</FollowButton>
-                    </UserInfo>
-                    <Caption>{reel.caption}</Caption>
-                  </ReelInfo>
+          {/* 🔊 볼륨 버튼 (개선 버전) */}
+          {reel.video && (
+            <VolumeWrapper $open={showVolume}>
+              {/* 🔊 아이콘 버튼 (mute 토글) */}
+              <VolumeIconButton
+              onClick={(e) => {
+                e.stopPropagation();     // ⭐ 필수
+                if (muted) {
+                  setMuted(false);
+                  setVolume(0.7);
+                  setShowVolume(true);   // 아이콘 누르면 열림
+                } else {
+                  setMuted(true);
+                  setVolume(0);
+                  setShowVolume(false);  // 음소거면 닫힘
+                }
+              }}
+            >
+              {muted || volume === 0 ? (
+                <VolumeX size={22} stroke="white" strokeWidth={2} />
+              ) : (
+                <Volume2 size={22} stroke="white" strokeWidth={2} />
+              )}
+            </VolumeIconButton>
 
-                  <Actions>
-                    <ActionButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleLike(reel.id);
-                      }}
-                    >
-                      <Heart
-                        size={28}
-                        color="#fff"
-                        fill={reel.liked ? "#fff" : "none"}
-                      />
-                      <ActionText>{reel.likes.toLocaleString()}</ActionText>
-                    </ActionButton>
 
-                    <ActionButton
-  onClick={(e) => {
-    e.stopPropagation();
-    setShowComments(reel.id); // 🔥 postId
-  }}
->
-  <MessageCircle size={28} color="#fff" />
-  <ActionText>{reel.comments}</ActionText>
-</ActionButton>
+              {/* 🎚️ 슬라이더 */}
+              {showVolume && (
+                <VolumeSlider
+                  $open={showVolume}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={muted ? 0 : volume}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setVolume(v);
+                    setMuted(v === 0);
+                  }}
+                />
+              )}
+            </VolumeWrapper>
+          )}
 
-{/* 🔊 볼륨 버튼 */}
-{reel.video && (
-  <VolumeButtonWrapper>
-    <ActionButton
-      onClick={(e) => {
-        e.stopPropagation();
+          <ReelInfo>
+            <UserInfo>
+              <Avatar>{reel.user.avatar}</Avatar>
+              <Username>{reel.user.name}</Username>
+              <FollowButton>팔로우</FollowButton>
+            </UserInfo>
+            <Caption>{reel.caption}</Caption>
+          </ReelInfo>
 
-        setOpenVolumeReelId((prev) =>
-          prev === reel.id ? null : reel.id
-        );
+          <Actions>
+            <ActionButton
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike(reel.id);
+              }}
+            >
+              <Heart
+                size={28}
+                color="#fff"
+                fill={reel.liked ? "#fff" : "none"}
+              />
+              <ActionText>{reel.likes.toLocaleString()}</ActionText>
+            </ActionButton>
 
-        if (muted) {
-          setMuted(false);
-          setVolume((v) => (v > 0 ? v : 0.7));
-        }
-      }}
-    >
-      {muted || volume === 0 ? (
-        <VolumeX size={28} color="#fff" />
-      ) : (
-        <Volume2 size={28} color="#fff" />
-      )}
-    </ActionButton>
+            <ActionButton onClick={(e) => e.stopPropagation()}>
+              <MessageCircle size={28} color="#fff" />
+              <ActionText>{reel.comments}</ActionText>
+            </ActionButton>
 
-    {isOpen && (
-      <VolumeSlider
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={muted ? 0 : volume}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onChange={(e) => {
-          const v = Number(e.target.value);
-          setVolume(v);
-          setMuted(v === 0);
-        }}
-      />
-    )}
-  </VolumeButtonWrapper>
-)}
-
-                  </Actions>
-                  </OverlayUI>
-                </VideoContainer>
-              </ReelWrapper>
-            );
-          })}
-        </ReelsContainer>
-      </Container>
-      {showComments && (
-  <CommentOverlay onClick={() => setShowComments(null)}>
-    <CommentSheet onClick={(e) => e.stopPropagation()}>
-      <CommentHeader>
-        댓글
-        <CloseBtn onClick={() => setShowComments(null)}>✕</CloseBtn>
-      </CommentHeader>
-
-      <CommentList>
-        {commentLoading ? (
-          <EmptyText>불러오는 중...</EmptyText>
-        ) : comments.length === 0 ? (
-          <EmptyText>첫 댓글을 남겨보세요</EmptyText>
-        ) : (
-          comments.map((c) => (
-            <CommentItem key={c.id}>
-              <AvatarImg
-  src={
-    c.user?.avatar
-      ? c.user.avatar.startsWith("http")
-        ? c.user.avatar
-        : `${FILE_BASE_URL}${c.user.avatar.startsWith("/") ? "" : "/"}${c.user.avatar}`
-      : "/default-avatar.png"
-  }
-/>
-
-              <div>
-                <b>{c.user.name}</b>
-                <span>{c.text}</span>
-                <Time>{getTimeAgo(c.createdAt)}</Time>
-
-              </div>
-            </CommentItem>
-          ))
-        )}
-      </CommentList>
-
-      <CommentInputBox>
-        <CommentInput
-          value={commentInput}
-          onChange={(e) => setCommentInput(e.target.value)}
-          placeholder="댓글을 입력하세요..."
-        />
-        <SendBtn onClick={handleCreateComment}>게시</SendBtn>
-      </CommentInputBox>
-    </CommentSheet>
-  </CommentOverlay>
-)}
+            <ActionButton onClick={(e) => e.stopPropagation()}>
+              <Send size={28} color="#fff" />
+            </ActionButton>
+          </Actions>
+        </VideoContainer>
+      </ReelWrapper>
+    ))}
+  </ReelsContainer>
+</Container>
 
     </>
   );
@@ -589,6 +522,50 @@ const Video = styled.video`
   height: 100%;
   object-fit: contain;
 `;
+
+const VolumeWrapper = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+
+  height: 40px;
+  width: ${({ $open }) => ($open ? "140px" : "40px")};
+
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  border-radius: 999px;
+
+  overflow: visible;
+
+  transition: width 0.25s ease;
+  z-index: 1000;
+`;
+
+
+
+
+const VolumeIconButton = styled.button`
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 32px;
+  height: 32px;
+
+  background: none;
+  border: none;
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 3;
+  cursor: pointer;
+  
+`;
+
 
 
 const VolumeSlider = styled.input`

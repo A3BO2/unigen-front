@@ -61,7 +61,7 @@ const NormalLogin = () => {
         if (response.ok) {
           // 사용자가 DB에 있음 → 로그인 성공
           sessionStorage.setItem("token", data.token);
-          login(data.data?.user || data.user, "normal");
+          await login(data.data?.user || data.user, "normal");
           // URL을 깔끔하게 정리하고 바로 홈으로 이동
           window.history.replaceState({}, document.title, "/normal/home");
           navigate("/normal/home", { replace: true });
@@ -199,7 +199,7 @@ const NormalLogin = () => {
 
         if (response.ok) {
           sessionStorage.setItem("token", data.token);
-          login(data.data?.user || data.user, "normal");
+          await login(data.data?.user || data.user, "normal");
           alert("로그인 성공!");
           navigate("/normal/home");
         } else {
@@ -281,7 +281,7 @@ const NormalLogin = () => {
         const token = data.data?.tokens || data.token;
         if (token) {
           sessionStorage.setItem("token", token);
-          login(data.data?.user || data.user, "normal");
+          await login(data.data?.user || data.user, "normal");
           setShowKakaoSignupModal(false);
           setKakaoAccessToken(null);
           setKakaoUserInfo(null);

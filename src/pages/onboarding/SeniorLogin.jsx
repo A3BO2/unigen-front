@@ -48,7 +48,7 @@ const SeniorLogin = () => {
 
         if (response.ok) {
           sessionStorage.setItem("token", data.token);
-          login(data.data?.user || data.user, "senior");
+          await login(data.data?.user || data.user, "senior");
           window.history.replaceState({}, document.title, "/senior/home");
           navigate("/senior/home", { replace: true });
         } else if (data.needsSignup) {
@@ -192,7 +192,7 @@ const SeniorLogin = () => {
       // 성공 시 처리
       if (data.token) {
         sessionStorage.setItem("token", data.token);
-        login(data.data?.user || data.user, "senior");
+        await login(data.data?.user || data.user, "senior");
         alert("로그인 성공!");
         navigate("/senior/home");
       } else {
@@ -245,7 +245,7 @@ const SeniorLogin = () => {
         const token = data.data?.tokens || data.token;
         if (token) {
           sessionStorage.setItem("token", token);
-          login(data.data?.user || data.user, "senior");
+          await login(data.data?.user || data.user, "senior");
           setShowKakaoSignupModal(false);
           setKakaoAccessToken(null);
           setKakaoUserInfo(null);

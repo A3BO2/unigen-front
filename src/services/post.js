@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const baseURL = import.meta.env.VITE_API_BASE_URL; // http://localhost:3000/api/v1
 
 export async function apifetch(url, options) {
@@ -28,6 +30,23 @@ export function getHeaders() {
   return {
     Authorization: token ? `Bearer ${token}` : "",
   };
+}
+
+// 피드 수정
+export async function updatePost(postId, content) {
+  return await apifetch(`/posts/${postId}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify({ content }),
+  });
+}
+
+// 피드 삭제
+export async function deletePost(postId) {
+  return await apifetch(`/posts/${postId}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
 }
 
 // api 예시 https://api.seniorsns.com/api/v1/posts/feed?mode=senior&page=1&size=10

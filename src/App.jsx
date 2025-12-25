@@ -20,6 +20,7 @@ import NormalProfile from "./pages/normal/Profile";
 import NormalProfileEdit from "./pages/normal/ProfileEdit";
 import NormalSettings from "./pages/normal/Settings";
 import ChangePassword from "./pages/normal/ChangePassword";
+import PostUpdate from "./pages/normal/PostUpdate";
 
 // Senior Mode
 import SeniorHome from "./pages/senior/Home";
@@ -157,6 +158,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/feed/update/:id" element={<PostUpdate />} />
         <Route path="/change-password" element={<ChangePassword />} />
 
         {/* Senior Mode */}

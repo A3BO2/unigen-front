@@ -12,11 +12,6 @@ const LeftSidebar = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  const handleSearchToggle = () => {
-    setIsSearchOpen(!isSearchOpen);
-    setIsMoreOpen(false);
-  };
-
   const handleMoreToggle = () => {
     setIsMoreOpen(!isMoreOpen);
     setIsSearchOpen(false);
@@ -24,7 +19,6 @@ const LeftSidebar = () => {
 
   const menuItems = [
     { icon: Home, label: '홈', path: '/normal/home', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/home'); } },
-    { icon: Search, label: '검색', action: handleSearchToggle },
     { icon: Compass, label: '탐색 탭', path: '/normal/explore', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/explore'); } },
     { icon: Film, label: '릴스', path: '/normal/reels', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/reels'); } },
     { icon: PlusSquare, label: '만들기', path: '/normal/upload', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/upload'); } },
@@ -67,31 +61,6 @@ const LeftSidebar = () => {
           <NavLabel $collapsed={isSearchOpen} $darkMode={isDarkMode}>더보기</NavLabel>
         </MoreButton>
       </Container>
-
-      {isSearchOpen && (
-        <SearchPanel $darkMode={isDarkMode}>
-          <SearchHeader>
-            <SearchTitle $darkMode={isDarkMode}>검색</SearchTitle>
-            <CloseButton onClick={() => setIsSearchOpen(false)} $darkMode={isDarkMode}>
-              <X size={20} color={isDarkMode ? '#fff' : '#262626'} />
-            </CloseButton>
-          </SearchHeader>
-
-          <SearchInput $darkMode={isDarkMode}>
-            <input type="text" placeholder="검색" />
-          </SearchInput>
-
-          <Divider $darkMode={isDarkMode} />
-
-          <RecentSection>
-            <RecentHeader>
-              <RecentTitle $darkMode={isDarkMode}>최근 검색 항목</RecentTitle>
-              <ClearAllButton>모두 지우기</ClearAllButton>
-            </RecentHeader>
-            <NoRecentSearches>최근 검색 내역 없음.</NoRecentSearches>
-          </RecentSection>
-        </SearchPanel>
-      )}
 
       {isMoreOpen && (
         <MorePanel $darkMode={isDarkMode}>
