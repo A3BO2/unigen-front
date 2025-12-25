@@ -4,6 +4,14 @@ import { useSearchParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { Heart, MessageCircle, Volume2, VolumeX } from "lucide-react";
+import { getTimeAgo } from "../../util/date";
+
+// ✅ 댓글 API 서비스 import
+import {
+  fetchComments,
+  createComment,
+  deleteComment,
+} from "../../services/comment";
 
 import { getReel } from "../../services/post";
 
@@ -31,6 +39,13 @@ const Reels = () => {
 
   // ✅ video DOM들을 잡아서 volume/muted를 실제 엘리먼트에 동기화
   const videoRefs = useRef({}); // { [reelId]: HTMLVideoElement }
+
+const [showComments, setShowComments] = useState(null); // postId | null
+const [comments, setComments] = useState([]);
+const [commentInput, setCommentInput] = useState("");
+const [commentLoading, setCommentLoading] = useState(false);
+const myUser = JSON.parse(sessionStorage.getItem("user"));
+
 
   /* =========================
    * 릴스 가져오기
@@ -105,6 +120,28 @@ const Reels = () => {
       setLoading(false);
     }
   };
+/* =========================
+   * 댓글 불러오기
+   ========================= */
+  
+useEffect(() => {
+  if (!showComments) return;
+
+  const loadComments = async () => {
+    setCommentLoading(true);
+    try {
+      const res = await fetchComments(showComments);
+      setComments(res.comments); // ✅ 여기
+    } catch (err) {
+      console.error("댓글 불러오기 실패", err);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  loadComments();
+}, [showComments]);
+
 
   /* =========================
    * 최초 로딩: startId 우선 적용
@@ -202,6 +239,32 @@ const Reels = () => {
     );
   };
 
+  const handleCreateComment = async () => {
+  if (!commentInput.trim()) return;
+
+  try {
+    await createComment(showComments, commentInput);
+
+    // ✅ 서버를 단일 진실 소스로 다시 fetch
+    const res = await fetchComments(showComments);
+    setComments(res.comments);
+
+    setReels((prev) =>
+      prev.map((r) =>
+        r.id === showComments
+          ? { ...r, comments: r.comments + 1 }
+          : r
+      )
+    );
+
+    setCommentInput("");
+  } catch (err) {
+    console.error("댓글 작성 실패", err);
+  }
+};
+
+
+
   return (
     <>
       <LeftSidebar />
@@ -260,11 +323,17 @@ const Reels = () => {
                       <ActionText>{reel.likes.toLocaleString()}</ActionText>
                     </ActionButton>
 
-                    <ActionButton onClick={(e) => e.stopPropagation()}>
-                      <MessageCircle size={28} color="#fff" />
-                      <ActionText>{reel.comments}</ActionText>
-                    </ActionButton>
-                    {/* 🔊 볼륨 버튼 */}
+                    <ActionButton
+  onClick={(e) => {
+    e.stopPropagation();
+    setShowComments(reel.id); // 🔥 postId
+  }}
+>
+  <MessageCircle size={28} color="#fff" />
+  <ActionText>{reel.comments}</ActionText>
+</ActionButton>
+
+{/* 🔊 볼륨 버튼 */}
 {reel.video && (
   <VolumeButtonWrapper>
     <ActionButton
@@ -316,9 +385,132 @@ const Reels = () => {
           })}
         </ReelsContainer>
       </Container>
+      {showComments && (
+  <CommentOverlay onClick={() => setShowComments(null)}>
+    <CommentSheet onClick={(e) => e.stopPropagation()}>
+      <CommentHeader>
+        댓글
+        <CloseBtn onClick={() => setShowComments(null)}>✕</CloseBtn>
+      </CommentHeader>
+
+      <CommentList>
+        {commentLoading ? (
+          <EmptyText>불러오는 중...</EmptyText>
+        ) : comments.length === 0 ? (
+          <EmptyText>첫 댓글을 남겨보세요</EmptyText>
+        ) : (
+          comments.map((c) => (
+            <CommentItem key={c.id}>
+              <AvatarImg
+  src={
+    c.user?.avatar
+      ? c.user.avatar.startsWith("http")
+        ? c.user.avatar
+        : `${FILE_BASE_URL}${c.user.avatar.startsWith("/") ? "" : "/"}${c.user.avatar}`
+      : "/default-avatar.png"
+  }
+/>
+
+              <div>
+                <b>{c.user.name}</b>
+                <span>{c.text}</span>
+                <Time>{getTimeAgo(c.createdAt)}</Time>
+
+              </div>
+            </CommentItem>
+          ))
+        )}
+      </CommentList>
+
+      <CommentInputBox>
+        <CommentInput
+          value={commentInput}
+          onChange={(e) => setCommentInput(e.target.value)}
+          placeholder="댓글을 입력하세요..."
+        />
+        <SendBtn onClick={handleCreateComment}>게시</SendBtn>
+      </CommentInputBox>
+    </CommentSheet>
+  </CommentOverlay>
+)}
+
     </>
   );
 };
+const CommentOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+`;
+
+const CommentSheet = styled.div`
+  width: 100%;
+  max-width: 480px;
+  height: 65vh;
+  background: #111;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const CommentHeader = styled.div`
+  position: relative;
+  padding: 14px;
+  text-align: center;
+  font-weight: 600;
+  color: #fff;
+  border-bottom: 1px solid #222;
+`;
+
+const CloseBtn = styled.button`
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  font-size: 18px;
+  color: #fff;
+  cursor: pointer;
+`;
+
+const CommentList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+`;
+
+const CommentItem = styled.div`
+  display: flex;
+  gap: 10px;
+  color: #fff;
+  margin-bottom: 12px;
+
+  b {
+    margin-right: 6px;
+  }
+`;
+
+const CommentInputBox = styled.div`
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #333;
+`;
+
+const CommentInput = styled.input`
+  flex: 1;
+  background: #222;
+  border-radius: 20px;
+  padding: 10px 14px;
+  color: #fff;
+`;
+
+const SendBtn = styled.button`
+  margin-left: 8px;
+  color: #4da3ff;
+  font-weight: 600;
+`;
 
 const VolumeButtonWrapper = styled.div`
   position: relative;   /* 🎯 기준점 */
@@ -447,6 +639,15 @@ const Avatar = styled.div`
   font-size: 18px;
 `;
 
+const AvatarImg = styled.img`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #333;
+`;
+
+
 const Username = styled.span`
   font-size: 14px;
   font-weight: 600;
@@ -532,5 +733,12 @@ const Image = styled.img`
   object-fit: cover;
   background: black;
 `;
+
+const Time = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+`;
+
 
 export default Reels;
