@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 const AppContext = createContext();
 
 // 안전한 sessionStorage 접근 함수
-const safeLocalStorage = {
+const safeSessionStorage = {
   getItem: (key) => {
     try {
       return sessionStorage.getItem(key);
@@ -30,13 +30,13 @@ const safeLocalStorage = {
 
 export const AppProvider = ({ children }) => {
   const [mode, setMode] = useState(() => {
-    // 로컬 스토리지에서 모드 불러오기
-    return safeLocalStorage.getItem("appMode") || null;
+    // 세션 스토리지에서 모드 불러오기
+    return safeSessionStorage.getItem("appMode") || null;
   });
 
   const [user, setUser] = useState(() => {
-    // 로컬 스토리지에서 유저 정보 불러오기
-    const savedUser = safeLocalStorage.getItem("user");
+    // 세션 스토리지에서 유저 정보 불러오기
+    const savedUser = safeSessionStorage.getItem("user");
     try {
       return savedUser ? JSON.parse(savedUser) : null;
     } catch {
@@ -45,44 +45,37 @@ export const AppProvider = ({ children }) => {
   });
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // 로컬 스토리지에서 다크모드 상태 불러오기
-    const savedDarkMode = safeLocalStorage.getItem("isDarkMode");
+    // 세션 스토리지에서 다크모드 상태 불러오기
+    const savedDarkMode = safeSessionStorage.getItem("isDarkMode");
     return savedDarkMode === "true" ? true : false;
   });
 
   const [fontScale, setFontScale] = useState(() => {
-    // 로컬 스토리지에서 폰트 크기 불러오기
-    return safeLocalStorage.getItem("fontScale") || "large";
+    // 세션 스토리지에서 폰트 크기 불러오기
+    return safeSessionStorage.getItem("fontScale") || "large";
   });
 
   useEffect(() => {
     if (mode) {
-      safeLocalStorage.setItem("appMode", mode);
+      safeSessionStorage.setItem("appMode", mode);
     }
   }, [mode]);
 
   useEffect(() => {
     if (user) {
-      safeLocalStorage.setItem("user", JSON.stringify(user));
-      // profile_image URL도 별도로 저장
-      if (user.profile_image) {
-        safeLocalStorage.setItem("userProfileImage", user.profile_image);
-      } else {
-        safeLocalStorage.removeItem("userProfileImage");
-      }
+      safeSessionStorage.setItem("user", JSON.stringify(user));
     } else {
-      safeLocalStorage.removeItem("user");
-      safeLocalStorage.removeItem("userProfileImage");
+      safeSessionStorage.removeItem("user");
     }
   }, [user]);
 
   useEffect(() => {
-    safeLocalStorage.setItem("isDarkMode", isDarkMode.toString());
+    safeSessionStorage.setItem("isDarkMode", isDarkMode.toString());
   }, [isDarkMode]);
 
   useEffect(() => {
     if (fontScale) {
-      safeLocalStorage.setItem("fontScale", fontScale);
+      safeSessionStorage.setItem("fontScale", fontScale);
       // CSS 변수로 폰트 크기 설정
       const root = document.documentElement;
       const scaleMap = {
@@ -92,12 +85,20 @@ export const AppProvider = ({ children }) => {
       };
       root.style.setProperty("--font-scale", scaleMap[fontScale] || 1);
     }
+    // CSS 변수로 폰트 크기 설정 (fontScale이 변경될 때마다)
+    const root = document.documentElement;
+    const scaleMap = {
+      small: 0.85,
+      medium: 1,
+      large: 1.25
+    };
+    root.style.setProperty('--font-scale', scaleMap[fontScale] || 1);
   }, [fontScale]);
 
   // 토큰 기반 자동 로그인 (앱 시작 시)
   useEffect(() => {
     const checkAuth = async () => {
-      const token = safeLocalStorage.getItem("token");
+      const token = safeSessionStorage.getItem("token");
 
       // 토큰이 없거나 유효하지 않으면 (null, undefined, 빈 문자열, 공백만 있는 경우) 조기 반환
       if (!token || typeof token !== "string" || token.trim() === "" || user) {
@@ -124,15 +125,15 @@ export const AppProvider = ({ children }) => {
             setMode(userMode);
           } else {
             // 토큰이 유효하지 않으면 토큰 제거
-            safeLocalStorage.removeItem("token");
+            safeSessionStorage.removeItem("token");
           }
         } else {
           // 토큰이 유효하지 않으면 토큰 제거
-          safeLocalStorage.removeItem("token");
+          safeSessionStorage.removeItem("token");
         }
       } catch (error) {
         console.error("자동 로그인 실패:", error);
-        safeLocalStorage.removeItem("token");
+        safeSessionStorage.removeItem("token");
       }
     };
 
@@ -142,7 +143,7 @@ export const AppProvider = ({ children }) => {
   // 로그인(또는 자동 로그인)으로 user가 설정되면 서버에서 사용자 설정을 가져와 적용
   useEffect(() => {
     const loadUserSettings = async () => {
-      const token = safeLocalStorage.getItem("token");
+      const token = safeSessionStorage.getItem("token");
 
       // 토큰이 없거나 유효하지 않으면 (null, undefined, 빈 문자열, 공백만 있는 경우) 조기 반환
       if (!user || !token || typeof token !== "string" || token.trim() === "") {
@@ -160,12 +161,16 @@ export const AppProvider = ({ children }) => {
           },
         });
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          console.warn('설정 로드 실패: 서버 응답 오류');
+          return;
+        }
 
         const settingsData = await response.json();
-        // 서버에서 저장된 설정 값으로 적용 (글자 크기만)
+        // 서버에서 저장된 설정 값으로 적용 (글자 크기)
         if (settingsData.fontScale) {
           setFontScale(settingsData.fontScale);
+          console.log('서버에서 폰트 크기 설정 로드:', settingsData.fontScale);
         }
         // 다크 모드는 기기(sessionStorage) 기준으로 유지하므로
         // 서버 값으로 덮어쓰지 않는다.
@@ -174,39 +179,13 @@ export const AppProvider = ({ children }) => {
       }
     };
 
-    loadUserSettings();
-  }, [user]);
-  const login = async (userData, selectedMode) => {
-    // profile_image가 없으면 /auth/me로 프로필 이미지 가져오기
-    if (!userData.profile_image) {
-      try {
-        const token = safeLocalStorage.getItem("token");
-        if (token) {
-          const baseURL =
-            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-          const response = await fetch(`${baseURL}/auth/me`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token.trim()}`,
-              "Content-Type": "application/json",
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data?.user) {
-              // profile_image가 있으면 userData에 추가
-              if (data.data.user.profile_image) {
-                userData.profile_image = data.data.user.profile_image;
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("프로필 이미지 가져오기 실패:", error);
-      }
+    // user가 있으면 서버에서 설정 로드 (초기 마운트 시에도 실행)
+    if (user) {
+      loadUserSettings();
     }
-    
+  }, [user]); // user가 변경될 때마다 실행 (초기 마운트 시 user가 이미 있으면 실행됨)
+
+  const login = (userData, selectedMode) => {
     setUser(userData);
     setMode(selectedMode);
   };
@@ -214,9 +193,9 @@ export const AppProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setMode(null);
-    safeLocalStorage.removeItem("user");
-    safeLocalStorage.removeItem("appMode");
-    safeLocalStorage.removeItem("token");
+    safeSessionStorage.removeItem("user");
+    safeSessionStorage.removeItem("appMode");
+    safeSessionStorage.removeItem("token");
   };
 
   const switchMode = (newMode) => {

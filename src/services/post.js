@@ -99,6 +99,13 @@ export async function getSeniorPosts(mode, page = 1, size = 5, all) {
   });
 }
 
+export async function getPostById(postId) {
+  return await apifetch(`/posts/${postId}`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+}
+
 export async function createPost(formData) {
   const token = sessionStorage.getItem("token");
 

@@ -26,8 +26,10 @@ import PostUpdate from "./pages/normal/PostUpdate";
 import SeniorHome from "./pages/senior/Home";
 import SeniorWrite from "./pages/senior/Write";
 import SeniorProfile from "./pages/senior/Profile";
+import SeniorProfileEdit from "./pages/senior/ProfileEdit";
 import SeniorSettings from "./pages/senior/Settings";
 import SeniorFamilyHelp from "./pages/senior/FamilyHelp";
+import SeniorPostDetail from "./pages/senior/PostDetail";
 
 // 루트 경로에서 토큰 확인 후 리다이렉트
 function RootRedirect() {
@@ -187,6 +189,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/senior/profile/edit"
+          element={
+            <ProtectedRoute requiredMode="senior">
+              <SeniorProfileEdit />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/senior/settings"
           element={
             <ProtectedRoute requiredMode="senior">
@@ -199,6 +209,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredMode="senior">
               <SeniorFamilyHelp />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior/post/:id"
+          element={
+            <ProtectedRoute requiredMode="senior">
+              <SeniorPostDetail />
             </ProtectedRoute>
           }
         />
