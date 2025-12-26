@@ -114,7 +114,7 @@ export async function updateUserProfile(profile) {
 // 팔로우 상태 확인
 export async function isFollowing(followeeId) {
   const response = await fetch(
-    `${baseURL}/users/isfollowing?followee_id=${followeeId}`,
+    `${baseURL}/users/isfollowing?followeeId=${followeeId}`,
     {
       method: "GET",
       headers: getAuthHeaders(),
@@ -142,7 +142,7 @@ export async function followUser(followeeId) {
   const response = await fetch(`${baseURL}/users/follow`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ followee_id: followeeId }),
+    body: JSON.stringify({ followeeId: followeeId }),
   });
 
   let data;
@@ -166,7 +166,7 @@ export async function unfollowUser(followeeId) {
   const response = await fetch(`${baseURL}/users/unfollow`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ followee_id: followeeId }),
+    body: JSON.stringify({ followeeId: followeeId }),
   });
 
   let data;
