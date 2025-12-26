@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import styled, { keyframes , css } from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 import {
   Heart,
   MessageCircle,
@@ -12,7 +12,13 @@ import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
-import { getPosts, getStories, likePost, unlikePost, isPostLike, } from "../../services/post";
+import {
+  getPosts,
+  getStories,
+  likePost,
+  unlikePost,
+  isPostLike,
+} from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
 import { isMyStory, getStoryViewers, watchStory } from "../../services/story";
 import { getTimeAgo } from "../../util/date";
@@ -23,7 +29,6 @@ import {
   createComment,
   deleteComment,
 } from "../../services/comment";
-
 
 const Home = () => {
   const navigate = useNavigate();
@@ -67,7 +72,6 @@ const Home = () => {
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
-
 
   // 메뉴 토글 함수
   const toggleMenu = (postId) => {
@@ -144,7 +148,7 @@ const Home = () => {
               type: "image",
               url: toAbsolute(item.imageUrl),
               createdAt: item.createdAt, // 원본 데이터 유지
-              timestamp: getTimeAgo(item.createdAt),
+              timestamp: item.timestamp,
             })),
           }));
 
@@ -202,7 +206,7 @@ const Home = () => {
           image: toAbsolute(`${item.imageUrl}`),
           likes: item.likeCount,
           caption: item.content,
-          timestamp: getTimeAgo(item.createdAt),
+          timestamp: item.timestamp,
           liked: false,
           comments: item.commentCount,
         }));
@@ -220,7 +224,6 @@ const Home = () => {
             console.error("좋아요 상태 조회 실패", e);
           }
         });
-
 
         // 중복 제거: 기존 포스트 ID와 비교하여 새로운 포스트만 추가
         setPosts((prevPosts) => {
@@ -342,45 +345,45 @@ const Home = () => {
   };
 
   const handleLike = async (postId) => {
-  const target = posts.find((p) => p.id === postId);
-  if (!target) return;
+    const target = posts.find((p) => p.id === postId);
+    if (!target) return;
 
-  // optimistic update
-  setPosts((prev) =>
-    prev.map((p) =>
-      p.id === postId
-        ? {
-            ...p,
-            liked: !p.liked,
-            likes: p.liked ? p.likes - 1 : p.likes + 1,
-          }
-        : p
-    )
-  );
-
-  try {
-    if (target.liked) {
-      await unlikePost(postId);
-    } else {
-      await likePost(postId);
-    }
-  } catch (error) {
-    console.error("좋아요 실패 → 롤백", error);
-
-    // ❗ 실패 시 롤백
+    // optimistic update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === postId
           ? {
               ...p,
-              liked: target.liked,
-              likes: target.likes,
+              liked: !p.liked,
+              likes: p.liked ? p.likes - 1 : p.likes + 1,
             }
           : p
       )
     );
-  }
-};
+
+    try {
+      if (target.liked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
+    } catch (error) {
+      console.error("좋아요 실패 → 롤백", error);
+
+      // ❗ 실패 시 롤백
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                liked: target.liked,
+                likes: target.likes,
+              }
+            : p
+        )
+      );
+    }
+  };
 
   // 스토리 관련 함수
   const openStoryViewer = useCallback(async (storyIndex) => {
@@ -661,70 +664,66 @@ const Home = () => {
   }
 
   useEffect(() => {
-  if (!showComments) return;
+    if (!showComments) return;
 
-  const loadComments = async () => {
-    setCommentLoading(true);
+    const loadComments = async () => {
+      setCommentLoading(true);
+      try {
+        const res = await fetchComments(showComments);
+        setComments(res.comments);
+      } catch (e) {
+        console.error("댓글 불러오기 실패", e);
+        setComments([]);
+      } finally {
+        setCommentLoading(false);
+      }
+    };
+
+    loadComments();
+  }, [showComments]);
+
+  const handleCreateComment = async () => {
+    if (!commentInput.trim()) return;
+
     try {
+      await createComment(showComments, commentInput);
+
+      // 다시 불러와서 서버 기준으로 동기화
       const res = await fetchComments(showComments);
       setComments(res.comments);
+
+      // 댓글 수 증가
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === showComments ? { ...p, comments: p.comments + 1 } : p
+        )
+      );
+
+      setCommentInput("");
     } catch (e) {
-      console.error("댓글 불러오기 실패", e);
-      setComments([]);
-    } finally {
-      setCommentLoading(false);
+      console.error("댓글 작성 실패", e);
     }
   };
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("댓글을 삭제할까요?")) return;
 
-  loadComments();
-}, [showComments]);
+    try {
+      await deleteComment(commentId);
 
-const handleCreateComment = async () => {
-  if (!commentInput.trim()) return;
+      const res = await fetchComments(showComments);
+      setComments(res.comments);
 
-  try {
-    await createComment(showComments, commentInput);
-
-    // 다시 불러와서 서버 기준으로 동기화
-    const res = await fetchComments(showComments);
-    setComments(res.comments);
-
-    // 댓글 수 증가
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === showComments
-          ? { ...p, comments: p.comments + 1 }
-          : p
-      )
-    );
-
-    setCommentInput("");
-  } catch (e) {
-    console.error("댓글 작성 실패", e);
-  }
-};
-const handleDeleteComment = async (commentId) => {
-  if (!window.confirm("댓글을 삭제할까요?")) return;
-
-  try {
-    await deleteComment(commentId);
-
-    const res = await fetchComments(showComments);
-    setComments(res.comments);
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === showComments
-          ? { ...p, comments: Math.max(0, p.comments - 1) }
-          : p
-      )
-    );
-  } catch (e) {
-    console.error("댓글 삭제 실패", e);
-  }
-};
-
-
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === showComments
+            ? { ...p, comments: Math.max(0, p.comments - 1) }
+            : p
+        )
+      );
+    } catch (e) {
+      console.error("댓글 삭제 실패", e);
+    }
+  };
 
   return (
     <>
@@ -797,7 +796,15 @@ const handleDeleteComment = async (commentId) => {
                         <img src={post.user.avatar} alt="" />
                       )}
                     </Avatar>
-                    <Username $darkMode={isDarkMode}>{post.user.name}</Username>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <Username $darkMode={isDarkMode}>
+                        {post.user.name}
+                      </Username>
+                      {/* 🔥 여기에 시간을 추가했습니다! */}
+                      <HeaderTimestamp $darkMode={isDarkMode}>
+                        {post.timestamp}
+                      </HeaderTimestamp>
+                    </div>
                   </UserInfo>
                   {user?.id === post.user.id && (
                     <div style={{ position: "relative" }}>
@@ -883,7 +890,6 @@ const handleDeleteComment = async (commentId) => {
                   >
                     댓글 12개 모두 보기
                   </Comments>
-                  <Timestamp $darkMode={isDarkMode}>{post.timestamp}</Timestamp>
                 </PostInfo>
 
                 <CommentInput>
@@ -1028,43 +1034,45 @@ const handleDeleteComment = async (commentId) => {
                         </CommentItem>
 
                         {commentLoading ? (
-  <CommentText>불러오는 중...</CommentText>
-) : comments.length === 0 ? (
-  <CommentText>첫 댓글을 남겨보세요</CommentText>
-) : (
-  comments.map((c) => {
-    const isMine = user && c.user?.id === user.id;
+                          <CommentText>불러오는 중...</CommentText>
+                        ) : comments.length === 0 ? (
+                          <CommentText>첫 댓글을 남겨보세요</CommentText>
+                        ) : (
+                          comments.map((c) => {
+                            const isMine = user && c.user?.id === user.id;
 
-    return (
-      <CommentItem key={c.id}>
-        <CommentAvatar>
-          {c.user?.avatar ? (
-            <img src={c.user.avatar} alt="" />
-          ) : (
-            "👤"
-          )}
-        </CommentAvatar>
+                            return (
+                              <CommentItem key={c.id}>
+                                <CommentAvatar>
+                                  {c.user?.avatar ? (
+                                    <img src={c.user.avatar} alt="" />
+                                  ) : (
+                                    "👤"
+                                  )}
+                                </CommentAvatar>
 
-        <CommentContent>
-          <CommentUsername $darkMode={isDarkMode}>
-            {c.user.name}
-          </CommentUsername>
-          <CommentText $darkMode={isDarkMode}>
-            {c.text}
-          </CommentText>
-          {isMine && (
-            <DeleteBtn onClick={() => handleDeleteComment(c.id)}>
-              삭제
-            </DeleteBtn>
-          )}
-          <CommentTime $darkMode={isDarkMode}>
-            {getTimeAgo(c.createdAt)}
-          </CommentTime>
-        </CommentContent>
-      </CommentItem>
-    );
-  })
-)}
+                                <CommentContent>
+                                  <CommentUsername $darkMode={isDarkMode}>
+                                    {c.user.name}
+                                  </CommentUsername>
+                                  <CommentText $darkMode={isDarkMode}>
+                                    {c.text}
+                                  </CommentText>
+                                  {isMine && (
+                                    <DeleteBtn
+                                      onClick={() => handleDeleteComment(c.id)}
+                                    >
+                                      삭제
+                                    </DeleteBtn>
+                                  )}
+                                  <CommentTime $darkMode={isDarkMode}>
+                                    {getTimeAgo(c.createdAt)}
+                                  </CommentTime>
+                                </CommentContent>
+                              </CommentItem>
+                            );
+                          })
+                        )}
 
                         {/* {selectedPost.comments.map(comment => ...)} */}
                       </CommentsSection>
@@ -1106,13 +1114,13 @@ const handleDeleteComment = async (commentId) => {
                       {/* 4. 댓글 입력창 */}
                       <CommentInputBox>
                         <input
-   value={commentInput}
-   onChange={(e) => setCommentInput(e.target.value)}
-   placeholder="댓글 달기..."
- />
-<PostButton onClick={handleCreateComment}>
-   게시
- </PostButton>
+                          value={commentInput}
+                          onChange={(e) => setCommentInput(e.target.value)}
+                          placeholder="댓글 달기..."
+                        />
+                        <PostButton onClick={handleCreateComment}>
+                          게시
+                        </PostButton>
                       </CommentInputBox>
                     </ModalRight>
                   </ModalContent>
@@ -1645,8 +1653,8 @@ const ActionButton = styled.button`
   ${(props) =>
     props.$liked &&
     css`
-    animation: ${likeAnimation} 0.4s ease;
-  `}
+      animation: ${likeAnimation} 0.4s ease;
+    `}
 
   svg {
     color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
@@ -2357,6 +2365,13 @@ const DeleteBtn = styled.button`
   &:hover {
     text-decoration: underline;
   }
+`;
+
+const HeaderTimestamp = styled.span`
+  font-size: 12px;
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
+  margin-top: 2px;
+  font-weight: 400;
 `;
 
 export default Home;

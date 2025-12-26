@@ -11,11 +11,10 @@ import {
   unlikePost,
 } from "../../services/senior";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
-import { getTimeAgo } from "../../util/date";
 
 const getFullUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return url;
 };
 
 const Home = () => {
@@ -40,6 +39,10 @@ const Home = () => {
   const POSTS_PER_PAGE = 5;
 
   const formatPosts = (data, mode) => {
+    if (data && data.length > 0) {
+      console.log("🔥 데이터 구조 확인:", data[0]);
+    }
+
     return data.map((post) => {
       const userId =
         post.user?.authorId ||
@@ -50,6 +53,9 @@ const Home = () => {
       return {
         ...post,
         mode: mode,
+        // 🔥 [수정] 프론트에서 계산하지 않고, 서버가 준 값 그대로 사용!
+        timestamp: post.timestamp,
+
         photo: getFullUrl(post.photo),
         user: {
           ...post.user,
@@ -62,6 +68,8 @@ const Home = () => {
             ...comment.user,
             avatar: getFullUrl(comment.user?.avatar),
           },
+          // 🔥 [수정] 댓글 시간도 서버가 준 값 그대로 사용!
+          time: comment.time,
         })),
       };
     });
@@ -760,8 +768,9 @@ const Username = styled.span`
 `;
 
 const Timestamp = styled.span`
-  font-size: calc(18px * var(--font-scale, 1));
+  font-size: calc(15px * var(--font-scale, 1));
   color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+  margin-top: 2px;
 `;
 
 const FollowButton = styled.button`
@@ -998,7 +1007,7 @@ const CommentUsername = styled.span`
 `;
 
 const CommentTime = styled.span`
-  font-size: calc(16px * var(--font-scale, 1));
+  font-size: calc(14px * var(--font-scale, 1));
   color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
