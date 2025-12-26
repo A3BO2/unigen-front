@@ -76,7 +76,7 @@ const Home = () => {
   };
 
   const checkFollowStatus = async (userId) => {
-    if (!userId || followStatus[userId]) return;
+    if (!userId || userId === "undefined" || followStatus[userId]) return;
 
     try {
       const result = await isFollowing(userId);
@@ -330,7 +330,7 @@ const Home = () => {
               avatar: comment.authorProfileImage,
             },
             text: comment.content,
-            time: getTimeAgo(comment.createdAt),
+            time: comment.time,
           }));
 
           // 해당 포스트의 댓글 업데이트
@@ -380,7 +380,7 @@ const Home = () => {
               avatar: comment.authorProfileImage,
             },
             text: comment.content,
-            time: getTimeAgo(comment.createdAt),
+            time: comment.time,
           }));
 
           setPosts((prevPosts) =>
