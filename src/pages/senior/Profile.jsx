@@ -1,34 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
+import { Heart, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import SeniorBottomNav from '../../components/senior/BottomNav';
-import { getUserSettings } from '../../services/user';
+import { getUserSettings, getCurrentUser } from '../../services/user';
 
-// Mock 데이터
-const MY_POSTS = [
-  {
-    id: 1,
-    content: '오늘 공원에 산책 다녀왔어요. 날씨가 정말 좋았답니다.',
-    photo: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
-    likes: 24,
-    time: '2시간 전'
-  },
-  {
-    id: 2,
-    content: '요즘 텃밭 가꾸는 재미가 쏠쏠하네요. 토마토가 잘 자라고 있습니다.',
-    photo: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=800&h=600&fit=crop',
-    likes: 18,
-    time: '1일 전'
-  },
-  {
-    id: 3,
-    content: '손주가 그려준 그림을 받았어요. 너무 예쁘죠? 행복한 하루입니다.',
-    photo: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&h=600&fit=crop',
-    likes: 42,
-    time: '3일 전'
+const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+
+// 이미지 URL을 절대 경로로 변환하는 함수
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // 이미 http:// 또는 https://로 시작하면 그대로 반환
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
-];
+  // 상대 경로면 baseURL 붙이기
+  return `${baseURL}${url}`;
+};
 
 const Profile = () => {
   const { user, isDarkMode } = useApp();
@@ -40,6 +29,71 @@ const Profile = () => {
     language: 'ko'
   });
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [error, setError] = useState(null);
+  const observerRef = useRef();
+  const lastPostRef = useRef();
+  const isLoadingRef = useRef(false);
+  const pageRef = useRef(1);
+
+  // 프로필 데이터 로드
+  const loadProfileData = useCallback(async (pageNum) => {
+    if (isLoadingRef.current) {
+      return;
+    }
+
+    isLoadingRef.current = true;
+    setIsLoadingPosts(true);
+    setError(null);
+
+    try {
+      // 페이지 2부터만 1초 딜레이 추가 (첫 페이지는 즉시 로드)
+      if (pageNum > 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      const data = await getCurrentUser(pageNum, 9);
+
+      // 백엔드 응답 형식: { profile, posts, pagination }
+      if (data?.profile) {
+        setProfileData(data.profile);
+      }
+
+      if (data?.posts) {
+        if (pageNum === 1) {
+          setPosts(data.posts);
+        } else {
+          setPosts((prev) => [...prev, ...data.posts]);
+        }
+
+        // pagination 정보로 hasMore 결정
+        if (data.pagination) {
+          setHasMore(data.pagination.has_next);
+        } else {
+          // pagination 정보가 없으면 posts 길이로 판단
+          setHasMore(data.posts.length >= 9);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('프로필 로드 실패:', err);
+      const errorMessage = err.message || '프로필을 불러오는데 실패했습니다.';
+      setError(errorMessage);
+      setHasMore(false);
+      
+      // 네트워크 오류인 경우 추가 정보 표시
+      if (err.message.includes('네트워크') || err.message.includes('연결')) {
+        console.error('네트워크 오류 발생. 서버가 실행 중인지 확인해주세요.');
+      }
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoadingPosts(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -58,17 +112,69 @@ const Profile = () => {
     fetchSettings();
   }, []);
 
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadProfileData(1);
+  }, [loadProfileData]);
+
+  // 무한 스크롤 Intersection Observer 설정
+  useEffect(() => {
+    if (isLoadingPosts || !hasMore) {
+      return;
+    }
+
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (entry.isIntersecting && hasMore && !isLoadingRef.current) {
+          pageRef.current = pageRef.current + 1;
+          loadProfileData(pageRef.current);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '100px', // 바닥에서 100px 위에서 미리 로드
+        threshold: 0.1, // 10% 보이면 트리거
+      }
+    );
+
+    if (lastPostRef.current) {
+      observerRef.current.observe(lastPostRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoadingPosts, hasMore, loadProfileData]);
+
   return (
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
       <Container>
         <Header>
           <Title>내 정보</Title>
+          <EditButton onClick={() => navigate('/senior/profile/edit')}>
+            설정 수정
+          </EditButton>
         </Header>
 
         <ProfileSection>
-          <Avatar>👤</Avatar>
-          <Name>{user?.name || '사용자'}</Name>
-          <Phone>{user?.phone || '전화번호'}</Phone>
+          <Avatar>
+            {profileData?.profile_image ? (
+              <AvatarImage src={getImageUrl(profileData.profile_image)} alt="프로필 이미지" />
+            ) : user?.profile_image ? (
+              <AvatarImage src={getImageUrl(user.profile_image)} alt="프로필 이미지" />
+            ) : (
+              '👤'
+            )}
+          </Avatar>
+          <Name>{profileData?.name || user?.name || '사용자'}</Name>
         </ProfileSection>
 
         <QuickActions>
@@ -91,22 +197,91 @@ const Profile = () => {
         </QuickActions>
 
         <SectionHeader>
-          내가 남긴 이야기 {MY_POSTS.length}개
+          내가 남긴 이야기 {profileData?.post_count || posts.length}개
         </SectionHeader>
 
         <ContentSection>
-          {MY_POSTS.map((post) => (
-            <PostCard key={post.id}>
-              {post.photo && (
-                <PostImage src={post.photo} alt="게시물 사진" />
+          {error && (
+            <ErrorMessage>
+              {error}
+              {error.includes('네트워크') || error.includes('연결') ? (
+                <ErrorSubText>
+                  백엔드 서버가 실행 중인지 확인해주세요.
+                </ErrorSubText>
+              ) : null}
+            </ErrorMessage>
+          )}
+          
+          {posts.length === 0 && !isLoadingPosts && !error && (
+            <EmptyMessage>
+              게시물이 없습니다.
+            </EmptyMessage>
+          )}
+
+          {posts.map((post, index) => (
+            <Post
+              key={post.id || index}
+              ref={index === posts.length - 1 ? lastPostRef : null}
+              onClick={() => navigate(`/senior/post/${post.id}`)}
+            >
+              <PostHeader>
+                <UserInfo>
+                  <PostAvatar>
+                    {profileData?.profile_image ? (
+                      <PostAvatarImage
+                        src={getImageUrl(profileData.profile_image)}
+                        alt={profileData.name || '프로필'}
+                      />
+                    ) : (
+                      '👤'
+                    )}
+                  </PostAvatar>
+                  <UserDetails>
+                    <Username>{profileData?.name || user?.name || '나'}</Username>
+                    <Timestamp>
+                      {post.created_at
+                        ? new Date(post.created_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })
+                        : ''}
+                    </Timestamp>
+                  </UserDetails>
+                </UserInfo>
+              </PostHeader>
+
+              {post.content && <Content>{post.content}</Content>}
+
+              {post.image_url && (
+                <PostImage src={getImageUrl(post.image_url)} alt="게시물 사진" />
               )}
-              <PostContent>{post.content}</PostContent>
-              <PostMeta>
-                <PostTime>{post.time}</PostTime>
-                <PostStats>좋아요 {post.likes}개</PostStats>
-              </PostMeta>
-            </PostCard>
+
+              <PostActions>
+                <ActionButton>
+                  <Heart size={36} strokeWidth={3} fill="none" />
+                  <ActionText>{post.like_count || 0}</ActionText>
+                </ActionButton>
+                <ActionButton>
+                  <MessageCircle size={36} strokeWidth={3} />
+                  <ActionText>{post.comment_count || 0}</ActionText>
+                </ActionButton>
+              </PostActions>
+            </Post>
           ))}
+
+          {isLoadingPosts && (
+            <LoadingContainer>
+              <Spinner />
+              <LoadingMessage>불러오는 중...</LoadingMessage>
+            </LoadingContainer>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <EndMessage>
+              모든 게시물을 불러왔습니다.
+            </EndMessage>
+          )}
         </ContentSection>
 
         <HelpSection>
@@ -152,6 +327,20 @@ const Title = styled.h1`
   font-weight: 700;
 `;
 
+const EditButton = styled.button`
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  background: ${props => props.theme.$darkMode ? '#111' : '#fff'};
+  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+  font-size: 14px;
+  font-weight: 600;
+
+  &:active {
+    opacity: 0.7;
+  }
+`;
+
 const ProfileSection = styled.div`
   display: flex;
   flex-direction: column;
@@ -161,27 +350,30 @@ const ProfileSection = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 96px;
-  height: 96px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 56px;
+  font-size: 100px;
   margin-bottom: 16px;
   border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  overflow: hidden;
+`;
+
+const AvatarImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 `;
 
 const Name = styled.h2`
   font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   margin-bottom: 8px;
-`;
-
-const Phone = styled.p`
-  font-size: calc(18px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
 const QuickActions = styled.div`
@@ -227,7 +419,126 @@ const SectionHeader = styled.h2`
 `;
 
 const ContentSection = styled.div`
-  padding: 24px;
+  padding: 0;
+`;
+
+const Post = styled.article`
+  border-bottom: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
+  padding: 28px;
+  transition: background 0.2s;
+  cursor: pointer;
+
+  &:active {
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
+  }
+`;
+
+const PostHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+`;
+
+const PostAvatar = styled.div`
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(32px * var(--font-scale, 1));
+  flex-shrink: 0;
+  border: 2px solid
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
+  overflow: hidden;
+`;
+
+const PostAvatarImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const UserDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const Username = styled.span`
+  font-size: calc(24px * var(--font-scale, 1));
+  font-weight: 700;
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
+`;
+
+const Timestamp = styled.span`
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+`;
+
+const Content = styled.p`
+  font-size: calc(24px * var(--font-scale, 1));
+  line-height: 1.7;
+  margin-bottom: 24px;
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
+  word-break: keep-all;
+`;
+
+const PostImage = styled.img`
+  width: 100%;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  object-fit: cover;
+  max-height: 500px;
+`;
+
+const PostActions = styled.div`
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+  padding: 16px 20px;
+  border-radius: 12px;
+  min-height: 56px;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:active {
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
+    transform: scale(0.95);
+  }
+
+  svg {
+    transition: all 0.3s;
+  }
+
+  &:active svg {
+    transform: scale(1.2);
+  }
+`;
+
+const ActionText = styled.span`
+  font-size: calc(22px * var(--font-scale, 1));
+  font-weight: 700;
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
+  min-width: 36px;
 `;
 
 const HelpSection = styled.div`
@@ -266,68 +577,69 @@ const HelpButton = styled.button`
   }
 `;
 
-const PostCard = styled.div`
-  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
+
+const ErrorMessage = styled.div`
+  text-align: center;
   padding: 20px;
+  margin: 20px 24px;
+  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#fff3cd'};
+  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#ffc107'};
   border-radius: 12px;
-  margin-bottom: 16px;
-  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
+  color: ${props => props.theme.$darkMode ? '#ff6b6b' : '#e74c3c'};
+  font-size: calc(18px * var(--font-scale, 1));
+  font-weight: 600;
 `;
 
-const PostHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+const ErrorSubText = styled.div`
+  margin-top: 8px;
+  font-size: calc(16px * var(--font-scale, 1));
+  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
+  font-weight: 400;
 `;
 
-const PostAvatar = styled.div`
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: ${props => props.theme.$darkMode ? '#0a0a0a' : '#fff'};
+const EmptyMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: ${props => props.theme.$darkMode ? '#8e8e8e' : '#8e8e8e'};
+  font-size: calc(18px * var(--font-scale, 1));
+`;
+
+const LoadingContainer = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  border: 2px solid ${props => props.theme.$darkMode ? '#3a3a3a' : '#d0d0d0'};
+  padding: 40px 20px;
+  gap: 16px;
 `;
 
-const PostUsername = styled.span`
-  font-size: 20px;
-  font-weight: 700;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
+const Spinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(142, 142, 142, 0.3);
+  border-top-color: #ffb703;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
-const PostImage = styled.img`
-  width: 100%;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  object-fit: cover;
-  max-height: 400px;
-`;
-
-const PostContent = styled.p`
-  font-size: calc(20px * var(--font-scale, 1));
-  line-height: 1.6;
-  margin-bottom: 16px;
-  color: ${props => props.theme.$darkMode ? '#fff' : '#000'};
-`;
-
-const PostMeta = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const PostTime = styled.span`
+const LoadingMessage = styled.div`
+  text-align: center;
+  color: ${props => props.theme.$darkMode ? '#8e8e8e' : '#8e8e8e'};
   font-size: calc(16px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
+  font-weight: 500;
 `;
 
-const PostStats = styled.span`
+const EndMessage = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: ${props => props.theme.$darkMode ? '#8e8e8e' : '#8e8e8e'};
   font-size: calc(16px * var(--font-scale, 1));
-  color: ${props => props.theme.$darkMode ? '#999' : '#666'};
 `;
 
 export default Profile;

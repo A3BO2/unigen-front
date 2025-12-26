@@ -64,16 +64,26 @@ const Settings = () => {
 
   // 폰트 크기 변경 핸들러
   const handleFontSizeChange = async (newFontSize) => {
+    // 동일한 값이면 저장하지 않음
+    if (newFontSize === fontSize) return;
+    
+    // 이전 값 저장
+    const previousFontSize = fontSize;
+    
     setFontSize(newFontSize);
     updateFontScale(newFontSize);
     
     // 서버에 저장
     try {
       setLoading(true);
-      await updateUserSettings({ fontScale: newFontSize });
+      const result = await updateUserSettings({ fontScale: newFontSize });
+      console.log('폰트 크기 저장 성공:', result);
     } catch (error) {
       console.error('설정 저장 실패:', error);
-      // 실패해도 로컬 상태는 유지
+      // 실패 시 원래 값으로 복구
+      setFontSize(previousFontSize);
+      updateFontScale(previousFontSize);
+      alert('설정 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
