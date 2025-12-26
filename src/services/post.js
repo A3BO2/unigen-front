@@ -161,3 +161,12 @@ export async function isPostLike(postId) {
     headers: getHeaders(),
   });
 }
+
+// 댓글 생성
+export async function createComment(postId, content) {
+  return await apifetch(`/comments`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ postId, content }),
+  });
+}

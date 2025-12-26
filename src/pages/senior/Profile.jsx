@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
-import { Heart, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import SeniorBottomNav from '../../components/senior/BottomNav';
 import { getUserSettings, getCurrentUser } from '../../services/user';
+import { logoutWithKakao } from '../../utils/kakaoAuth';
 
 const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
@@ -20,7 +20,7 @@ const getImageUrl = (url) => {
 };
 
 const Profile = () => {
-  const { user, isDarkMode } = useApp();
+  const { user, isDarkMode, logout } = useApp();
   const navigate = useNavigate();
   const [settings, setSettings] = useState({
     fontScale: 'large',
@@ -154,6 +154,18 @@ const Profile = () => {
     };
   }, [isLoadingPosts, hasMore, loadProfileData]);
 
+  // 로그아웃 핸들러
+  const handleLogout = () => {
+    if (confirm('로그아웃 하시겠습니까?')) {
+      // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
+      if (user?.signup_mode === 'kakao') {
+        logoutWithKakao();
+      }
+      logout();
+      navigate('/');
+    }
+  };
+
   return (
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
       <Container>
@@ -257,16 +269,10 @@ const Profile = () => {
                 <PostImage src={getImageUrl(post.image_url)} alt="게시물 사진" />
               )}
 
-              <PostActions>
-                <ActionButton>
-                  <Heart size={36} strokeWidth={3} fill="none" />
-                  <ActionText>{post.like_count || 0}</ActionText>
-                </ActionButton>
-                <ActionButton>
-                  <MessageCircle size={36} strokeWidth={3} />
-                  <ActionText>{post.comment_count || 0}</ActionText>
-                </ActionButton>
-              </PostActions>
+              <PostStats>
+                <StatText>좋아요 {post.like_count || 0}개</StatText>
+                <StatText>댓글 {post.comment_count || 0}개</StatText>
+              </PostStats>
             </Post>
           ))}
 
@@ -293,6 +299,12 @@ const Profile = () => {
             QR 코드 만들기
           </HelpButton>
         </HelpSection>
+
+        <LogoutSection>
+          <LogoutButton $fontSize={settings.fontScale} onClick={handleLogout}>
+            로그아웃
+          </LogoutButton>
+        </LogoutSection>
 
         <SeniorBottomNav />
       </Container>
@@ -501,44 +513,18 @@ const PostImage = styled.img`
   max-height: 500px;
 `;
 
-const PostActions = styled.div`
+const PostStats = styled.div`
   display: flex;
-  gap: 20px;
-  margin-top: 20px;
-`;
-
-const ActionButton = styled.button`
-  display: flex;
-  align-items: center;
   gap: 16px;
-  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
-  padding: 16px 20px;
-  border-radius: 12px;
-  min-height: 56px;
-  transition: all 0.2s;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-
-  &:active {
-    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
-    transform: scale(0.95);
-  }
-
-  svg {
-    transition: all 0.3s;
-  }
-
-  &:active svg {
-    transform: scale(1.2);
-  }
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
 `;
 
-const ActionText = styled.span`
-  font-size: calc(22px * var(--font-scale, 1));
-  font-weight: 700;
-  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
-  min-width: 36px;
+const StatText = styled.span`
+  font-size: calc(18px * var(--font-scale, 1));
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+  font-weight: 500;
 `;
 
 const HelpSection = styled.div`
@@ -640,6 +626,28 @@ const EndMessage = styled.div`
   padding: 20px;
   color: ${props => props.theme.$darkMode ? '#8e8e8e' : '#8e8e8e'};
   font-size: calc(16px * var(--font-scale, 1));
+`;
+
+const LogoutSection = styled.div`
+  margin: 0 24px 32px;
+`;
+
+const LogoutButton = styled.button`
+  width: 100%;
+  padding: 20px;
+  background: #ff4458;
+  color: white;
+  font-size: ${({ $fontSize }) =>
+    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+    background: #e63946;
+  }
 `;
 
 export default Profile;
