@@ -4,7 +4,7 @@ import styled, { ThemeProvider } from 'styled-components';
 import { Heart, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import SeniorBottomNav from '../../components/senior/BottomNav';
-import { getPostById } from '../../services/post';
+import { getPostById, likePost, unlikePost, createComment } from '../../services/post';
 // 상대 시간 포맷 함수
 const getRelativeTime = (dateString) => {
   if (!dateString) return '';
@@ -35,12 +35,14 @@ const getImageUrl = (url) => {
 const PostDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isDarkMode } = useApp();
+  const { isDarkMode, user } = useApp();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedComments, setExpandedComments] = useState(true);
   const [commentInput, setCommentInput] = useState('');
+  const [isLiking, setIsLiking] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   useEffect(() => {
     const loadPost = async () => {
@@ -62,32 +64,63 @@ const PostDetail = () => {
     }
   }, [id]);
 
-  const handleLike = () => {
-    if (post) {
+  const handleLike = async () => {
+    if (!post || isLiking) return;
+
+    const wasLiked = post.liked;
+    const previousLikes = post.likes;
+
+    // 낙관적 업데이트
+    setPost({
+      ...post,
+      liked: !wasLiked,
+      likes: wasLiked ? previousLikes - 1 : previousLikes + 1,
+    });
+    setIsLiking(true);
+
+    try {
+      if (wasLiked) {
+        await unlikePost(post.id);
+      } else {
+        await likePost(post.id);
+      }
+      // 성공 시 게시물 다시 로드하여 최신 상태 반영
+      const updatedPost = await getPostById(id);
+      setPost(updatedPost);
+    } catch (err) {
+      console.error('좋아요 처리 실패:', err);
+      // 실패 시 원래 상태로 복구
       setPost({
         ...post,
-        liked: !post.liked,
-        likes: post.liked ? post.likes - 1 : post.likes + 1,
+        liked: wasLiked,
+        likes: previousLikes,
       });
+      alert('좋아요 처리에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsLiking(false);
     }
   };
 
-  const handleCommentSubmit = () => {
-    if (!commentInput.trim() || !post) return;
+  const handleCommentSubmit = async () => {
+    if (!commentInput.trim() || !post || isSubmittingComment) return;
 
-    const newComment = {
-      id: Date.now(),
-      user: { name: '나', avatar: '😊' },
-      text: commentInput,
-      time: '방금 전',
-    };
+    setIsSubmittingComment(true);
+    const commentText = commentInput.trim();
 
-    setPost({
-      ...post,
-      comments: [...post.comments, newComment],
-    });
-
-    setCommentInput('');
+    try {
+      // 댓글 생성 API 호출
+      await createComment(post.id, commentText);
+      
+      // 성공 시 게시물 다시 로드하여 최신 댓글 반영
+      const updatedPost = await getPostById(id);
+      setPost(updatedPost);
+      setCommentInput('');
+    } catch (err) {
+      console.error('댓글 작성 실패:', err);
+      alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
   if (loading) {
@@ -152,7 +185,7 @@ const PostDetail = () => {
           {post.photo && <PostImage src={getImageUrl(post.photo)} alt="게시물 사진" />}
 
           <PostActions>
-            <ActionButton onClick={handleLike} $liked={post.liked}>
+            <ActionButton onClick={handleLike} $liked={post.liked} disabled={isLiking}>
               <Heart
                 size={36}
                 strokeWidth={3}
@@ -183,8 +216,11 @@ const PostDetail = () => {
                       }
                     }}
                   />
-                  <CommentSubmitButton onClick={handleCommentSubmit}>
-                    등록
+                  <CommentSubmitButton 
+                    onClick={handleCommentSubmit}
+                    disabled={isSubmittingComment || !commentInput.trim()}
+                  >
+                    {isSubmittingComment ? '등록 중...' : '등록'}
                   </CommentSubmitButton>
                 </CommentInputWrapper>
               </CommentInputSection>
@@ -386,16 +422,21 @@ const ActionButton = styled.button`
   background: transparent;
   cursor: pointer;
 
-  &:active {
+  &:active:not(:disabled) {
     background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
     transform: scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   svg {
     transition: all 0.3s;
   }
 
-  &:active svg {
+  &:active:not(:disabled) svg {
     transform: scale(1.2);
   }
 `;
@@ -470,10 +511,15 @@ const CommentSubmitButton = styled.button`
   transition: all 0.2s;
   cursor: pointer;
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.95);
     background: #1877f2;
     border-color: #1877f2;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
