@@ -1,47 +1,59 @@
-import axios from "axios";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL; // http://localhost:3000/api/v1
-
-export async function apifetch(url, options) {
-  const res = await fetch(`${baseURL}${url}`, {
-    ...options,
-    headers: {
-      "content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-  let data;
+async function apifetch(url, options) {
   try {
-    data = await res.json();
-  } catch (error) {
-    console.error(error);
-  }
-  
-  // 401 에러 (인증 실패) 처리
-  if (res.status === 401) {
-    // 토큰 제거
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("appMode");
+    const fullUrl = `${baseURL}${url}`;
+    console.log("API 요청:", fullUrl, options);
     
-    // 로그인 페이지로 리다이렉트 (현재 경로에 따라)
-    const currentPath = window.location.pathname;
-    if (currentPath.includes("/senior")) {
-      window.location.href = "/senior/login";
-    } else {
-      window.location.href = "/normal/login";
+    const res = await fetch(fullUrl, {
+      ...options,
+      headers: {
+        "content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (error) {
+      console.error("JSON 파싱 에러:", error);
+      data = null;
     }
     
-    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
-    throw new Error(message);
+    // 401 에러 (인증 실패) 처리
+    if (res.status === 401) {
+      // 토큰 제거
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("appMode");
+      
+      // 로그인 페이지로 리다이렉트 (현재 경로에 따라)
+      const currentPath = window.location.pathname;
+      if (currentPath.includes("/senior")) {
+        window.location.href = "/senior/login";
+      } else {
+        window.location.href = "/normal/login";
+      }
+      
+      const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+      throw new Error(message);
+    }
+    
+    if (res.status > 299 || res.status < 200) {
+      const message =
+        data && data.message ? data.message : "API 요청 중 에러가 발생했습니다.";
+      throw new Error(message);
+    }
+    return data;
+  } catch (error) {
+    // 네트워크 에러 처리
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      console.error("네트워크 에러:", error);
+      throw new Error("서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
+    }
+    throw error;
   }
-  
-  if (res.status > 299 || res.status < 200) {
-    const message =
-      data && data.message ? data.message : "API 요청 중 에러가 발생했습니다.";
-    throw new Error(message);
-  }
-  return data;
 }
 
 export function getHeaders() {

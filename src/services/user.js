@@ -157,6 +157,23 @@ export async function updateUserProfile(profile) {
     console.error("Failed to parse /users/me update response", error);
   }
 
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
+  }
+
   if (!response.ok) {
     const message = data?.message || "프로필 수정에 실패했습니다.";
     throw new Error(message);
@@ -165,38 +182,10 @@ export async function updateUserProfile(profile) {
   return data;
 }
 
-// 팔로우 상태 확인
-export async function isFollowing(followeeId) {
-  const response = await fetch(
-    `${baseURL}/users/isfollowing?followeeId=${followeeId}`,
-    {
-      method: "GET",
-      headers: getAuthHeaders(),
-    }
-  );
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch (error) {
-    console.error("Failed to parse is-following response", error);
-  }
-
-  if (!response.ok) {
-    const message = data?.message || "팔로우 상태 확인에 실패했습니다.";
-    throw new Error(message);
-  }
-
-  return data; // { isFollowing } 반환
-}
-
-// 팔로우 요청
-export async function followUser(followeeId) {
-  const response = await fetch(`${baseURL}/users/follow`, {
-    method: "POST",
+export async function getFollowers() {
+  const response = await fetch(`${baseURL}/users/me/followers`, {
+    method: "GET",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ followeeId: followeeId }),
   });
 
   let data;
@@ -204,11 +193,106 @@ export async function followUser(followeeId) {
   try {
     data = await response.json();
   } catch (error) {
-    console.error("Failed to parse follow response", error);
+    console.error("Failed to parse /users/me/followers response", error);
+  }
+
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
   }
 
   if (!response.ok) {
-    const message = data?.message || "팔로우 요청에 실패했습니다.";
+    const message = data?.message || "팔로워 목록 조회에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getFollowing() {
+  const response = await fetch(`${baseURL}/users/me/following`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse /users/me/following response", error);
+  }
+
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "팔로우 목록 조회에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function removeFollower(followerId) {
+  const response = await fetch(`${baseURL}/users/me/followers/${followerId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse removeFollower response", error);
+  }
+
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "팔로워 삭제에 실패했습니다.";
     throw new Error(message);
   }
 
@@ -217,10 +301,9 @@ export async function followUser(followeeId) {
 
 // 언팔로우 요청
 export async function unfollowUser(followeeId) {
-  const response = await fetch(`${baseURL}/users/unfollow`, {
-    method: "POST",
+  const response = await fetch(`${baseURL}/users/me/following/${followeeId}`, {
+    method: "DELETE",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ followeeId: followeeId }),
   });
 
   let data;
@@ -228,69 +311,30 @@ export async function unfollowUser(followeeId) {
   try {
     data = await response.json();
   } catch (error) {
-    console.error("Failed to parse unfollow response", error);
+    console.error("Failed to parse unfollowUser response", error);
   }
 
-  if (!response.ok) {
-    const message = data?.message || "언팔로우 요청에 실패했습니다.";
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-// 프로필 이미지 업로드
-export async function uploadProfileImage(file) {
-  const token = sessionStorage.getItem("token");
-  const formData = new FormData();
-  formData.append("image", file);
-
-  const response = await fetch(`${baseURL}/users/me/profile-image`, {
-    method: "POST",
-    headers: {
-      Authorization: token ? `Bearer ${token}` : "",
-    },
-    body: formData,
-  });
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch (error) {
-    console.error("Failed to parse profile image upload response", error);
-  }
-
-  if (!response.ok) {
-    const message = data?.message || "프로필 이미지 업로드에 실패했습니다.";
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-// 사용자 검색
-export async function searchUsers(query) {
-  const response = await fetch(
-    `${baseURL}/users/search?q=${encodeURIComponent(query)}`,
-    {
-      method: "GET",
-      headers: getAuthHeaders(),
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
     }
-  );
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch (error) {
-    console.error("Failed to parse search users response", error);
-  }
-
-  if (!response.ok) {
-    const message = data?.message || "사용자 검색에 실패했습니다.";
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
 
-  return data; // { users: [...] } 반환
+  if (!response.ok) {
+    const message = data?.message || "팔로우 취소에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
 }

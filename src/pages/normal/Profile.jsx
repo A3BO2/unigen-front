@@ -6,9 +6,10 @@ import { useNavigate } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import { getCurrentUser } from "../../services/user";
+import { getCurrentUser, getFollowers, getFollowing, removeFollower, unfollowUser } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
-import { getReel } from "../../services/post";
+import { getReel, getPostById } from "../../services/post";
+import { X, Heart, MessageCircle, Send, Search } from "lucide-react";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
 
@@ -39,6 +40,23 @@ const Profile = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const [containerWidth, setContainerWidth] = useState(1000);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isFollowListOpen, setIsFollowListOpen] = useState(false);
+  const [followListType, setFollowListType] = useState(null); // "followers" or "following"
+  const [followList, setFollowList] = useState([]);
+  const [filteredFollowList, setFilteredFollowList] = useState([]);
+  const [isLoadingFollowList, setIsLoadingFollowList] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [comments, setComments] = useState([]);
+  const [commentPage, setCommentPage] = useState(1);
+  const [hasMoreComments, setHasMoreComments] = useState(true);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [likedComments, setLikedComments] = useState(new Set());
+  const lastCommentRef = useRef(null);
+  const commentObserverRef = useRef(null);
   const observerRef = useRef();
   const lastPostRef = useRef();
   const lastReelRef = useRef();
@@ -312,6 +330,41 @@ const Profile = () => {
     };
   }, [activeTab, isLoadingReels, hasMoreReels, loadReelsData]);
 
+  // 댓글 무한스크롤 Intersection Observer 설정
+  useEffect(() => {
+    if (!isModalOpen || !hasMoreComments || isLoadingComments) {
+      return;
+    }
+
+    if (commentObserverRef.current) {
+      commentObserverRef.current.disconnect();
+    }
+
+    commentObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMoreComments && !isLoadingComments) {
+          loadMoreComments();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px",
+        threshold: 0.1,
+      }
+    );
+
+    if (lastCommentRef.current) {
+      commentObserverRef.current.observe(lastCommentRef.current);
+    }
+
+    return () => {
+      if (commentObserverRef.current) {
+        commentObserverRef.current.disconnect();
+      }
+    };
+  }, [isModalOpen, hasMoreComments, isLoadingComments, comments.length]);
+
   const handleLogout = () => {
     if (confirm("로그아웃 하시겠습니까?")) {
       // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
@@ -325,6 +378,221 @@ const Profile = () => {
 
   const handleSettingsToggle = () => {
     setIsMoreOpen(!isMoreOpen);
+  };
+
+  // 게시물 클릭 핸들러
+  const handlePostClick = async (postId) => {
+    try {
+      setSelectedPostId(postId);
+      setIsModalOpen(true);
+      setCommentPage(1);
+      setHasMoreComments(true);
+      const data = await getPostById(postId);
+      setSelectedPost(data);
+      // 초기 댓글 설정 (처음 10개만 표시)
+      if (data.comments && data.comments.length > 0) {
+        const initialComments = data.comments.slice(0, 10);
+        setComments(initialComments);
+        setHasMoreComments(data.comments.length > 10);
+      } else {
+        setComments([]);
+        setHasMoreComments(false);
+      }
+    } catch (err) {
+      console.error("게시물 로드 실패:", err);
+      setError(err.message || "게시물을 불러오는데 실패했습니다.");
+    }
+  };
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPost(null);
+    setSelectedPostId(null);
+    setCommentText("");
+    setComments([]);
+    setCommentPage(1);
+    setHasMoreComments(true);
+    setLikedComments(new Set());
+  };
+
+  // 팔로우/팔로워 목록 토글
+  const handleFollowClick = async (type) => {
+    console.log("팔로우/팔로워 클릭:", type);
+    console.log("현재 상태:", { isFollowListOpen, followListType });
+    
+    // 같은 타입을 클릭하면 닫기
+    if (isFollowListOpen && followListType === type) {
+      console.log("목록 닫기");
+      setIsFollowListOpen(false);
+      setFollowListType(null);
+      setFollowList([]);
+      return;
+    }
+    
+    // 다른 타입이거나 처음 열 때
+    console.log("목록 열기:", type);
+    setIsFollowListOpen(true);
+    setFollowListType(type);
+    setIsLoadingFollowList(true);
+    setFollowList([]);
+    
+    try {
+      let data;
+      if (type === "followers") {
+        console.log("팔로워 목록 가져오기");
+        data = await getFollowers();
+        console.log("팔로워 데이터:", data);
+        const followers = data.followers || [];
+        setFollowList(followers);
+        setFilteredFollowList(followers);
+      } else if (type === "following") {
+        console.log("팔로우 목록 가져오기");
+        data = await getFollowing();
+        console.log("팔로우 데이터:", data);
+        const following = data.following || [];
+        setFollowList(following);
+        setFilteredFollowList(following);
+      }
+    } catch (err) {
+      console.error("팔로우/팔로워 목록 로드 실패:", err);
+      setError(err.message || "목록을 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoadingFollowList(false);
+    }
+  };
+
+  // 팔로우/팔로워 모달 닫기
+  const handleCloseFollowModal = () => {
+    setIsFollowListOpen(false);
+    setFollowListType(null);
+    setFollowList([]);
+    setFilteredFollowList([]);
+    setSearchQuery("");
+    // body 스크롤 복원
+    document.body.style.overflow = "";
+  };
+
+  // 모달 열릴 때 body 스크롤 방지
+  useEffect(() => {
+    if (isFollowListOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFollowListOpen]);
+
+  // 검색 필터링
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredFollowList(followList);
+    } else {
+      const filtered = followList.filter((user) => {
+        const username = (user.username || "").toLowerCase();
+        const name = (user.name || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return username.includes(query) || name.includes(query);
+      });
+      setFilteredFollowList(filtered);
+    }
+  }, [searchQuery, followList]);
+
+  // 팔로우/팔로워 삭제 핸들러
+  const handleDeleteFollow = async (targetUserId) => {
+    if (!confirm("정말 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      if (followListType === "followers") {
+        // 팔로워 삭제 (나를 팔로우하는 사람 차단)
+        await removeFollower(targetUserId);
+      } else if (followListType === "following") {
+        // 팔로우 삭제 (내가 팔로우하는 사람 언팔로우)
+        await unfollowUser(targetUserId);
+      }
+
+      // 목록에서 제거
+      const updatedList = followList.filter((user) => user.id !== targetUserId);
+      setFollowList(updatedList);
+      setFilteredFollowList(updatedList.filter((user) => {
+        if (!searchQuery.trim()) return true;
+        const username = (user.username || "").toLowerCase();
+        const name = (user.name || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return username.includes(query) || name.includes(query);
+      }));
+
+      // 프로필 데이터 새로고침 (팔로워/팔로우 수 업데이트)
+      const profileData = await getCurrentUser(1, 9);
+      if (profileData?.profile) {
+        setProfileData(profileData.profile);
+      }
+    } catch (err) {
+      console.error("팔로우/팔로워 삭제 실패:", err);
+      alert(err.message || "삭제에 실패했습니다.");
+    }
+  };
+
+  // 댓글 하트 클릭 핸들러
+  const handleCommentHeartClick = (commentId) => {
+    const newLikedComments = new Set(likedComments);
+    
+    if (newLikedComments.has(commentId)) {
+      newLikedComments.delete(commentId);
+    } else {
+      newLikedComments.add(commentId);
+    }
+    
+    setLikedComments(newLikedComments);
+  };
+
+  // 댓글 더 로드
+  const loadMoreComments = () => {
+    if (!selectedPost || !hasMoreComments || isLoadingComments) return;
+    
+    setIsLoadingComments(true);
+    const nextPage = commentPage + 1;
+    const commentsPerPage = 10;
+    const startIndex = commentPage * commentsPerPage;
+    const endIndex = startIndex + commentsPerPage;
+    
+    if (selectedPost.comments && selectedPost.comments.length > startIndex) {
+      const newComments = selectedPost.comments.slice(startIndex, endIndex);
+      setComments((prev) => [...prev, ...newComments]);
+      setCommentPage(nextPage);
+      setHasMoreComments(selectedPost.comments.length > endIndex);
+    } else {
+      setHasMoreComments(false);
+    }
+    
+    setIsLoadingComments(false);
+  };
+
+  // 댓글 제출
+  const handleCommentSubmit = async () => {
+    if (!commentText.trim() || !selectedPostId) return;
+    
+    try {
+      // TODO: 댓글 작성 API 호출
+      // 댓글 작성 후 게시물 다시 로드
+      const data = await getPostById(selectedPostId);
+      setSelectedPost(data);
+      // 댓글 목록도 업데이트
+      if (data.comments && data.comments.length > 0) {
+        const initialComments = data.comments.slice(0, 10);
+        setComments(initialComments);
+        setHasMoreComments(data.comments.length > 10);
+        setCommentPage(1);
+      }
+      setCommentText("");
+    } catch (err) {
+      console.error("댓글 작성 실패:", err);
+    }
   };
 
   // 터치 시작
@@ -521,13 +789,27 @@ const Profile = () => {
                   </StatNumber>
                   <StatLabel $darkMode={isDarkMode}>게시물</StatLabel>
                 </Stat>
-                <Stat>
+                <Stat 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("팔로워 클릭됨");
+                    handleFollowClick("followers");
+                  }}
+                >
                   <StatNumber $darkMode={isDarkMode}>
                     {profileData?.follower_count || 0}
                   </StatNumber>
                   <StatLabel $darkMode={isDarkMode}>팔로워</StatLabel>
                 </Stat>
-                <Stat>
+                <Stat 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("팔로우 클릭됨");
+                    handleFollowClick("following");
+                  }}
+                >
                   <StatNumber $darkMode={isDarkMode}>
                     {profileData?.following_count || 0}
                   </StatNumber>
@@ -586,25 +868,35 @@ const Profile = () => {
                   </EmptyMessage>
                 )}
 
-                {posts.map((post, index) => (
-                  <GridItem
-                    key={post.id || index}
-                    ref={index === posts.length - 1 ? lastPostRef : null}
-                  >
-                    <PostImage
-                      style={{
-                        backgroundImage: post.image_url
-                          ? `url(${getImageUrl(post.image_url)})`
-                          : "none",
-                        backgroundColor: !post.image_url
-                          ? `hsl(${index * 40}, 70%, 80%)`
-                          : "transparent",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    />
-                  </GridItem>
-                ))}
+                {posts.map((post, index) => {
+                  // 게시물 피드에서는 post_type이 'feed'인 것만 표시하고, video_url이 있어도 VideoIndicator를 표시하지 않음
+                  if (post.post_type !== "feed") {
+                    console.warn("게시물 피드에 잘못된 항목:", post);
+                    return null;
+                  }
+                  
+                  return (
+                    <GridItem
+                      key={post.id || index}
+                      ref={index === posts.length - 1 ? lastPostRef : null}
+                      onClick={() => handlePostClick(post.id)}
+                    >
+                      <PostImage
+                        style={{
+                          backgroundImage: post.image_url
+                            ? `url(${getImageUrl(post.image_url)})`
+                            : "none",
+                          backgroundColor: !post.image_url
+                            ? `hsl(${index * 40}, 70%, 80%)`
+                            : "transparent",
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                      {/* 게시물 피드에서는 VideoIndicator를 절대 표시하지 않음 */}
+                    </GridItem>
+                  );
+                })}
               </PostGrid>
 
               {isLoading && activeTab === "feed" && (
@@ -669,6 +961,212 @@ const Profile = () => {
             </TabContent>
             </SlideContainer>
           </SwipeableContainer>
+
+          {/* 게시물 모달 */}
+          {isModalOpen && selectedPost && (
+            <ModalOverlay onClick={handleCloseModal} $darkMode={isDarkMode}>
+              <ModalContainer
+                onClick={(e) => e.stopPropagation()}
+                $darkMode={isDarkMode}
+              >
+                <CloseButton onClick={handleCloseModal} $darkMode={isDarkMode}>
+                  <X size={24} />
+                </CloseButton>
+
+                <ModalContent>
+                  {/* 왼쪽: 이미지 */}
+                  <ModalImageSection>
+                    {selectedPost.image_url ? (
+                      <ModalImage
+                        src={getImageUrl(selectedPost.image_url)}
+                        alt="게시물 이미지"
+                      />
+                    ) : (
+                      <NoImage $darkMode={isDarkMode}>이미지가 없습니다</NoImage>
+                    )}
+                  </ModalImageSection>
+
+                  {/* 오른쪽: 댓글 */}
+                  <ModalCommentSection $darkMode={isDarkMode}>
+                    {/* 헤더 (fixed) */}
+                    <ModalHeader $darkMode={isDarkMode}>
+                      <ModalUserInfo>
+                        {selectedPost.author?.profile_image ? (
+                          <ModalAvatar
+                            src={getImageUrl(selectedPost.author.profile_image)}
+                            alt={selectedPost.author?.name || "사용자"}
+                          />
+                        ) : (
+                          <ModalAvatarPlaceholder>👤</ModalAvatarPlaceholder>
+                        )}
+                        <ModalUsername $darkMode={isDarkMode}>
+                          {selectedPost.author?.name || selectedPost.author?.username || "알 수 없음"}
+                        </ModalUsername>
+                      </ModalUserInfo>
+                    </ModalHeader>
+
+                    {/* 댓글 목록 (무한스크롤) */}
+                    <CommentsContainer $darkMode={isDarkMode}>
+                      <CommentsListWrapper>
+                        {comments && comments.length > 0 ? (
+                          <ul>
+                            {comments.map((comment, index) => (
+                              <CommentListItem
+                                key={comment.id}
+                                ref={index === comments.length - 1 ? lastCommentRef : null}
+                                $darkMode={isDarkMode}
+                              >
+                                <CommentTextArea $darkMode={isDarkMode}>
+                                  <CommentUsername $darkMode={isDarkMode}>
+                                    {comment.author?.name || "알 수 없음"}
+                                  </CommentUsername>
+                                  <CommentText $darkMode={isDarkMode}>
+                                    {comment.content}
+                                  </CommentText>
+                                </CommentTextArea>
+                                <CommentHeart
+                                  $darkMode={isDarkMode}
+                                  $isLiked={likedComments.has(comment.id)}
+                                  onClick={() => handleCommentHeartClick(comment.id)}
+                                >
+                                  <Heart
+                                    size={12}
+                                    strokeWidth={1.5}
+                                    fill={likedComments.has(comment.id) ? "#ef4444" : "none"}
+                                    color={likedComments.has(comment.id) ? "#ef4444" : undefined}
+                                  />
+                                </CommentHeart>
+                              </CommentListItem>
+                            ))}
+                          </ul>
+                        ) : (
+                          <NoComments $darkMode={isDarkMode}>
+                            댓글이 없습니다.
+                          </NoComments>
+                        )}
+                        {isLoadingComments && (
+                          <LoadingComments $darkMode={isDarkMode}>
+                            댓글 불러오는 중...
+                          </LoadingComments>
+                        )}
+                      </CommentsListWrapper>
+                    </CommentsContainer>
+
+                    {/* 댓글 입력란 (fixed) */}
+                    <CommentInputWrapper $darkMode={isDarkMode}>
+                      {user?.profile_image ? (
+                        <CommentInputAvatar
+                          src={getImageUrl(user.profile_image)}
+                          alt="내 프로필"
+                        />
+                      ) : (
+                        <CommentInputAvatarPlaceholder>👤</CommentInputAvatarPlaceholder>
+                      )}
+                      <CommentInput
+                        type="text"
+                        placeholder="댓글 달기..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            handleCommentSubmit();
+                          }
+                        }}
+                        $darkMode={isDarkMode}
+                      />
+                      <CommentSubmitButton
+                        onClick={handleCommentSubmit}
+                        $darkMode={isDarkMode}
+                      >
+                        게시
+                      </CommentSubmitButton>
+                    </CommentInputWrapper>
+                  </ModalCommentSection>
+                </ModalContent>
+              </ModalContainer>
+            </ModalOverlay>
+          )}
+
+          {/* 팔로우/팔로워 모달 */}
+          {isFollowListOpen && (
+            <FollowModalOverlay onClick={handleCloseFollowModal} $darkMode={isDarkMode}>
+              <FollowModalContainer
+                onClick={(e) => e.stopPropagation()}
+                $darkMode={isDarkMode}
+              >
+                <FollowModalHeader $darkMode={isDarkMode}>
+                  <FollowModalTitle $darkMode={isDarkMode}>
+                    {followListType === "followers" ? "팔로워" : "팔로우"}
+                  </FollowModalTitle>
+                  <FollowModalCloseButton onClick={handleCloseFollowModal} $darkMode={isDarkMode}>
+                    <X size={20} />
+                  </FollowModalCloseButton>
+                </FollowModalHeader>
+
+                <FollowSearchBar $darkMode={isDarkMode}>
+                  <Search size={16} />
+                  <FollowSearchInput
+                    type="text"
+                    placeholder="검색"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    $darkMode={isDarkMode}
+                  />
+                </FollowSearchBar>
+
+                <FollowListContent $darkMode={isDarkMode}>
+                  {isLoadingFollowList ? (
+                    <LoadingContainer $darkMode={isDarkMode}>
+                      <Spinner />
+                      <LoadingMessage $darkMode={isDarkMode}>
+                        불러오는 중...
+                      </LoadingMessage>
+                    </LoadingContainer>
+                  ) : filteredFollowList.length > 0 ? (
+                    <FollowList>
+                      {filteredFollowList.map((user) => (
+                        <FollowListItem key={user.id} $darkMode={isDarkMode}>
+                          <FollowUserAvatar>
+                            {user.profile_image ? (
+                              <img
+                                src={getImageUrl(user.profile_image)}
+                                alt={user.name || user.username}
+                              />
+                            ) : (
+                              <AvatarPlaceholder>👤</AvatarPlaceholder>
+                            )}
+                          </FollowUserAvatar>
+                          <FollowUserInfo>
+                            <FollowUsername $darkMode={isDarkMode}>
+                              {user.username || "알 수 없음"}
+                            </FollowUsername>
+                            {user.name && (
+                              <FollowName $darkMode={isDarkMode}>
+                                {user.name}
+                              </FollowName>
+                            )}
+                          </FollowUserInfo>
+                          <FollowDeleteButton 
+                            $darkMode={isDarkMode}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFollow(user.id);
+                            }}
+                          >
+                            삭제
+                          </FollowDeleteButton>
+                        </FollowListItem>
+                      ))}
+                    </FollowList>
+                  ) : (
+                    <EmptyFollowList $darkMode={isDarkMode}>
+                      {searchQuery ? "검색 결과가 없습니다." : (followListType === "followers" ? "팔로워가 없습니다." : "팔로우한 사용자가 없습니다.")}
+                    </EmptyFollowList>
+                  )}
+                </FollowListContent>
+              </FollowModalContainer>
+            </FollowModalOverlay>
+          )}
         </MainContent>
       </Container>
     </>
@@ -905,6 +1403,8 @@ const Stat = styled.div`
   display: flex;
   gap: 4px;
   align-items: center;
+  cursor: pointer;
+  user-select: none;
 
   @media (max-width: 767px) {
     flex-direction: column;
@@ -1114,6 +1614,558 @@ const LoadingMessage = styled.div`
 const EndMessage = styled.div`
   text-align: center;
   padding: 20px;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 14px;
+`;
+
+// 모달 스타일
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContainer = styled.div`
+  width: 838.4px;
+  height: 576.05px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  z-index: 10;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+`;
+
+const ModalContent = styled.div`
+  display: flex;
+  width: 100%;
+  height: 100%;
+`;
+
+const ModalImageSection = styled.div`
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  overflow: hidden;
+`;
+
+const ModalImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+`;
+
+const ModalCommentSection = styled.div`
+  width: 50%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+`;
+
+const ModalHeader = styled.div`
+  position: sticky;
+  top: 0;
+  padding: 16px;
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+`;
+
+const CommentsContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  min-height: 0;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+    border-radius: 4px;
+  }
+`;
+
+const CommentsListWrapper = styled.div`
+  padding: 16px;
+  
+  ul {
+    list-style: none;
+    padding: 16px;
+    margin: 0;
+    width: 100%;
+    height: 313.85px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+`;
+
+const CommentListItem = styled.li`
+  width: 100%;
+  height: 43px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+  box-sizing: border-box;
+`;
+
+const CommentTextArea = styled.div`
+  flex: 1;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+`;
+
+const CommentUsername = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  flex-shrink: 0;
+`;
+
+const CommentText = styled.span`
+  font-size: 14px;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const CommentHeart = styled.button`
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: ${(props) => (props.$isLiked ? "#ef4444" : props.$darkMode ? "#fff" : "#262626")};
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  
+  &:hover {
+    opacity: 0.7;
+  }
+  
+  &:active {
+    transform: scale(1.2);
+  }
+  
+  svg {
+    transition: fill 0.3s ease, color 0.3s ease, transform 0.3s ease;
+    animation: ${(props) => (props.$isLiked ? "heartBeat 0.4s ease" : "none")};
+  }
+  
+  @keyframes heartBeat {
+    0% {
+      transform: scale(1);
+    }
+    25% {
+      transform: scale(1.4);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    75% {
+      transform: scale(1.3);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+`;
+
+const NoComments = styled.div`
+  text-align: center;
+  padding: 32px 0;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 14px;
+`;
+
+const CommentInputWrapper = styled.div`
+  position: sticky;
+  bottom: 0;
+  padding: 12px 16px;
+  border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+  flex-shrink: 0;
+`;
+
+const CommentInputAvatar = styled.img`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+`;
+
+const CommentInputAvatarPlaceholder = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+`;
+
+const CommentInput = styled.input`
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  font-size: 14px;
+  padding: 8px 0;
+
+  &::placeholder {
+    color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  }
+
+  &:focus {
+    outline: none;
+  }
+`;
+
+const CommentSubmitButton = styled.button`
+  background: transparent;
+  border: none;
+  color: ${(props) => (props.$darkMode ? "#0095f6" : "#0095f6")};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+
+  &:hover {
+    opacity: 0.7;
+  }
+`;
+
+const LoadingComments = styled.div`
+  text-align: center;
+  padding: 16px;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 14px;
+`;
+
+const NoImage = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  font-size: 16px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+`;
+
+const AvatarPlaceholder = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+`;
+
+// 모달용 작은 Avatar와 UserInfo
+const ModalUserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const ModalAvatar = styled.img`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+`;
+
+const ModalAvatarPlaceholder = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+`;
+
+const ModalUsername = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+`;
+
+// 팔로우/팔로워 모달 스타일
+const FollowModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const FollowModalContainer = styled.div`
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#fff")};
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const FollowModalHeader = styled.div`
+  padding: 20px 20px;
+  min-height: 60px;
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  flex-shrink: 0;
+`;
+
+const FollowModalCloseButton = styled.button`
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  z-index: 10;
+  transition: background 0.2s;
+  padding: 0;
+  
+  &:hover {
+    background: ${(props) => (props.$darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)")};
+  }
+`;
+
+const FollowModalTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  margin: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+`;
+
+const FollowSearchBar = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
+  flex-shrink: 0;
+  
+  svg {
+    color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+    flex-shrink: 0;
+  }
+`;
+
+const FollowSearchInput = styled.input`
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  font-size: 14px;
+  padding: 4px 0;
+  
+  &::placeholder {
+    color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  }
+  
+  &:focus {
+    outline: none;
+  }
+`;
+
+const FollowListContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#fff")};
+  min-height: 0;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${(props) => (props.$darkMode ? "#262626" : "#fff")};
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
+    border-radius: 4px;
+  }
+`;
+
+const FollowList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: block;
+`;
+
+const FollowListItem = styled.li`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+  
+  &:hover {
+    background: ${(props) => (props.$darkMode ? "#363636" : "#fafafa")};
+  }
+`;
+
+const FollowDeleteButton = styled.button`
+  background: ${(props) => (props.$darkMode ? "#363636" : "#f0f0f0")};
+  border: none;
+  border-radius: 4px;
+  padding: 6px 16px;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: ${(props) => (props.$darkMode ? "#4a4a4a" : "#e0e0e0")};
+  }
+`;
+
+const FollowUserAvatar = styled.div`
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+`;
+
+const FollowUserInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`;
+
+const FollowUsername = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  display: block;
+  line-height: 1.4;
+`;
+
+const FollowName = styled.span`
+  font-size: 14px;
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
+  display: block;
+  line-height: 1.4;
+`;
+
+const EmptyFollowList = styled.div`
+  text-align: center;
+  padding: 40px 20px;
   color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
   font-size: 14px;
 `;
