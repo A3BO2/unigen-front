@@ -41,7 +41,7 @@ export async function getCurrentUser(page = 1, limit = 9) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     // 로그인 페이지로 리다이렉트
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
@@ -49,13 +49,48 @@ export async function getCurrentUser(page = 1, limit = 9) {
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
 
   if (!response.ok) {
     const message = data?.message || "내 정보 조회에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// 다른 사용자 프로필 조회
+export async function getUserProfileById(userId, page = 1, limit = 9) {
+  const params = new URLSearchParams();
+  if (page) params.append("page", String(page));
+  if (limit) params.append("limit", String(limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  let response;
+  try {
+    response = await fetch(`${baseURL}/users/${userId}${query}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+  } catch (error) {
+    console.error("Network error:", error);
+    throw new Error("서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.");
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse /users/:id response", error);
+    throw new Error("서버 응답을 처리할 수 없습니다.");
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "사용자 정보 조회에 실패했습니다.";
     throw new Error(message);
   }
 
@@ -81,14 +116,14 @@ export async function getUserSettings() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -121,14 +156,14 @@ export async function updateUserSettings(settings) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -162,14 +197,14 @@ export async function updateUserProfile(profile) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -201,14 +236,14 @@ export async function getFollowers() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -240,14 +275,14 @@ export async function getFollowing() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -280,14 +315,14 @@ export async function followUser(followeeId) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -319,14 +354,14 @@ export async function removeFollower(followerId) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -345,7 +380,7 @@ export async function uploadProfileImage(file) {
   formData.append("image", file);
 
   const token = sessionStorage.getItem("token");
-  
+
   const response = await fetch(`${baseURL}/users/me/profile-image`, {
     method: "POST",
     headers: {
@@ -368,14 +403,14 @@ export async function uploadProfileImage(file) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -412,14 +447,14 @@ export async function isFollowing(followeeId) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -438,7 +473,9 @@ export async function searchUsers(query) {
   if (query) params.append("q", String(query));
   const searchQuery = params.toString() ? `?${params.toString()}` : "";
 
-  const response = await fetch(`${baseURL}/users/search${searchQuery}`, {
+  const url = `${baseURL}/users/search${searchQuery}`;
+
+  const response = await fetch(url, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -449,6 +486,7 @@ export async function searchUsers(query) {
     data = await response.json();
   } catch (error) {
     console.error("Failed to parse searchUsers response", error);
+    throw error;
   }
 
   // 401 에러 (인증 실패) 처리
@@ -456,14 +494,14 @@ export async function searchUsers(query) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
@@ -496,14 +534,14 @@ export async function unfollowUser(followeeId) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("appMode");
-    
+
     const currentPath = window.location.pathname;
     if (currentPath.includes("/senior")) {
       window.location.href = "/senior/login";
     } else {
       window.location.href = "/normal/login";
     }
-    
+
     const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
     throw new Error(message);
   }
