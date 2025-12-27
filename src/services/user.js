@@ -1,4 +1,5 @@
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem("token");
@@ -213,4 +214,30 @@ export async function uploadProfileImage(file) {
   }
 
   return data;
+}
+
+// 사용자 검색
+export async function searchUsers(query) {
+  const response = await fetch(
+    `${baseURL}/users/search?q=${encodeURIComponent(query)}`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse search users response", error);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "사용자 검색에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data; // { users: [...] } 반환
 }

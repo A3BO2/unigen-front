@@ -11,7 +11,6 @@ import EmailVerification from "./pages/onboarding/EmailVerification";
 
 // Normal Mode
 import NormalHome from "./pages/normal/Home";
-import NormalSearch from "./pages/normal/Search";
 import NormalExplore from "./pages/normal/Explore";
 import NormalReels from "./pages/normal/Reels";
 import NormalUpload from "./pages/normal/Upload";
@@ -93,14 +92,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredMode="normal">
               <NormalHome />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/normal/search"
-          element={
-            <ProtectedRoute requiredMode="normal">
-              <NormalSearch />
             </ProtectedRoute>
           }
         />
