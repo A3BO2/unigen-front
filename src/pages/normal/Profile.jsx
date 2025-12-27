@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { Settings, Moon, Sun, MoreHorizontal } from "lucide-react";
 import { useApp } from "../../context/AppContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
-import { getCurrentUser, getFollowers, getFollowing, removeFollower, unfollowUser, isFollowing, followUser } from "../../services/user";
+import { getCurrentUser, getUserProfileById, getFollowers, getFollowing, removeFollower, unfollowUser, isFollowing, followUser } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
 import { getReel, getPostById, likePost, unlikePost, isPostLike, deletePost } from "../../services/post";
 import { fetchComments, createComment, deleteComment } from "../../services/comment";
@@ -29,6 +29,8 @@ const getImageUrl = (url) => {
 const Profile = () => {
   const { user, logout, isDarkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
+  const { userId } = useParams(); // URL 파라미터에서 userId 가져오기
+  const targetUserId = userId ? parseInt(userId, 10) : null; // 내 프로필인지 다른 사용자 프로필인지 구분
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -88,7 +90,10 @@ const Profile = () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-      const data = await getCurrentUser(pageNum, 9);
+      // URL 파라미터에 userId가 있으면 다른 사용자 프로필, 없으면 내 프로필
+      const data = targetUserId 
+        ? await getUserProfileById(targetUserId, pageNum, 9)
+        : await getCurrentUser(pageNum, 9);
 
       // 백엔드 응답 형식: { profile, posts, pagination }
       if (data?.profile) {
@@ -135,7 +140,10 @@ const Profile = () => {
       isLoadingRef.current = false;
       setIsLoading(false);
     }
-  }, []);
+  }, [targetUserId]);
+
+  // 내 프로필인지 확인
+  const isMyProfile = !targetUserId || (profileData && user?.id === profileData.id);
 
   // 모든 릴스 데이터 한번에 로드
   const loadAllReels = useCallback(async () => {
@@ -154,7 +162,9 @@ const Profile = () => {
 
       // 모든 페이지를 순차적으로 로드
       while (hasMore) {
-        const data = await getCurrentUser(currentPage, 9);
+        const data = targetUserId
+          ? await getUserProfileById(targetUserId, currentPage, 9)
+          : await getCurrentUser(currentPage, 9);
 
         if (data?.posts) {
           // post_type이 'reel'인 것만 필터링
@@ -184,7 +194,7 @@ const Profile = () => {
       isLoadingReelsRef.current = false;
       setIsLoadingReels(false);
     }
-  }, []);
+  }, [targetUserId]);
 
   // 릴스 데이터 로드 (getCurrentUser에서 가져온 데이터 활용) - 무한 스크롤용
   const loadReelsData = useCallback(async (pageNum) => {
@@ -202,7 +212,9 @@ const Profile = () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-      const data = await getCurrentUser(pageNum, 9);
+      const data = targetUserId
+        ? await getUserProfileById(targetUserId, pageNum, 9)
+        : await getCurrentUser(pageNum, 9);
 
       if (data?.posts) {
         // post_type이 'reel'인 것만 필터링
@@ -231,7 +243,34 @@ const Profile = () => {
       isLoadingReelsRef.current = false;
       setIsLoadingReels(false);
     }
-  }, []);
+  }, [targetUserId]);
+
+  // 프로필 페이지에서 팔로우 상태 확인 (다른 사람 프로필일 때만)
+  useEffect(() => {
+    const checkProfileFollowStatus = async () => {
+      if (targetUserId && profileData && user?.id !== profileData.id) {
+        setFollowStatusLoading(true);
+        try {
+          const response = await isFollowing(targetUserId);
+          setIsFollowingUser(response.isFollowing);
+          setIsMine(false);
+        } catch (error) {
+          console.error("팔로우 상태 확인 실패:", error);
+          setIsFollowingUser(false);
+          setIsMine(false);
+        } finally {
+          setFollowStatusLoading(false);
+        }
+      } else if (!targetUserId || (profileData && user?.id === profileData.id)) {
+        setIsMine(true);
+        setIsFollowingUser(false);
+      }
+    };
+    
+    if (profileData) {
+      checkProfileFollowStatus();
+    }
+  }, [targetUserId, profileData, user?.id]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -796,67 +835,106 @@ const Profile = () => {
                   {profileData?.name || "사용자명"}
                 </Username>
                 <ActionButtons>
-                  <EditButton
-                    onClick={() => navigate("/normal/profile/edit")}
-                    $darkMode={isDarkMode}
-                  >
-                    프로필 편집
-                  </EditButton>
-                  <SettingsButtonWrapper>
-                    <SettingsButton
-                      onClick={handleSettingsToggle}
-                      $darkMode={isDarkMode}
-                    >
-                      <Settings
-                        size={24}
-                        color={isDarkMode ? "#fff" : "#262626"}
-                      />
-                    </SettingsButton>
-                    {isMoreOpen && (
-                      <SettingsMenu $darkMode={isDarkMode}>
-                        <SettingsMenuItem
-                          onClick={() => {
-                            navigate("/normal/settings");
-                            setIsMoreOpen(false);
-                          }}
+                  {isMyProfile ? (
+                    <>
+                      <EditButton
+                        onClick={() => navigate("/normal/profile/edit")}
+                        $darkMode={isDarkMode}
+                      >
+                        프로필 편집
+                      </EditButton>
+                      <SettingsButtonWrapper>
+                        <SettingsButton
+                          onClick={handleSettingsToggle}
                           $darkMode={isDarkMode}
                         >
                           <Settings
-                            size={20}
+                            size={24}
                             color={isDarkMode ? "#fff" : "#262626"}
                           />
-                          <MenuLabel $darkMode={isDarkMode}>설정</MenuLabel>
-                        </SettingsMenuItem>
+                        </SettingsButton>
+                        {isMoreOpen && (
+                          <SettingsMenu $darkMode={isDarkMode}>
+                            <SettingsMenuItem
+                              onClick={() => {
+                                navigate("/normal/settings");
+                                setIsMoreOpen(false);
+                              }}
+                              $darkMode={isDarkMode}
+                            >
+                              <Settings
+                                size={20}
+                                color={isDarkMode ? "#fff" : "#262626"}
+                              />
+                              <MenuLabel $darkMode={isDarkMode}>설정</MenuLabel>
+                            </SettingsMenuItem>
 
-                        <SettingsMenuItem
-                          onClick={() => {
-                            toggleDarkMode();
-                            setIsMoreOpen(false);
-                          }}
-                          $darkMode={isDarkMode}
-                        >
-                          {isDarkMode ? (
-                            <Moon size={20} color="#fff" />
-                          ) : (
-                            <Sun size={20} color="#262626" />
-                          )}
-                          <MenuLabel $darkMode={isDarkMode}>
-                            모드 전환
-                          </MenuLabel>
-                        </SettingsMenuItem>
+                            <SettingsMenuItem
+                              onClick={() => {
+                                toggleDarkMode();
+                                setIsMoreOpen(false);
+                              }}
+                              $darkMode={isDarkMode}
+                            >
+                              {isDarkMode ? (
+                                <Moon size={20} color="#fff" />
+                              ) : (
+                                <Sun size={20} color="#262626" />
+                              )}
+                              <MenuLabel $darkMode={isDarkMode}>
+                                모드 전환
+                              </MenuLabel>
+                            </SettingsMenuItem>
 
-                        <SettingsMenuItem
-                          onClick={() => {
-                            handleLogout();
-                            setIsMoreOpen(false);
-                          }}
-                          $darkMode={isDarkMode}
-                        >
-                          <MenuLabel $darkMode={isDarkMode}>로그아웃</MenuLabel>
-                        </SettingsMenuItem>
-                      </SettingsMenu>
-                    )}
-                  </SettingsButtonWrapper>
+                            <SettingsMenuItem
+                              onClick={() => {
+                                handleLogout();
+                                setIsMoreOpen(false);
+                              }}
+                              $darkMode={isDarkMode}
+                            >
+                              <MenuLabel $darkMode={isDarkMode}>로그아웃</MenuLabel>
+                            </SettingsMenuItem>
+                          </SettingsMenu>
+                        )}
+                      </SettingsButtonWrapper>
+                    </>
+                  ) : (
+                    <FollowButton
+                      onClick={async () => {
+                        if (!targetUserId || followLoading) return;
+                        setFollowLoading(true);
+                        try {
+                          if (isFollowingUser) {
+                            await unfollowUser(targetUserId);
+                            setIsFollowingUser(false);
+                          } else {
+                            await followUser(targetUserId);
+                            setIsFollowingUser(true);
+                          }
+                          // 프로필 데이터 새로고침 (팔로워 수 업데이트)
+                          const data = await getUserProfileById(targetUserId, 1, 9);
+                          if (data?.profile) {
+                            setProfileData(data.profile);
+                          }
+                        } catch (error) {
+                          console.error("팔로우/언팔로우 실패:", error);
+                          alert("팔로우 처리에 실패했습니다.");
+                        } finally {
+                          setFollowLoading(false);
+                        }
+                      }}
+                      $isFollowing={isFollowingUser}
+                      disabled={followLoading || followStatusLoading}
+                      $darkMode={isDarkMode}
+                    >
+                      {followLoading || followStatusLoading
+                        ? "..."
+                        : isFollowingUser
+                        ? "팔로잉"
+                        : "팔로우"}
+                    </FollowButton>
+                  )}
                 </ActionButtons>
               </TopRow>
 
@@ -869,11 +947,13 @@ const Profile = () => {
                 </Stat>
                 <Stat 
                   onClick={(e) => {
+                    if (!isMyProfile) return; // 내 프로필일 때만 클릭 가능
                     e.preventDefault();
                     e.stopPropagation();
                     console.log("팔로워 클릭됨");
                     handleFollowClick("followers");
                   }}
+                  style={{ cursor: isMyProfile ? "pointer" : "default" }}
                 >
                   <StatNumber $darkMode={isDarkMode}>
                     {profileData?.follower_count || 0}
@@ -882,11 +962,13 @@ const Profile = () => {
                 </Stat>
                 <Stat 
                   onClick={(e) => {
+                    if (!isMyProfile) return; // 내 프로필일 때만 클릭 가능
                     e.preventDefault();
                     e.stopPropagation();
                     console.log("팔로우 클릭됨");
                     handleFollowClick("following");
                   }}
+                  style={{ cursor: isMyProfile ? "pointer" : "default" }}
                 >
                   <StatNumber $darkMode={isDarkMode}>
                     {profileData?.following_count || 0}
@@ -1893,7 +1975,6 @@ const ModalUsernameText = styled.span`
 `;
 
 const FollowButton = styled.button`
-  margin-left: 36px;
   padding: 7px 16px;
   font-size: 14px;
   font-weight: 600;
@@ -1902,11 +1983,26 @@ const FollowButton = styled.button`
   transition: all 0.2s;
   border: none;
 
-  background: ${(props) => (props.$isFollowing ? "#efefef" : "#0095f6")};
-  color: ${(props) => (props.$isFollowing ? "#262626" : "#fff")};
+  background: ${(props) => 
+    props.$isFollowing 
+      ? "transparent" 
+      : "#0095f6"};
+  color: ${(props) => 
+    props.$isFollowing 
+      ? (props.$darkMode ? "#fff" : "#262626")
+      : "#fff"};
+  border: ${(props) =>
+    props.$isFollowing 
+      ? `1px solid ${props.$darkMode ? "#404040" : "#dbdbdb"}` 
+      : "none"};
 
   &:hover {
-    background: ${(props) => (props.$isFollowing ? "#dbdbdb" : "#1877f2")};
+    background: ${(props) =>
+      props.$isFollowing
+        ? props.$darkMode
+          ? "#262626"
+          : "#efefef"
+        : "#1877f2"};
   }
 
   &:disabled {

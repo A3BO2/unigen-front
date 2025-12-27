@@ -137,6 +137,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/normal/profile/:userId"
+          element={
+            <ProtectedRoute requiredMode="normal">
+              <NormalProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/normal/profile/edit"
           element={
             <ProtectedRoute requiredMode="normal">
