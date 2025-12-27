@@ -19,6 +19,7 @@ const LeftSidebar = () => {
 
   const menuItems = [
     { icon: Home, label: '홈', path: '/normal/home', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/home'); } },
+    { icon: Search, label: '검색', path: '/normal/search', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/search'); } },
     { icon: Compass, label: '탐색 탭', path: '/normal/explore', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/explore'); } },
     { icon: Film, label: '릴스', path: '/normal/reels', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/reels'); } },
     { icon: PlusSquare, label: '만들기', path: '/normal/upload', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/upload'); } },
