@@ -8,6 +8,7 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { getCurrentUser } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
+import { getReel } from "../../services/post";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
 
@@ -28,15 +29,30 @@ const Profile = () => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [reels, setReels] = useState([]);
+  const [activeTab, setActiveTab] = useState("feed"); // "feed" or "reels"
   const [hasMore, setHasMore] = useState(true);
+  const [hasMoreReels, setHasMoreReels] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingReels, setIsLoadingReels] = useState(false);
   const [error, setError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(1000);
   const observerRef = useRef();
   const lastPostRef = useRef();
+  const lastReelRef = useRef();
   const isLoadingRef = useRef(false);
+  const isLoadingReelsRef = useRef(false);
   const pageRef = useRef(1);
+  const reelPageRef = useRef(1);
+  const slideContainerRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const dragStartX = useRef(0);
+  const dragOffsetRef = useRef(0);
 
-  // 프로필 데이터 로드
+  // 프로필 데이터 로드 (피드)
   const loadProfileData = useCallback(async (pageNum) => {
     if (isLoadingRef.current) {
       return;
@@ -60,10 +76,13 @@ const Profile = () => {
       }
 
       if (data?.posts) {
+        // post_type이 'feed'인 것만 필터링
+        const feedPosts = data.posts.filter((post) => post.post_type === "feed");
+        
         if (pageNum === 1) {
-          setPosts(data.posts);
+          setPosts(feedPosts);
         } else {
-          setPosts((prev) => [...prev, ...data.posts]);
+          setPosts((prev) => [...prev, ...feedPosts]);
         }
 
         // pagination 정보로 hasMore 결정
@@ -71,7 +90,7 @@ const Profile = () => {
           setHasMore(data.pagination.has_next);
         } else {
           // pagination 정보가 없으면 posts 길이로 판단
-          setHasMore(data.posts.length >= 9);
+          setHasMore(feedPosts.length >= 9);
         }
       } else {
         setHasMore(false);
@@ -86,14 +105,81 @@ const Profile = () => {
     }
   }, []);
 
+  // 릴스 데이터 로드 (getCurrentUser에서 가져온 데이터 활용)
+  const loadReelsData = useCallback(async (pageNum) => {
+    if (isLoadingReelsRef.current) {
+      return;
+    }
+
+    isLoadingReelsRef.current = true;
+    setIsLoadingReels(true);
+    setError(null);
+
+    try {
+      // 페이지 2부터만 1초 딜레이 추가
+      if (pageNum > 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      const data = await getCurrentUser(pageNum, 9);
+
+      if (data?.posts) {
+        // post_type이 'reel'인 것만 필터링
+        const reelPosts = data.posts.filter((post) => post.post_type === "reel");
+        
+        if (pageNum === 1) {
+          setReels(reelPosts);
+        } else {
+          setReels((prev) => [...prev, ...reelPosts]);
+        }
+
+        // pagination 정보로 hasMoreReels 결정
+        if (data.pagination) {
+          setHasMoreReels(data.pagination.has_next);
+        } else {
+          setHasMoreReels(reelPosts.length >= 9);
+        }
+      } else {
+        setHasMoreReels(false);
+      }
+    } catch (err) {
+      console.error("릴스 로드 실패:", err);
+      setError(err.message || "릴스를 불러오는데 실패했습니다.");
+      setHasMoreReels(false);
+    } finally {
+      isLoadingReelsRef.current = false;
+      setIsLoadingReels(false);
+    }
+  }, []);
+
   // 초기 데이터 로드
   useEffect(() => {
     loadProfileData(1);
   }, [loadProfileData]);
 
-  // 무한 스크롤 Intersection Observer 설정
+  // 컨테이너 너비 계산
   useEffect(() => {
-    if (isLoading || !hasMore) {
+    const updateWidth = () => {
+      if (slideContainerRef.current) {
+        setContainerWidth(slideContainerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  // 릴스 초기 로드
+  useEffect(() => {
+    if (activeTab === "reels" && reels.length === 0 && !isLoadingReels) {
+      loadReelsData(1);
+    }
+  }, [activeTab, reels.length, isLoadingReels, loadReelsData]);
+
+  // 무한 스크롤 Intersection Observer 설정 (피드)
+  useEffect(() => {
+    if (activeTab !== "feed" || isLoading || !hasMore) {
       return;
     }
 
@@ -126,7 +212,44 @@ const Profile = () => {
         observerRef.current.disconnect();
       }
     };
-  }, [isLoading, hasMore, loadProfileData]);
+  }, [activeTab, isLoading, hasMore, loadProfileData]);
+
+  // 무한 스크롤 Intersection Observer 설정 (릴스)
+  useEffect(() => {
+    if (activeTab !== "reels" || isLoadingReels || !hasMoreReels) {
+      return;
+    }
+
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (entry.isIntersecting && hasMoreReels && !isLoadingReelsRef.current) {
+          reelPageRef.current = reelPageRef.current + 1;
+          loadReelsData(reelPageRef.current);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px",
+        threshold: 0.1,
+      }
+    );
+
+    if (lastReelRef.current) {
+      observerRef.current.observe(lastReelRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [activeTab, isLoadingReels, hasMoreReels, loadReelsData]);
 
   const handleLogout = () => {
     if (confirm("로그아웃 하시겠습니까?")) {
@@ -142,6 +265,98 @@ const Profile = () => {
   const handleSettingsToggle = () => {
     setIsMoreOpen(!isMoreOpen);
   };
+
+  // 터치 시작
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    dragStartX.current = touch.clientX;
+    setIsDragging(true);
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+  };
+
+  // 터치 이동
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const currentX = touch.clientX;
+    const diff = currentX - dragStartX.current;
+    dragOffsetRef.current = diff;
+    setDragOffset(diff);
+  };
+
+  // 터치 종료
+  const handleTouchEnd = (e) => {
+    if (!isDragging) return;
+    const touch = e.changedTouches[0];
+    touchEndX.current = touch.clientX;
+    setIsDragging(false);
+    
+    const swipeDistance = touchEndX.current - touchStartX.current;
+    const minSwipeDistance = 80; // 최소 스와이프 거리
+
+    if (Math.abs(swipeDistance) > minSwipeDistance) {
+      if (swipeDistance > 0 && activeTab === "reels") {
+        // 오른쪽으로 스와이프 -> 피드로
+        setActiveTab("feed");
+      } else if (swipeDistance < 0 && activeTab === "feed") {
+        // 왼쪽으로 스와이프 -> 릴스로
+        setActiveTab("reels");
+      }
+    }
+    
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+  };
+
+  // 마우스 드래그 시작
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragStartX.current = e.clientX;
+    setIsDragging(true);
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+  };
+
+  // 마우스 드래그 이동 및 종료 (전역 이벤트)
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const diff = e.clientX - dragStartX.current;
+      dragOffsetRef.current = diff;
+      setDragOffset(diff);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      
+      const swipeDistance = dragOffsetRef.current;
+      const minSwipeDistance = 80;
+
+      if (Math.abs(swipeDistance) > minSwipeDistance) {
+        if (swipeDistance > 0 && activeTab === "reels") {
+          setActiveTab("feed");
+        } else if (swipeDistance < 0 && activeTab === "feed") {
+          setActiveTab("reels");
+        }
+      }
+      
+      dragOffsetRef.current = 0;
+      setDragOffset(0);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, activeTab]);
 
   return (
     <>
@@ -263,50 +478,136 @@ const Profile = () => {
 
           <Divider $darkMode={isDarkMode} />
 
+          {/* 탭 버튼 */}
+          <TabContainer $darkMode={isDarkMode}>
+            <TabButton
+              $active={activeTab === "feed"}
+              onClick={() => setActiveTab("feed")}
+              $darkMode={isDarkMode}
+            >
+              게시물
+            </TabButton>
+            <TabButton
+              $active={activeTab === "reels"}
+              onClick={() => setActiveTab("reels")}
+              $darkMode={isDarkMode}
+            >
+              릴스
+            </TabButton>
+          </TabContainer>
+
           {error && <ErrorMessage $darkMode={isDarkMode}>{error}</ErrorMessage>}
 
-          <PostGrid>
-            {posts.length === 0 && !isLoading && (
-              <EmptyMessage $darkMode={isDarkMode}>
-                게시물이 없습니다.
-              </EmptyMessage>
-            )}
+          {/* 슬라이드 컨테이너 */}
+          <SwipeableContainer
+            ref={slideContainerRef}
+            $activeTab={activeTab}
+            $isDragging={isDragging}
+            $dragOffset={dragOffset}
+            $containerWidth={containerWidth}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+          >
+            <SlideContainer
+              $activeTab={activeTab}
+              $isDragging={isDragging}
+              $dragOffset={dragOffset}
+              $containerWidth={containerWidth}
+            >
+            {/* 피드 탭 */}
+            <TabContent>
+              <PostGrid>
+                {posts.length === 0 && !isLoading && (
+                  <EmptyMessage $darkMode={isDarkMode}>
+                    게시물이 없습니다.
+                  </EmptyMessage>
+                )}
 
-            {posts.map((post, index) => (
-              <GridItem
-                key={post.id || index}
-                ref={index === posts.length - 1 ? lastPostRef : null}
-              >
-                <PostImage
-                  style={{
-                    backgroundImage: post.image_url
-                      ? `url(${getImageUrl(post.image_url)})`
-                      : "none",
-                    backgroundColor: !post.image_url
-                      ? `hsl(${index * 40}, 70%, 80%)`
-                      : "transparent",
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
-              </GridItem>
-            ))}
-          </PostGrid>
+                {posts.map((post, index) => (
+                  <GridItem
+                    key={post.id || index}
+                    ref={index === posts.length - 1 ? lastPostRef : null}
+                  >
+                    <PostImage
+                      style={{
+                        backgroundImage: post.image_url
+                          ? `url(${getImageUrl(post.image_url)})`
+                          : "none",
+                        backgroundColor: !post.image_url
+                          ? `hsl(${index * 40}, 70%, 80%)`
+                          : "transparent",
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  </GridItem>
+                ))}
+              </PostGrid>
 
-          {isLoading && (
-            <LoadingContainer $darkMode={isDarkMode}>
-              <Spinner />
-              <LoadingMessage $darkMode={isDarkMode}>
-                불러오는 중...
-              </LoadingMessage>
-            </LoadingContainer>
-          )}
+              {isLoading && activeTab === "feed" && (
+                <LoadingContainer $darkMode={isDarkMode}>
+                  <Spinner />
+                  <LoadingMessage $darkMode={isDarkMode}>
+                    불러오는 중...
+                  </LoadingMessage>
+                </LoadingContainer>
+              )}
 
-          {!hasMore && posts.length > 0 && (
-            <EndMessage $darkMode={isDarkMode}>
-              모든 게시물을 불러왔습니다.
-            </EndMessage>
-          )}
+              {!hasMore && posts.length > 0 && activeTab === "feed" && (
+                <EndMessage $darkMode={isDarkMode}>
+                  모든 게시물을 불러왔습니다.
+                </EndMessage>
+              )}
+            </TabContent>
+
+            {/* 릴스 탭 */}
+            <TabContent>
+              {reels.length > 0 ? (
+                <PostGrid>
+                  {reels.map((reel, index) => (
+                    <GridItem
+                      key={reel.id || index}
+                      ref={index === reels.length - 1 ? lastReelRef : null}
+                    >
+                      <PostImage
+                        style={{
+                          backgroundImage: reel.image_url
+                            ? `url(${getImageUrl(reel.image_url)})`
+                            : "none",
+                          backgroundColor: !reel.image_url
+                            ? `hsl(${index * 40}, 70%, 80%)`
+                            : "transparent",
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                      {reel.video_url && (
+                        <VideoIndicator $darkMode={isDarkMode}>▶</VideoIndicator>
+                      )}
+                    </GridItem>
+                  ))}
+                </PostGrid>
+              ) : null}
+
+              {isLoadingReels && activeTab === "reels" && (
+                <LoadingContainer $darkMode={isDarkMode}>
+                  <Spinner />
+                  <LoadingMessage $darkMode={isDarkMode}>
+                    불러오는 중...
+                  </LoadingMessage>
+                </LoadingContainer>
+              )}
+
+              {!hasMoreReels && reels.length > 0 && activeTab === "reels" && (
+                <EndMessage $darkMode={isDarkMode}>
+                  모든 릴스를 불러왔습니다.
+                </EndMessage>
+              )}
+            </TabContent>
+            </SlideContainer>
+          </SwipeableContainer>
         </MainContent>
       </Container>
     </>
@@ -566,6 +867,119 @@ const Divider = styled.div`
   height: 1px;
   background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   margin-bottom: 0;
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 120px;
+  margin-top: 0;
+  border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  position: relative;
+`;
+
+const TabButton = styled.button`
+  padding: 16px 24px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: ${(props) => (props.$active ? "600" : "500")};
+  color: ${(props) =>
+    props.$active
+      ? props.$darkMode
+        ? "#fff"
+        : "#262626"
+      : props.$darkMode
+      ? "#8e8e8e"
+      : "#8e8e8e"};
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  margin-top: -1px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: ${(props) => (props.$active ? "100%" : "0%")};
+    height: 2px;
+    background: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+    transition: width 0.3s ease-in-out;
+    border-radius: 2px 2px 0 0;
+  }
+
+  &:hover {
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+    background: ${(props) =>
+      props.$darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)"};
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  @media (max-width: 767px) {
+    gap: 80px;
+    padding: 14px 20px;
+    font-size: 13px;
+  }
+`;
+
+const SwipeableContainer = styled.div`
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  cursor: ${(props) => (props.$isDragging ? "grabbing" : "grab")};
+  user-select: none;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+`;
+
+const SlideContainer = styled.div`
+  position: relative;
+  width: 100%;
+  display: flex;
+  transition: ${(props) =>
+    props.$isDragging ? "none" : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"};
+  transform: ${(props) => {
+    const baseTranslate = props.$activeTab === "feed" ? 0 : -100;
+    
+    if (props.$isDragging && Math.abs(props.$dragOffset) > 0) {
+      // 드래그 중일 때는 실시간으로 오프셋 적용
+      const dragPercent = (props.$dragOffset / props.$containerWidth) * 100;
+      const newTranslate = baseTranslate + dragPercent;
+      // 최대/최소 제한 (-100% ~ 0%)
+      const clampedTranslate = Math.max(-100, Math.min(0, newTranslate));
+      return `translateX(${clampedTranslate}%)`;
+    }
+    
+    return `translateX(${baseTranslate}%)`;
+  }};
+`;
+
+const TabContent = styled.div`
+  min-width: 100%;
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+`;
+
+const VideoIndicator = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 `;
 
 const PostGrid = styled.div`
