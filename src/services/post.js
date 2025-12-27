@@ -14,6 +14,26 @@ async function apifetch(url, options) {
   } catch (error) {
     console.error(error);
   }
+  
+  // 401 에러 (인증 실패) 처리
+  if (res.status === 401) {
+    // 토큰 제거
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    // 로그인 페이지로 리다이렉트 (현재 경로에 따라)
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
+  }
+  
   if (res.status > 299 || res.status < 200) {
     const message =
       data && data.message ? data.message : "API 요청 중 에러가 발생했습니다.";
@@ -85,6 +105,23 @@ export async function createPost(formData) {
     data = await res.json();
   } catch (error) {
     console.log(error);
+  }
+
+  // 401 에러 (인증 실패) 처리
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+    
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
   }
 
   if (!res.ok) {
