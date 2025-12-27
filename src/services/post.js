@@ -1,6 +1,6 @@
 const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
-async function apifetch(url, options) {
+export async function apifetch(url, options) {
   try {
     const fullUrl = `${baseURL}${url}`;
     console.log("API 요청:", fullUrl, options);
