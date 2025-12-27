@@ -76,8 +76,20 @@ const Profile = () => {
       }
 
       if (data?.posts) {
-        // post_type이 'feed'인 것만 필터링
-        const feedPosts = data.posts.filter((post) => post.post_type === "feed");
+        // post_type이 정확히 'feed'인 것만 필터링 (reel은 제외)
+        const feedPosts = data.posts.filter(
+          (post) => {
+            // 디버깅: post_type이 feed가 아닌 항목 확인
+            if (post.post_type !== "feed") {
+              console.warn("게시물 피드에 포함되지 않은 항목:", {
+                id: post.id,
+                post_type: post.post_type,
+                video_url: post.video_url ? "있음" : "없음"
+              });
+            }
+            return post.post_type === "feed";
+          }
+        );
         
         if (pageNum === 1) {
           setPosts(feedPosts);
@@ -105,7 +117,56 @@ const Profile = () => {
     }
   }, []);
 
-  // 릴스 데이터 로드 (getCurrentUser에서 가져온 데이터 활용)
+  // 모든 릴스 데이터 한번에 로드
+  const loadAllReels = useCallback(async () => {
+    if (isLoadingReelsRef.current) {
+      return;
+    }
+
+    isLoadingReelsRef.current = true;
+    setIsLoadingReels(true);
+    setError(null);
+
+    try {
+      let allReels = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      // 모든 페이지를 순차적으로 로드
+      while (hasMore) {
+        const data = await getCurrentUser(currentPage, 9);
+
+        if (data?.posts) {
+          // post_type이 'reel'인 것만 필터링
+          const reelPosts = data.posts.filter((post) => post.post_type === "reel");
+          allReels = [...allReels, ...reelPosts];
+
+          // pagination 정보로 hasMore 결정
+          if (data.pagination) {
+            hasMore = data.pagination.has_next;
+          } else {
+            hasMore = reelPosts.length >= 9;
+          }
+        } else {
+          hasMore = false;
+        }
+
+        currentPage++;
+      }
+
+      setReels(allReels);
+      setHasMoreReels(false); // 모든 릴스를 로드했으므로 더 이상 없음
+    } catch (err) {
+      console.error("릴스 로드 실패:", err);
+      setError(err.message || "릴스를 불러오는데 실패했습니다.");
+      setHasMoreReels(false);
+    } finally {
+      isLoadingReelsRef.current = false;
+      setIsLoadingReels(false);
+    }
+  }, []);
+
+  // 릴스 데이터 로드 (getCurrentUser에서 가져온 데이터 활용) - 무한 스크롤용
   const loadReelsData = useCallback(async (pageNum) => {
     if (isLoadingReelsRef.current) {
       return;
@@ -170,12 +231,12 @@ const Profile = () => {
     return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
-  // 릴스 초기 로드
+  // 릴스 초기 로드 - 모든 릴스를 한번에 로드
   useEffect(() => {
     if (activeTab === "reels" && reels.length === 0 && !isLoadingReels) {
-      loadReelsData(1);
+      loadAllReels();
     }
-  }, [activeTab, reels.length, isLoadingReels, loadReelsData]);
+  }, [activeTab, reels.length, isLoadingReels, loadAllReels]);
 
   // 무한 스크롤 Intersection Observer 설정 (피드)
   useEffect(() => {
