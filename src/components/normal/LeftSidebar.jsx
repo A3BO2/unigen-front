@@ -124,14 +124,15 @@ const LeftSidebar = () => {
 
       // 각 사용자의 팔로우 상태 확인
       const statusPromises = users.map(async (u) => {
-        if (u.id === user?.id)
-          return { id: u.id, isFollowing: false, isMine: true };
+        const userId = Number(u.id);
+        if (userId === Number(user?.id))
+          return { id: userId, isFollowing: false, isMine: true };
         try {
-          const status = await isFollowing(u.id);
-          return { id: u.id, ...status };
+          const status = await isFollowing(userId);
+          return { id: userId, ...status };
         } catch (error) {
-          console.error(`팔로우 상태 확인 실패 (${u.id}):`, error);
-          return { id: u.id, isFollowing: false, isMine: false };
+          console.error(`팔로우 상태 확인 실패 (${userId}):`, error);
+          return { id: userId, isFollowing: false, isMine: false };
         }
       });
 
@@ -181,31 +182,38 @@ const LeftSidebar = () => {
   const handleFollowToggle = async (targetUser, e) => {
     e.stopPropagation();
 
-    if (followLoading[targetUser.id] || followStatuses[targetUser.id]?.isMine)
+    // user.id를 명시적으로 숫자로 변환
+    const userId = Number(targetUser.id);
+    if (!targetUser.id || Number.isNaN(userId) || userId <= 0) {
+      console.error("유효하지 않은 사용자 ID:", targetUser.id);
+      alert("유효하지 않은 사용자입니다.");
       return;
+    }
 
-    setFollowLoading((prev) => ({ ...prev, [targetUser.id]: true }));
+    if (followLoading[userId] || followStatuses[userId]?.isMine) return;
+
+    setFollowLoading((prev) => ({ ...prev, [userId]: true }));
 
     try {
-      const currentStatus = followStatuses[targetUser.id];
+      const currentStatus = followStatuses[userId];
       if (currentStatus?.isFollowing) {
-        await unfollowUser(targetUser.id);
+        await unfollowUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [targetUser.id]: { ...currentStatus, isFollowing: false },
+          [userId]: { ...currentStatus, isFollowing: false },
         }));
       } else {
-        await followUser(targetUser.id);
+        await followUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [targetUser.id]: { ...currentStatus, isFollowing: true },
+          [userId]: { ...currentStatus, isFollowing: true },
         }));
       }
     } catch (error) {
       console.error("팔로우/언팔로우 실패:", error);
-      alert("팔로우 처리에 실패했습니다.");
+      alert(error.message || "팔로우 처리에 실패했습니다.");
     } finally {
-      setFollowLoading((prev) => ({ ...prev, [targetUser.id]: false }));
+      setFollowLoading((prev) => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -361,7 +369,10 @@ const LeftSidebar = () => {
         <SearchPanel $darkMode={isDarkMode}>
           <SearchHeader>
             <SearchTitle $darkMode={isDarkMode}>검색</SearchTitle>
-            <CloseButton onClick={handleSearchToggle} $darkMode={isDarkMode}>
+            <CloseButton
+              onClick={() => setIsSearchOpen(false)}
+              $darkMode={isDarkMode}
+            >
               <X size={20} color={isDarkMode ? "#fff" : "#262626"} />
             </CloseButton>
           </SearchHeader>
@@ -426,15 +437,17 @@ const LeftSidebar = () => {
               ) : (
                 <UserList>
                   {searchResults.map((resultUser) => {
-                    const status = followStatuses[resultUser.id];
-                    const isMine = status?.isMine || resultUser.id === user?.id;
+                    const userId = Number(resultUser.id);
+                    const status = followStatuses[userId];
+                    const isMine =
+                      status?.isMine || userId === Number(user?.id);
                     const isFollowingUser = status?.isFollowing || false;
-                    const isLoading = followLoading[resultUser.id] || false;
+                    const isLoading = followLoading[userId] || false;
 
                     return (
                       <UserItem
                         key={resultUser.id}
-                        onClick={() => handleUserClick(resultUser.id)}
+                        onClick={() => handleUserClick(userId)}
                         $darkMode={isDarkMode}
                       >
                         <UserInfo>
