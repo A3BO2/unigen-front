@@ -117,8 +117,8 @@ const ProfileEdit = () => {
         }
       }
 
-      // 프로필 업데이트 (username 제외, 업로드된 이미지 URL 포함)
-      const { username, ...updateData } = formData;
+      // 프로필 업데이트 (username, email, phone 제외, 업로드된 이미지 URL 포함)
+      const { username, email, phone, ...updateData } = formData;
       const profileUpdateData = {
         ...updateData,
         profile_image: uploadedImageUrl,
@@ -239,7 +239,7 @@ const ProfileEdit = () => {
               <Input
                 type="email"
                 name="email"
-                value={formData.email}
+                value={formData.email || ''}
                 readOnly
                 disabled
                 placeholder="이메일"
@@ -257,7 +257,7 @@ const ProfileEdit = () => {
               <Input
                 type="tel"
                 name="phone"
-                value={formData.phone}
+                value={formData.phone || ''}
                 readOnly
                 disabled
                 placeholder="전화번호"
