@@ -48,6 +48,12 @@ const [commentInput, setCommentInput] = useState("");
 const [commentLoading, setCommentLoading] = useState(false);
 const myUser = JSON.parse(sessionStorage.getItem("user"));
 
+const resolveUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http")) return url; // ✅ S3
+  return `${FILE_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
 
   /* =========================
    * 릴스 가져오기
@@ -74,18 +80,15 @@ const myUser = JSON.parse(sessionStorage.getItem("user"));
           ...prev,
           {
             id: reel.id,
-            video: reel.video_url
-              ? `${FILE_BASE_URL}${reel.video_url.startsWith("/") ? "" : "/"}${reel.video_url}`
-              : null,
-            image: reel.image_url
-              ? `${FILE_BASE_URL}${reel.image_url.startsWith("/") ? "" : "/"}${reel.image_url}`
-              : null,
+            video: resolveUrl(reel.video_url),
+            thumbnail: resolveUrl(reel.image_url), // 썸네일 용도 (poster)
+
             user: {
               id: reel.author_id,
               name: reel.authorName || "알 수 없음",
               avatar: reel.authorProfile ? (
                 <img
-                  src={reel.authorProfile}
+                  src={resolveUrl(reel.authorProfile)} 
                   alt="프사"
                   style={{
                     width: "100%",
@@ -343,25 +346,28 @@ const handleDeleteComment = async (commentId) => {
               <ReelWrapper key={reel.id} data-reel-id={reel.id}>
                 <VideoContainer>
                   {/* ✅ 영상 / 이미지 분기 */}
-                  {reel.video ? (
-                    <Video
-                      src={reel.video}
-                      autoPlay
-                      loop
-                      muted={muted}
-                      playsInline
-                      onClick={togglePlay}
-                      style={{ cursor: "pointer" }}
-                      ref={(el) => {
-                        if (!el) return;
-                        videoRefs.current[reel.id] = el;
-                        el.muted = muted;
-                        el.volume = muted ? 0 : volume;
-                      }}
-                    />
-                  ) : reel.image ? (
-                    <Image src={reel.image} alt="reel image" />
-                  ) : null}
+                  {reel.video && (
+  <Video
+    src={reel.video}
+    poster={reel.thumbnail}   // ⭐ 썸네일
+    autoPlay
+    loop
+    muted={muted}
+    playsInline
+    onClick={togglePlay}
+    onError={() =>
+      console.error("❌ 영상 로드 실패:", reel.video)
+    }
+    ref={(el) => {
+      if (!el) return;
+      videoRefs.current[reel.id] = el;
+      el.muted = muted;
+      el.volume = muted ? 0 : volume;
+    }}
+  />
+)}
+
+
 <OverlayUI>
                   <ReelInfo>
                     <UserInfo>
