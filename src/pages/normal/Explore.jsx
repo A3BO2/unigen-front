@@ -65,8 +65,8 @@ const Explore = () => {
         id: item.id,
         type: "feed",
         image: `${item.imageUrl}`,
-        likes: item.likeCount,
-        comments: item.commentCount,
+        likes: item.likeCount || 0,
+        comments: item.commentCount || 0,
         user: {
           id: item.author.id || item.authorId,
           name: item.author.name || "사용자",
@@ -86,8 +86,8 @@ const Explore = () => {
             id: reelData.reel.id,
             type: "reel",
             image: `${reelData.reel.image_url}`,
-            likes: reelData.reel.like_count,
-            comments: reelData.reel.comment_count,
+            likes: reelData.reel.like_count || 0,
+            comments: reelData.reel.comment_count || 0,
             user: {
               id: reelData.reel.author_id,
               name: reelData.reel.authorName || "사용자",
@@ -286,7 +286,7 @@ const Explore = () => {
                               fill="white"
                               color="white"
                             />
-                            <span>{post.comments}</span>
+                            <span>{post.comments.toLocaleString()}</span>
                           </Stat>
                         </Stats>
                       </Overlay>
@@ -318,7 +318,7 @@ const Explore = () => {
                               fill="white"
                               color="white"
                             />
-                            <span>{post.comments}</span>
+                            <span>{post.comments.toLocaleString()}</span>
                           </Stat>
                         </Stats>
                       </Overlay>
