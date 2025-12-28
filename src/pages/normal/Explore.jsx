@@ -26,6 +26,12 @@ const Explore = () => {
   const observer = useRef();
   const isInitialMount = useRef(true); // 초기 마운트 추적
 
+  const resolveUrl = (url) => {
+      if (!url) return null;
+      if (url.startsWith("http")) return url; // S3
+      return `${import.meta.env.VITE_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+    };
+
   // 최신 값을 참조하기 위한 ref
   const loadingRef = useRef(loading);
   const hasMoreRef = useRef(hasMore);
@@ -61,7 +67,7 @@ const Explore = () => {
       const transformedFeeds = feedData.items.map((item) => ({
         id: item.id,
         type: "feed",
-        image: `${item.imageUrl}`,
+        image: resolveUrl(item.imageUrl),
         likes: item.likeCount,
         comments: item.commentCount,
         user: {
@@ -82,7 +88,7 @@ const Explore = () => {
           transformedReel = {
             id: reelData.reel.id,
             type: "reel",
-            image: `${reelData.reel.image_url}`,
+            image: resolveUrl(reelData.reel.image_url), // 🔥 릴스 썸네일
             likes: reelData.reel.like_count,
             comments: reelData.reel.comment_count,
             user: {
@@ -99,6 +105,8 @@ const Explore = () => {
       } catch (error) {
         console.log("Reel 데이터 없음:", error);
       }
+      
+
 
       // Feed와 Reel을 합치고 랜덤으로 섞기
       const newPosts = transformedReel
