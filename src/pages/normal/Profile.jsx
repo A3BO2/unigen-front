@@ -54,10 +54,16 @@ const Profile = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [comments, setComments] = useState([]);
   const [commentLoading, setCommentLoading] = useState(false);
+  // 프로필 페이지용 팔로우 상태
   const [isFollowingUser, setIsFollowingUser] = useState(false);
   const [isMine, setIsMine] = useState(false);
   const [followStatusLoading, setFollowStatusLoading] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  
+  // 댓글 모달용 팔로우 상태 (별도 관리)
+  const [commentModalIsFollowing, setCommentModalIsFollowing] = useState(false);
+  const [commentModalIsMine, setCommentModalIsMine] = useState(false);
+  const [commentModalFollowLoading, setCommentModalFollowLoading] = useState(false);
   const [activateMenuPostId, setActivateMenuPostId] = useState(null);
   const lastCommentRef = useRef(null);
   const commentObserverRef = useRef(null);
@@ -246,31 +252,47 @@ const Profile = () => {
   }, [targetUserId]);
 
   // 프로필 페이지에서 팔로우 상태 확인 (다른 사람 프로필일 때만)
+  const followStatusCheckRef = useRef(false); // 중복 호출 방지용 ref
+  
   useEffect(() => {
     const checkProfileFollowStatus = async () => {
       if (targetUserId && profileData && user?.id !== profileData.id) {
+        // 이미 로딩 중이거나 체크 중이면 중복 호출 방지
+        if (followStatusCheckRef.current || followStatusLoading) return;
+        
+        followStatusCheckRef.current = true;
         setFollowStatusLoading(true);
         try {
           const response = await isFollowing(targetUserId);
-          setIsFollowingUser(response.isFollowing);
-          setIsMine(false);
+          // Boolean()으로 명시적 변환
+          if (response && typeof response.isFollowing === "boolean") {
+            setIsFollowingUser(response.isFollowing);
+            setIsMine(Boolean(response.isMine));
+          } else {
+            setIsFollowingUser(false);
+            setIsMine(false);
+          }
         } catch (error) {
           console.error("팔로우 상태 확인 실패:", error);
           setIsFollowingUser(false);
           setIsMine(false);
         } finally {
           setFollowStatusLoading(false);
+          followStatusCheckRef.current = false;
         }
       } else if (!targetUserId || (profileData && user?.id === profileData.id)) {
         setIsMine(true);
         setIsFollowingUser(false);
+        setFollowStatusLoading(false);
+        followStatusCheckRef.current = false;
       }
     };
     
     if (profileData) {
       checkProfileFollowStatus();
     }
-  }, [targetUserId, profileData, user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetUserId, profileData?.id, user?.id]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -371,30 +393,31 @@ const Profile = () => {
     };
   }, [activeTab, isLoadingReels, hasMoreReels, loadReelsData]);
 
-  // 댓글 모달이 열릴 때 팔로우 상태 확인
+  // 댓글 모달이 열릴 때 팔로우 상태 확인 (별도 상태 사용)
   useEffect(() => {
     const checkFollowStatus = async () => {
       if (showComments) {
         const selectedPost = posts.find((p) => p.id === showComments);
         if (selectedPost && selectedPost.author_id) {
-          setFollowStatusLoading(true);
+          setCommentModalFollowLoading(true);
           try {
             const response = await isFollowing(selectedPost.author_id);
-            setIsFollowingUser(response.isFollowing);
-            setIsMine(response.isMine);
+            // Boolean()으로 명시적 변환
+            setCommentModalIsFollowing(Boolean(response?.isFollowing));
+            setCommentModalIsMine(Boolean(response?.isMine));
           } catch (error) {
             console.error("팔로우 상태 확인 실패:", error);
-            setIsFollowingUser(false);
-            setIsMine(false);
+            setCommentModalIsFollowing(false);
+            setCommentModalIsMine(false);
           } finally {
-            setFollowStatusLoading(false);
+            setCommentModalFollowLoading(false);
           }
         }
       } else {
-        // 모달이 닫힐 때 상태 초기화
-        setFollowStatusLoading(false);
-        setIsFollowingUser(false);
-        setIsMine(false);
+        // 모달이 닫힐 때 댓글 모달 상태만 초기화 (프로필 페이지 상태는 유지)
+        setCommentModalFollowLoading(false);
+        setCommentModalIsFollowing(false);
+        setCommentModalIsMine(false);
       }
     };
     checkFollowStatus();
@@ -417,28 +440,27 @@ const Profile = () => {
 
   // 댓글 모달 열기 핸들러
   const handleShowComments = (postId) => {
-    setFollowStatusLoading(true);
     setShowComments(postId);
   };
 
-  // 팔로우/언팔로우 핸들러
+  // 팔로우/언팔로우 핸들러 (댓글 모달용)
   const handleFollow = async () => {
     const selectedPost = posts.find((p) => p.id === showComments);
-    if (!selectedPost || !selectedPost.author_id || followLoading) return;
+    if (!selectedPost || !selectedPost.author_id || commentModalFollowLoading) return;
 
-    setFollowLoading(true);
+    setCommentModalFollowLoading(true);
     try {
-      if (isFollowingUser) {
+      if (commentModalIsFollowing) {
         await unfollowUser(selectedPost.author_id);
-        setIsFollowingUser(false);
+        setCommentModalIsFollowing(false);
       } else {
         await followUser(selectedPost.author_id);
-        setIsFollowingUser(true);
+        setCommentModalIsFollowing(true);
       }
     } catch (error) {
       console.error("팔로우/언팔로우 요청 실패:", error);
     } finally {
-      setFollowLoading(false);
+      setCommentModalFollowLoading(false);
     }
   };
 
@@ -1157,16 +1179,16 @@ const Profile = () => {
                               {profileData?.name || "사용자"}
                             </ModalUsernameText>
 
-                            {/* 팔로우 버튼 (내 글 아닐 때만 & 팔로우 안 했을 때만) */}
-                            {!followStatusLoading && !isMine && (
+                            {/* 팔로우 버튼 (내 글 아닐 때만) */}
+                            {!commentModalIsMine && (
                               <FollowButton
                                 onClick={handleFollow}
-                                $isFollowing={isFollowingUser}
-                                disabled={followLoading}
+                                $isFollowing={commentModalIsFollowing}
+                                disabled={commentModalFollowLoading}
                               >
-                                {followLoading
+                                {commentModalFollowLoading
                                   ? "..."
-                                  : isFollowingUser
+                                  : commentModalIsFollowing
                                   ? "팔로잉"
                                   : "팔로우"}
                               </FollowButton>
