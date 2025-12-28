@@ -3,7 +3,6 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/
 export async function apifetch(url, options) {
   try {
     const fullUrl = `${baseURL}${url}`;
-    console.log("API 요청:", fullUrl, options);
     
     const res = await fetch(fullUrl, {
       ...options,
@@ -58,7 +57,6 @@ export async function apifetch(url, options) {
 
 export function getHeaders() {
   const token = sessionStorage.getItem("token"); // 로컬 스토리지에서 토큰을 가져옴
-  console.log("Authorization Token:", token);
   return {
     Authorization: token ? `Bearer ${token}` : "",
   };
@@ -90,7 +88,6 @@ export async function getPosts(mode, page = 1, size = 10, all) {
   if (all) params.append("all", all);
 
   const query = params.toString() ? `?${params.toString()}` : "";
-  console.log(query);
   return await apifetch(`/posts/feed${query}`, {
     method: "GET",
     headers: getHeaders(),
@@ -157,7 +154,7 @@ export async function createPost(formData) {
   try {
     data = await res.json();
   } catch (error) {
-    console.log(error);
+    // JSON 파싱 실패 (정상 처리)
   }
 
   // 401 에러 (인증 실패) 처리

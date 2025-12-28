@@ -21,7 +21,6 @@ const getImageUrl = (url) => {
   // URL이 /로 시작하지 않으면 / 추가
   const cleanUrl = url.startsWith("/") ? url : `/${url}`;
   const fullUrl = `${baseURL}${cleanUrl}`;
-  console.log("PostDetail getImageUrl:", { original: url, clean: cleanUrl, full: fullUrl });
   return fullUrl;
 };
 
@@ -46,11 +45,7 @@ const PostDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        console.log("게시물 로드 시작, postId:", postId);
         const data = await getPostById(postId);
-        console.log("게시물 데이터 응답:", data);
-        console.log("이미지 URL:", data?.image_url);
-        console.log("이미지 URL (변환 후):", data?.image_url ? getImageUrl(data.image_url) : null);
         
         if (!data) {
           throw new Error("게시물 데이터를 받지 못했습니다.");
@@ -159,7 +154,6 @@ const PostDetail = () => {
                   console.error("이미지 로드 실패:", post.image_url, getImageUrl(post.image_url));
                   e.target.style.display = "none";
                 }}
-                onLoad={() => console.log("이미지 로드 성공:", getImageUrl(post.image_url))}
               />
             ) : (
               <NoImage $darkMode={isDarkMode}>이미지가 없습니다</NoImage>

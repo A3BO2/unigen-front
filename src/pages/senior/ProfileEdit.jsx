@@ -225,7 +225,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.$darkMode ? '#000' : '#fff')};
   color: ${(props) => (props.$darkMode ? '#fff' : '#000')};
-  padding-bottom: 80px;
+  padding-bottom: 100px;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;

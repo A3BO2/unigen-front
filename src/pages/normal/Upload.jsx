@@ -73,11 +73,9 @@ const Upload = () => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      console.log("선택된 파일:", file, "타입:", contentType);
       setOriginalFile(file);
 
       const objectUrl = URL.createObjectURL(file);
-      console.log("생성된 URL:", objectUrl); // 👇 URL이 나오는지 확인
       setPreview(objectUrl);
 
       // 릴스면 자르기 생략
@@ -255,7 +253,7 @@ const Upload = () => {
       alert("게시물이 업로드 되었습니다!");
       navigate("/normal/home");
     } catch (error) {
-      console.log("업로드 에러:", error);
+      console.error("업로드 에러:", error);
     } finally {
       setIsUploading(false);
     }
@@ -728,7 +726,7 @@ const Upload = () => {
                       "👤"
                     )}
                   </Avatar>
-                  <Username>{user?.name || "사용자"}</Username>
+                  <Username>{user?.username || "사용자"}</Username>
                 </UserInfo>
 
                 <CaptionTextarea

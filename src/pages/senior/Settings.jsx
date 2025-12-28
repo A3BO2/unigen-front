@@ -76,8 +76,7 @@ const Settings = () => {
     // 서버에 저장
     try {
       setLoading(true);
-      const result = await updateUserSettings({ fontScale: newFontSize });
-      console.log('폰트 크기 저장 성공:', result);
+      await updateUserSettings({ fontScale: newFontSize });
     } catch (error) {
       console.error('설정 저장 실패:', error);
       // 실패 시 원래 값으로 복구
@@ -229,17 +228,6 @@ const Settings = () => {
           </Section>
 
           <Section>
-            <HelpBox>
-              <HelpText $fontSize={fontSize}>
-                가족이나 보호자에게 QR 코드를 보여주면 설정을 함께 할 수 있어요.
-              </HelpText>
-              <HelpButton $fontSize={fontSize} onClick={() => navigate('/senior/help')}>
-                도우미 요청하기
-              </HelpButton>
-            </HelpBox>
-          </Section>
-
-          <Section>
             <LogoutButton $fontSize={fontSize} onClick={handleLogout}>
               로그아웃
             </LogoutButton>
@@ -256,7 +244,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${props => props.$darkMode ? '#000' : '#fff'};
   color: ${props => props.$darkMode ? '#fff' : '#000'};
-  padding-bottom: 80px;
+  padding-bottom: 100px;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
@@ -381,37 +369,6 @@ const SettingLabel = styled.span`
   font-size: ${({ $fontSize }) =>
     $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
   font-weight: 600;
-`;
-
-const HelpBox = styled.div`
-  padding: 24px;
-  border-radius: 16px;
-  background: ${props => props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5'};
-  border: 2px solid ${props => props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0'};
-  text-align: center;
-`;
-
-const HelpText = styled.p`
-  font-size: ${({ $fontSize }) =>
-    $fontSize === 'small' ? '12px' : $fontSize === 'large' ? '18px' : '15px'};
-  line-height: 1.5;
-  color: ${props => props.theme.$darkMode ? '#ddd' : '#555'};
-  margin-bottom: 16px;
-`;
-
-const HelpButton = styled.button`
-  width: 100%;
-  padding: 18px;
-  font-size: ${({ $fontSize }) =>
-    $fontSize === 'small' ? '14px' : $fontSize === 'large' ? '22px' : '18px'};
-  font-weight: 700;
-  border-radius: 12px;
-  background: #ffb703;
-  color: #000;
-
-  &:active {
-    opacity: 0.85;
-  }
 `;
 
 const Toggle = styled.div`

@@ -2,17 +2,16 @@ import styled from "styled-components";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
+import PostDetailModal from "../../components/normal/PostDetailModal";
 import { Heart, MessageCircle, Play } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getPosts, getReel } from "../../services/post";
+import { getPosts, getReel, deletePost } from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
-import { fetchComments } from "../../services/comment";
-import { getTimeAgo } from "../../util/date";
 
 const Explore = () => {
-  const { isDarkMode } = useApp();
+  const { isDarkMode, user } = useApp();
   const navigate = useNavigate();
   const [explorePosts, setExplorePosts] = useState([]);
   const [page, setPage] = useState(1);
@@ -24,8 +23,6 @@ const Explore = () => {
   const [isMine, setIsMine] = useState(false); // 내 게시물인지 여부
   const [followStatusLoading, setFollowStatusLoading] = useState(false); // 팔로우 상태 확인 로딩
   const [followLoading, setFollowLoading] = useState(false); // 팔로우 로딩 상태
-  const [comments, setComments] = useState([]); // 댓글 목록
-  const [commentsLoading, setCommentsLoading] = useState(false); // 댓글 로딩 상태
   const observer = useRef();
   const isInitialMount = useRef(true); // 초기 마운트 추적
 
@@ -77,7 +74,7 @@ const Explore = () => {
         comments: item.commentCount,
         user: {
           id: item.author.id || item.authorId,
-          name: item.author.name || "사용자",
+          username: item.author.username || "사용자",
           avatar: item.author.profileImageUrl || null,
         },
         caption: item.content || "",
@@ -108,7 +105,7 @@ const Explore = () => {
           setNextCursor(reelData.nextCursor);
         }
       } catch (error) {
-        console.log("Reel 데이터 없음:", error);
+        // Reel 데이터 없음 (정상)
       }
 
       // Feed와 Reel을 합치고 랜덤으로 섞기
@@ -189,27 +186,10 @@ const Explore = () => {
         setFollowStatusLoading(false);
         setIsFollowingUser(false);
         setIsMine(false);
-        setComments([]);
-      }
-    };
-
-    const loadComments = async () => {
-      if (selectedPost && selectedPost.id) {
-        setCommentsLoading(true);
-        try {
-          const response = await fetchComments(selectedPost.id);
-          setComments(response.comments || []);
-        } catch (error) {
-          console.error("댓글 불러오기 실패:", error);
-          setComments([]);
-        } finally {
-          setCommentsLoading(false);
-        }
       }
     };
 
     checkFollowStatus();
-    loadComments();
   }, [selectedPost]);
 
   // 팔로우/언팔로우 핸들러
@@ -254,6 +234,42 @@ const Explore = () => {
         liked: !prev.liked,
         likes: prev.liked ? prev.likes - 1 : prev.likes + 1,
       }));
+    }
+  };
+
+  // 모달용 좋아요 핸들러
+  const handleModalLike = (postId) => {
+    handleLike(postId);
+  };
+
+  // 수정 핸들러
+  const handleUpdate = async (post) => {
+    navigate(`/feed/update/${post.id}`, {
+      state: {
+        content: post.caption || post.content,
+        imageUrl: post.image,
+      },
+    });
+  };
+
+  // 삭제 핸들러
+  const handleDelete = async (postId) => {
+    if (!window.confirm("정말로 게시물을 삭제하시겠습니까?")) return;
+
+    try {
+      await deletePost(postId);
+      alert("삭제되었습니다.");
+
+      // explorePosts에서 삭제
+      setExplorePosts((prev) => prev.filter((post) => post.id !== postId));
+
+      // 모달 창이 열려있었다면 닫기
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost(null);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "삭제 실패");
     }
   };
 
@@ -344,161 +360,21 @@ const Explore = () => {
 
       {/* 피드 상세 모달 */}
       {selectedPost && (
-        <CommentsOverlay onClick={() => setSelectedPost(null)}>
-          <CommentsModal
-            $darkMode={isDarkMode}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ModalContent>
-              <ModalLeft>
-                <PostImageModal src={selectedPost.image} alt="" />
-              </ModalLeft>
-              <ModalRight $darkMode={isDarkMode}>
-                <ModalHeader $darkMode={isDarkMode}>
-                  <UserInfo>
-                    <Avatar>
-                      {selectedPost.user.avatar ? (
-                        <img
-                          src={selectedPost.user.avatar}
-                          alt={selectedPost.user.name}
-                        />
-                      ) : (
-                        "👤"
-                      )}
-                    </Avatar>
-                    <Username $darkMode={isDarkMode}>
-                      {selectedPost.user.name}
-                    </Username>
-                    {!followStatusLoading && !isMine && (
-                      <FollowButton
-                        onClick={handleFollow}
-                        $isFollowing={isFollowingUser}
-                        disabled={followLoading}
-                      >
-                        {followLoading
-                          ? "..."
-                          : isFollowingUser
-                          ? "팔로잉"
-                          : "팔로우"}
-                      </FollowButton>
-                    )}
-                  </UserInfo>
-                  <CloseButton
-                    onClick={() => setSelectedPost(null)}
-                    $darkMode={isDarkMode}
-                  >
-                    ✕
-                  </CloseButton>
-                </ModalHeader>
-
-                <CommentsSection>
-                  {/* 게시물 본문 */}
-                  <CommentItem>
-                    <CommentAvatar>
-                      {selectedPost.user.avatar ? (
-                        <img
-                          src={selectedPost.user.avatar}
-                          alt={selectedPost.user.name}
-                        />
-                      ) : (
-                        "👤"
-                      )}
-                    </CommentAvatar>
-                    <CommentContent>
-                      <CaptionText $darkMode={isDarkMode}>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          {selectedPost.user.name}
-                        </CommentUsername>{" "}
-                        {selectedPost.caption}
-                      </CaptionText>
-                      <CommentTime $darkMode={isDarkMode}>
-                        {getTimeAgo(selectedPost.timestamp)}
-                      </CommentTime>
-                    </CommentContent>
-                  </CommentItem>
-
-                  {/* 댓글 로딩 */}
-                  {commentsLoading && (
-                    <LoadingText $darkMode={isDarkMode}>
-                      댓글 불러오는 중...
-                    </LoadingText>
-                  )}
-
-                  {/* 실제 댓글 목록 */}
-                  {!commentsLoading &&
-                    comments.map((comment) => (
-                      <CommentItem key={comment.id}>
-                        <CommentAvatar>
-                          {comment.user.avatar ? (
-                            <img
-                              src={comment.user.avatar}
-                              alt={comment.user.name}
-                            />
-                          ) : (
-                            "👤"
-                          )}
-                        </CommentAvatar>
-                        <CommentContent>
-                          <CommentText $darkMode={isDarkMode}>
-                            <CommentUsername $darkMode={isDarkMode}>
-                              {comment.user.name}
-                            </CommentUsername>{" "}
-                            {comment.text}
-                          </CommentText>
-                          <CommentTime $darkMode={isDarkMode}>
-                            {comment.time}
-                          </CommentTime>
-                        </CommentContent>
-                      </CommentItem>
-                    ))}
-
-                  {/* 댓글이 없을 때 */}
-                  {!commentsLoading && comments.length === 0 && (
-                    <NoCommentsText $darkMode={isDarkMode}>
-                      아직 댓글이 없습니다.
-                    </NoCommentsText>
-                  )}
-                </CommentsSection>
-
-                <ModalActions $darkMode={isDarkMode}>
-                  <ActionButtons>
-                    <ActionButton
-                      onClick={() => handleLike(selectedPost.id)}
-                      $darkMode={isDarkMode}
-                    >
-                      <Heart
-                        size={24}
-                        fill={selectedPost.liked ? "#ed4956" : "none"}
-                        color={
-                          selectedPost.liked
-                            ? "#ed4956"
-                            : isDarkMode
-                            ? "#fff"
-                            : "#262626"
-                        }
-                        strokeWidth={1.5}
-                      />
-                    </ActionButton>
-                    <ActionButton $darkMode={isDarkMode}>
-                      <MessageCircle size={24} strokeWidth={1.5} />
-                    </ActionButton>
-                  </ActionButtons>
-                  <Likes $darkMode={isDarkMode}>
-                    좋아요 {selectedPost.likes.toLocaleString()}개
-                  </Likes>
-                  <Timestamp $darkMode={isDarkMode}>
-                    {getTimeAgo(selectedPost.timestamp)}
-                  </Timestamp>
-                </ModalActions>
-
-                <CommentInputBox $darkMode={isDarkMode}>
-                  <input placeholder="댓글 달기..." />
-                  <PostButton>게시</PostButton>
-                </CommentInputBox>
-              </ModalRight>
-            </ModalContent>
-          </CommentsModal>
-        </CommentsOverlay>
+        <PostDetailModal
+          post={selectedPost}
+          isOpen={!!selectedPost}
+          onClose={() => setSelectedPost(null)}
+          isDarkMode={isDarkMode}
+          user={user}
+          onLike={handleModalLike}
+          onFollow={handleFollow}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          isFollowing={isFollowingUser}
+          isMine={isMine}
+          followLoading={followLoading}
+          getImageUrl={resolveUrl}
+        />
       )}
     </>
   );
@@ -616,335 +492,5 @@ const ReelIndicator = styled.div`
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
 `;
 
-// 모달 관련 스타일
-const CommentsOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const CommentsModal = styled.div`
-  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
-  border-radius: 4px;
-  width: 90%;
-  max-width: 1000px;
-  height: 85vh;
-  max-height: 800px;
-  display: flex;
-  overflow: hidden;
-
-  @media (max-width: 767px) {
-    width: 100%;
-    height: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-    flex-direction: column;
-  }
-`;
-
-const ModalContent = styled.div`
-  display: flex;
-  width: 100%;
-  height: 100%;
-
-  @media (max-width: 767px) {
-    flex-direction: column;
-  }
-`;
-
-const ModalLeft = styled.div`
-  flex: 1.3;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  @media (max-width: 767px) {
-    flex: none;
-    height: 50%;
-  }
-`;
-
-const PostImageModal = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-`;
-
-const ModalRight = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
-  background: ${(props) => (props.$darkMode ? "#000" : "white")};
-
-  @media (max-width: 767px) {
-    border-left: none;
-    border-top: 1px solid
-      ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
-  }
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid
-    ${(props) => (props.$darkMode ? "#363636" : "#efefef")};
-`;
-
-const UserInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  cursor: pointer;
-`;
-
-const Avatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  background: #fafafa;
-  border: 1px solid #dbdbdb;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-`;
-
-const Username = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-`;
-
-const FollowButton = styled.button`
-  margin-left: 36px;
-  padding: 7px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-
-  background: ${(props) => (props.$isFollowing ? "#efefef" : "#0095f6")};
-  color: ${(props) => (props.$isFollowing ? "#262626" : "#fff")};
-
-  &:hover {
-    background: ${(props) => (props.$isFollowing ? "#dbdbdb" : "#1877f2")};
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const CloseButton = styled.button`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: transparent;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 20px;
-<<<<<<< Updated upstream
-  transition: background 0.2s;
-  border: none;
-=======
-  transition: all 0.2s;
-  border: none;
-  padding: 0;
->>>>>>> Stashed changes
-
-  &:hover {
-    background: ${(props) =>
-      props.$darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"};
-  }
-<<<<<<< Updated upstream
-=======
-
-  &:active {
-    transform: scale(0.95);
-    background: ${(props) =>
-      props.$darkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"};
-  }
->>>>>>> Stashed changes
-`;
-
-const CommentsSection = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-`;
-
-const CommentItem = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-`;
-
-const CommentAvatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  background: #fafafa;
-  border: 1px solid #dbdbdb;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-`;
-
-const CommentContent = styled.div`
-  flex: 1;
-`;
-
-const CommentUsername = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-`;
-
-const CaptionText = styled.div`
-  font-size: 14px;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  line-height: 18px;
-  word-break: break-word;
-`;
-
-const CommentText = styled.div`
-  font-size: 14px;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  line-height: 18px;
-  word-break: break-word;
-`;
-
-const CommentTime = styled.div`
-  font-size: 12px;
-  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
-  margin-top: 8px;
-`;
-
-const ModalActions = styled.div`
-  border-top: 1px solid ${(props) => (props.$darkMode ? "#363636" : "#efefef")};
-  padding: 8px 16px;
-`;
-
-const ActionButtons = styled.div`
-  display: flex;
-  gap: 16px;
-  margin-bottom: 8px;
-`;
-
-const ActionButton = styled.button`
-  padding: 8px 8px 8px 0;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  display: flex;
-  align-items: center;
-  outline: none;
-  border: none;
-  background: transparent;
-
-  &:hover {
-    opacity: 0.5;
-  }
-
-  &:active {
-    transform: scale(0.9);
-  }
-
-  svg {
-    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  }
-`;
-
-const Likes = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  margin: 8px 0;
-`;
-
-const Timestamp = styled.div`
-  font-size: 10px;
-  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-`;
-
-const CommentInputBox = styled.div`
-  border-top: 1px solid ${(props) => (props.$darkMode ? "#363636" : "#efefef")};
-  padding: 6px 16px;
-  display: flex;
-  align-items: center;
-  min-height: 56px;
-
-  input {
-    flex: 1;
-    font-size: 14px;
-    background: transparent;
-    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-    border: none;
-    outline: none;
-
-    &::placeholder {
-      color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
-    }
-  }
-`;
-
-const PostButton = styled.button`
-  color: #0095f6;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.2s;
-  background: transparent;
-  border: none;
-
-  &:hover {
-    color: #00376b;
-  }
-
-  &:active {
-    opacity: 0.5;
-  }
-`;
-
-const NoCommentsText = styled.div`
-  text-align: center;
-  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
-  font-size: 14px;
-  padding: 20px;
-`;
 
 export default Explore;

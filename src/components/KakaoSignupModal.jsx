@@ -1,5 +1,6 @@
 import { useState } from "react";
 import styled from "styled-components";
+import { validateUsername } from "../utils/usernameValidator";
 
 const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
   const [formData, setFormData] = useState({
@@ -7,6 +8,7 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
     phone: "",
     name: kakaoUser?.nickname || "",
   });
+  const [usernameError, setUsernameError] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -14,14 +16,33 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
       alert("사용자 이름과 전화번호는 필수입니다.");
       return;
     }
+
+    // username 검증
+    const validation = validateUsername(formData.username);
+    if (!validation.valid) {
+      setUsernameError(validation.message);
+      return;
+    }
+
     onSignup(formData);
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    // username 필드일 때 실시간 검증
+    if (name === "username") {
+      if (!value) {
+        setUsernameError("");
+      } else {
+        const validation = validateUsername(value);
+        setUsernameError(validation.valid ? "" : validation.message);
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -47,14 +68,20 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
             onChange={handleChange}
             required
           />
-          <Input
-            type="text"
-            name="username"
-            placeholder="사용자 이름 (닉네임)"
-            value={formData.username}
-            onChange={handleChange}
-            required
-          />
+          <InputWrapper>
+            <Input
+              type="text"
+              name="username"
+              placeholder="사용자 이름 (닉네임)"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              style={{
+                borderColor: usernameError ? "#ed4956" : undefined,
+              }}
+            />
+            {usernameError && <ErrorText>{usernameError}</ErrorText>}
+          </InputWrapper>
           <Input
             type="tel"
             name="phone"
@@ -143,6 +170,12 @@ const InfoText = styled.p`
   line-height: 1.5;
 `;
 
+const InputWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
 const Input = styled.input`
   width: 100%;
   padding: 12px;
@@ -162,6 +195,12 @@ const Input = styled.input`
   &::placeholder {
     color: #8e8e8e;
   }
+`;
+
+const ErrorText = styled.span`
+  font-size: 12px;
+  color: #ed4956;
+  padding-left: 4px;
 `;
 
 const ButtonGroup = styled.div`

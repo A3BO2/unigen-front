@@ -4,6 +4,7 @@ import { useApp } from "../../context/AppContext";
 import styled from "styled-components";
 import { initKakaoSDK, loginWithKakao } from "../../utils/kakaoAuth";
 import KakaoSignupModal from "../../components/KakaoSignupModal";
+import { validateUsername } from "../../utils/usernameValidator";
 
 const NormalLogin = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const NormalLogin = () => {
     password: "",
     name: "",
   });
+  const [usernameError, setUsernameError] = useState("");
 
   const [showKakaoSignupModal, setShowKakaoSignupModal] = useState(false);
   const [kakaoAccessToken, setKakaoAccessToken] = useState(null);
@@ -207,6 +209,18 @@ const NormalLogin = () => {
         }
       } else {
         // 회원가입
+        // username 검증
+        if (!formData.username) {
+          alert("사용자 이름을 입력해주세요.");
+          return;
+        }
+        const validation = validateUsername(formData.username);
+        if (!validation.valid) {
+          setUsernameError(validation.message);
+          alert(validation.message);
+          return;
+        }
+
         const signupData = {
           ...formData,
           name: formData.name || formData.username, // 실명 없으면 닉네임으로 대체
@@ -303,10 +317,21 @@ const NormalLogin = () => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    // username 필드일 때 실시간 검증
+    if (name === "username") {
+      if (!value) {
+        setUsernameError("");
+      } else {
+        const validation = validateUsername(value);
+        setUsernameError(validation.valid ? "" : validation.message);
+      }
+    }
   };
 
   const handleModeToggle = () => {
@@ -337,14 +362,20 @@ const NormalLogin = () => {
                 onChange={handleChange}
                 required
               />
-              <Input
-                type="text"
-                name="username"
-                placeholder="사용자 이름 (닉네임)"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
+              <InputWrapper>
+                <Input
+                  type="text"
+                  name="username"
+                  placeholder="사용자 이름 (닉네임)"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  style={{
+                    borderColor: usernameError ? "#ed4956" : undefined,
+                  }}
+                />
+                {usernameError && <ErrorText>{usernameError}</ErrorText>}
+              </InputWrapper>
             </>
           )}
 
@@ -456,6 +487,12 @@ const Form = styled.form`
   gap: 6px;
 `;
 
+const InputWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
 const Input = styled.input`
   width: 100%;
   padding: 9px 8px;
@@ -472,6 +509,12 @@ const Input = styled.input`
   &::placeholder {
     color: #8e8e8e;
   }
+`;
+
+const ErrorText = styled.span`
+  font-size: 11px;
+  color: #ed4956;
+  padding-left: 4px;
 `;
 
 const SubmitButton = styled.button`

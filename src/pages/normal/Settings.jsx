@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { ChevronRight, Moon, Sun, User } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
@@ -7,12 +7,28 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
-import { updateUserSettings } from "../../services/user";
+import { getUserSettings, updateUserSettings } from "../../services/user";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
   const [loading, setLoading] = useState(false);
+  const [notificationsOn, setNotificationsOn] = useState(true);
+
+  // 초기 설정 로드
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await getUserSettings();
+        setNotificationsOn(
+          settings.notificationsOn !== undefined ? settings.notificationsOn : true
+        );
+      } catch (error) {
+        console.error("설정 로드 실패:", error);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleDarkModeToggle = async () => {
     const newValue = !isDarkMode;
@@ -25,6 +41,24 @@ const Settings = () => {
     } catch (error) {
       console.error("다크 모드 설정 저장 실패:", error);
       // 실패해도 로컬 다크 모드 상태는 그대로 둔다
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 알림 설정 변경 핸들러
+  const handleNotificationsChange = async () => {
+    const newValue = !notificationsOn;
+    const previousValue = notificationsOn;
+    setNotificationsOn(newValue);
+
+    try {
+      setLoading(true);
+      await updateUserSettings({ notificationsOn: newValue });
+    } catch (error) {
+      console.error("설정 저장 실패:", error);
+      // 실패 시 원래 값으로 복구
+      setNotificationsOn(previousValue);
     } finally {
       setLoading(false);
     }
@@ -91,6 +125,19 @@ const Settings = () => {
                 <ToggleCircle $active={isDarkMode} />
               </Toggle>
             </SettingItem>
+
+            <SettingItem
+              $darkMode={isDarkMode}
+              onClick={handleNotificationsChange}
+              style={{ opacity: loading ? 0.6 : 1 }}
+            >
+              <SettingLeft>
+                <SettingLabel $darkMode={isDarkMode}>알림 설정</SettingLabel>
+              </SettingLeft>
+              <Toggle $active={notificationsOn}>
+                <ToggleCircle $active={notificationsOn} />
+              </Toggle>
+            </SettingItem>
           </Section>
 
           <Section>
@@ -111,65 +158,13 @@ const Settings = () => {
               />
             </SettingItem>
 
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={() => navigate("/account/security")}
-            >
+            <SettingItem $darkMode={isDarkMode} onClick={handleLogout}>
               <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>보안</SettingLabel>
+                <SettingLabel $darkMode={isDarkMode} style={{ color: "#ed4956" }}>
+                  로그아웃
+                </SettingLabel>
               </SettingLeft>
-              <ChevronRight
-                size={20}
-                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
-              />
             </SettingItem>
-
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={() => navigate("/account/notifications")}
-            >
-              <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>알림 설정</SettingLabel>
-              </SettingLeft>
-              <ChevronRight
-                size={20}
-                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
-              />
-            </SettingItem>
-          </Section>
-
-          <Section>
-            <SectionTitle $darkMode={isDarkMode}>정보</SectionTitle>
-
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={() => navigate("/about")}
-            >
-              <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>앱 정보</SettingLabel>
-              </SettingLeft>
-              <ChevronRight
-                size={20}
-                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
-              />
-            </SettingItem>
-
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={() => navigate("/help")}
-            >
-              <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>도움말</SettingLabel>
-              </SettingLeft>
-              <ChevronRight
-                size={20}
-                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
-              />
-            </SettingItem>
-          </Section>
-
-          <Section>
-            <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
           </Section>
         </Content>
       </Container>
@@ -282,25 +277,6 @@ const ToggleCircle = styled.div`
   top: 2px;
   left: ${(props) => (props.$active ? "22px" : "2px")};
   transition: left 0.3s;
-`;
-
-const LogoutButton = styled.button`
-  width: 100%;
-  padding: 12px 20px;
-  color: #ed4956;
-  font-size: 16px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: #fafafa;
-  }
-
-  &:active {
-    background: #efefef;
-  }
 `;
 
 export default Settings;

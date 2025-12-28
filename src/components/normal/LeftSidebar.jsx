@@ -49,15 +49,26 @@ const LeftSidebar = () => {
       const stored = sessionStorage.getItem(STORAGE_KEY);
       if (stored) {
         const history = JSON.parse(stored);
-        setSearchHistory(history);
+        // 기존 문자열 배열인 경우 새로운 형식으로 마이그레이션
+        const migratedHistory = history.map((item) => {
+          if (typeof item === "string") {
+            return { type: "query", value: item };
+          }
+          return item;
+        });
+        setSearchHistory(migratedHistory);
+        // 마이그레이션된 데이터 저장
+        if (history.length > 0 && typeof history[0] === "string") {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(migratedHistory));
+        }
       }
     } catch (error) {
       console.error("검색 기록 로드 실패:", error);
     }
   }, []);
 
-  // 검색 기록 저장 함수
-  const saveToHistory = (query) => {
+  // 검색 기록 저장 함수 (검색어용)
+  const saveQueryToHistory = (query) => {
     if (!query || query.trim().length === 0) return;
 
     const trimmedQuery = query.trim();
@@ -69,8 +80,49 @@ const LeftSidebar = () => {
       }
 
       // 중복 제거 (같은 검색어가 있으면 맨 앞으로 이동)
-      history = history.filter((item) => item !== trimmedQuery);
-      history.unshift(trimmedQuery);
+      history = history.filter(
+        (item) => !(item.type === "query" && item.value === trimmedQuery)
+      );
+      history.unshift({ type: "query", value: trimmedQuery });
+
+      // 최대 10개만 저장
+      history = history.slice(0, 10);
+
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      setSearchHistory(history);
+    } catch (error) {
+      console.error("검색 기록 저장 실패:", error);
+    }
+  };
+
+  // 프로필을 검색 기록에 저장
+  const saveUserToHistory = (userData) => {
+    if (!userData || !userData.id) return;
+
+    try {
+      let history = [];
+      const stored = sessionStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        history = JSON.parse(stored);
+      }
+
+      // 프로필 정보 객체 생성
+      const userItem = {
+        type: "user",
+        value: {
+          id: userData.id,
+          username: userData.username,
+          name: userData.name,
+          profile_image: userData.profile_image,
+          follower_count: userData.follower_count || 0,
+        },
+      };
+
+      // 중복 제거 (같은 사용자가 있으면 맨 앞으로 이동)
+      history = history.filter(
+        (item) => !(item.type === "user" && item.value.id === userData.id)
+      );
+      history.unshift(userItem);
 
       // 최대 10개만 저장
       history = history.slice(0, 10);
@@ -83,10 +135,17 @@ const LeftSidebar = () => {
   };
 
   // 검색 기록 삭제
-  const removeFromHistory = (queryToRemove, e) => {
+  const removeFromHistory = (itemToRemove, e) => {
     e.stopPropagation();
     try {
-      const history = searchHistory.filter((item) => item !== queryToRemove);
+      const history = searchHistory.filter((item) => {
+        if (item.type === "query") {
+          return item.value !== itemToRemove.value;
+        } else if (item.type === "user") {
+          return item.value.id !== itemToRemove.value.id;
+        }
+        return true;
+      });
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       setSearchHistory(history);
     } catch (error) {
@@ -165,15 +224,20 @@ const LeftSidebar = () => {
 
   // 검색 기록 클릭
   const handleHistoryClick = (historyItem) => {
-    setSearchQuery(historyItem);
-    performSearch(historyItem);
-    saveToHistory(historyItem);
+    if (historyItem.type === "user") {
+      // 프로필인 경우 프로필 페이지로 이동
+      handleUserClick(historyItem.value.id);
+    } else if (historyItem.type === "query") {
+      // 검색어인 경우 검색 수행
+      setSearchQuery(historyItem.value);
+      performSearch(historyItem.value);
+    }
   };
 
   // Enter 키로 검색
   const handleSearchKeyDown = (e) => {
     if (e.key === "Enter" && searchQuery.trim().length > 0) {
-      saveToHistory(searchQuery.trim());
+      saveQueryToHistory(searchQuery.trim());
       performSearch(searchQuery);
     }
   };
@@ -231,6 +295,12 @@ const LeftSidebar = () => {
 
   // 사용자 클릭 (프로필 이동)
   const handleUserClick = (userId) => {
+    // 검색 결과에서 사용자 정보 찾기
+    const userData = searchResults.find((u) => Number(u.id) === Number(userId));
+    if (userData) {
+      // 검색 기록에 프로필 저장
+      saveUserToHistory(userData);
+    }
     navigate(`/normal/profile/${userId}`);
     setIsSearchOpen(false); // 검색 패널 닫기
   };
@@ -412,13 +482,54 @@ const LeftSidebar = () => {
                       onClick={() => handleHistoryClick(item)}
                       $darkMode={isDarkMode}
                     >
-                      <HistoryText $darkMode={isDarkMode}>{item}</HistoryText>
-                      <RemoveButton
-                        onClick={(e) => removeFromHistory(item, e)}
-                        $darkMode={isDarkMode}
-                      >
-                        <X size={16} />
-                      </RemoveButton>
+                      {item.type === "user" ? (
+                        <>
+                          <UserInfo>
+                            <ProfileImageWrapper>
+                              {getProfileImageUrl(item.value.profile_image) ? (
+                                <ProfileImage
+                                  src={getProfileImageUrl(
+                                    item.value.profile_image
+                                  )}
+                                  alt={item.value.username}
+                                />
+                              ) : (
+                                <DefaultAvatar $darkMode={isDarkMode}>
+                                  👤
+                                </DefaultAvatar>
+                              )}
+                            </ProfileImageWrapper>
+                            <UserDetails>
+                              <Username $darkMode={isDarkMode}>
+                                {item.value.username}
+                              </Username>
+                              {item.value.name && (
+                                <Name $darkMode={isDarkMode}>
+                                  {item.value.name}
+                                </Name>
+                              )}
+                            </UserDetails>
+                          </UserInfo>
+                          <RemoveButton
+                            onClick={(e) => removeFromHistory(item, e)}
+                            $darkMode={isDarkMode}
+                          >
+                            <X size={16} />
+                          </RemoveButton>
+                        </>
+                      ) : (
+                        <>
+                          <HistoryText $darkMode={isDarkMode}>
+                            {item.value}
+                          </HistoryText>
+                          <RemoveButton
+                            onClick={(e) => removeFromHistory(item, e)}
+                            $darkMode={isDarkMode}
+                          >
+                            <X size={16} />
+                          </RemoveButton>
+                        </>
+                      )}
                     </HistoryItem>
                   ))}
                 </HistoryList>

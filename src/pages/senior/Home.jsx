@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import styled, { ThemeProvider } from "styled-components";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { getSeniorPosts } from "../../services/post";
@@ -11,6 +11,8 @@ import {
   unlikePost,
 } from "../../services/senior";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
+import { deleteComment } from "../../services/comment";
+import { deletePost } from "../../services/post";
 
 const getFullUrl = (url) => {
   if (!url) return null;
@@ -18,7 +20,7 @@ const getFullUrl = (url) => {
 };
 
 const Home = () => {
-  const { isDarkMode } = useApp();
+  const { isDarkMode, user } = useApp();
   const [posts, setPosts] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
@@ -26,6 +28,7 @@ const Home = () => {
   const [submittingComment, setSubmittingComment] = useState({});
   const [followStatus, setFollowStatus] = useState({});
   const [followLoading, setFollowLoading] = useState({});
+  const [activateMenuPostId, setActivateMenuPostId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -36,13 +39,10 @@ const Home = () => {
   const [allPage, setAllPage] = useState(0);
   const isModeTransitioning = useRef(false);
   const loadedPostIds = useRef(new Set());
+  const [showEmptyTransition, setShowEmptyTransition] = useState(false);
   const POSTS_PER_PAGE = 5;
 
   const formatPosts = (data, mode) => {
-    if (data && data.length > 0) {
-      console.log("🔥 데이터 구조 확인:", data[0]);
-    }
-
     return data.map((post) => {
       const userId =
         post.user?.authorId ||
@@ -60,12 +60,15 @@ const Home = () => {
         user: {
           ...post.user,
           id: userId,
+          name: post.user?.name || post.user?.username,
+          username: post.user?.username,
           avatar: getFullUrl(post.user?.avatar),
         },
         comments: (post.comments || []).map((comment) => ({
           ...comment,
           user: {
             ...comment.user,
+            name: comment.user?.name || comment.user?.username,
             avatar: getFullUrl(comment.user?.avatar),
           },
           // 🔥 [수정] 댓글 시간도 서버가 준 값 그대로 사용!
@@ -139,7 +142,8 @@ const Home = () => {
     try {
       if (loadMore) {
         setIsLoadingMore(true);
-      } else {
+      } else if (!loading) {
+        // 이미 loading이 true인 경우(전환 중)에는 다시 설정하지 않음
         setLoading(true);
       }
 
@@ -164,7 +168,14 @@ const Home = () => {
           uniqueUserIds.forEach((userId) => checkFollowStatus(userId));
 
           if (loadMore) {
-            setPosts((prev) => [...prev, ...newPosts]);
+            // 기존 posts와 중복 제거 후 추가 (중복 key 오류 방지)
+            setPosts((prev) => {
+              const existingIds = new Set(prev.map((p) => p.id));
+              const uniqueNewPosts = newPosts.filter(
+                (p) => !existingIds.has(p.id)
+              );
+              return [...prev, ...uniqueNewPosts];
+            });
           } else {
             setPosts(newPosts);
           }
@@ -210,10 +221,19 @@ const Home = () => {
       } else {
         // 데이터가 비어있는 경우
         if (!isAllMode && hasFollowData) {
+          // 팔로우 모드에서 데이터가 없으면 즉시 전체 모드로 전환
           isModeTransitioning.current = true;
           setHasFollowData(false);
           setIsAllMode(true);
           setHasMore(true);
+          setAllPage(0); // 전체 모드 페이지 초기화
+          loadedPostIds.current.clear(); // 로드된 게시글 ID 초기화
+          setPosts([]); // 게시물 배열 초기화 (중복 방지)
+          setShowEmptyTransition(true); // 빈 상태 전환 메시지 표시
+          isModeTransitioning.current = false;
+          // loading 상태를 false로 설정하지 않고 바로 로드 (useEffect에서 처리되도록 상태만 변경)
+          // finally에서 loading이 false로 설정되므로 useEffect에서 처리
+          return; // finally 블록 실행 후 useEffect에서 처리
         } else {
           setHasMore(false);
         }
@@ -238,12 +258,35 @@ const Home = () => {
   useEffect(() => {
     if (isAllMode && !hasFollowData && hasMore && isModeTransitioning.current) {
       isModeTransitioning.current = false;
-      setTimeout(() => {
-        loadPosts(true);
-      }, 100);
+      loadPosts(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAllMode, hasFollowData, hasMore]);
+
+  // 팔로우 모드에서 전체 모드로 전환하는 경우 (데이터가 비어있을 때)
+  useEffect(() => {
+    if (
+      isAllMode &&
+      !hasFollowData &&
+      hasMore &&
+      showEmptyTransition &&
+      posts.length === 0 &&
+      !loading &&
+      !isLoadingMore
+    ) {
+      // 전체 모드 게시물 로드
+      loadPosts(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isAllMode,
+    hasFollowData,
+    hasMore,
+    showEmptyTransition,
+    posts.length,
+    loading,
+    isLoadingMore,
+  ]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -326,6 +369,7 @@ const Home = () => {
           const formattedComments = response.data.map((comment) => ({
             id: comment.commentId,
             user: {
+              id: comment.authorId,
               name: comment.authorName,
               avatar: comment.authorProfileImage,
             },
@@ -347,6 +391,61 @@ const Home = () => {
       } finally {
         setLoadingComments((prev) => ({ ...prev, [postId]: false }));
       }
+    }
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!confirm("정말로 댓글을 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteComment(commentId);
+
+      // 댓글 목록 새로고침
+      const response = await getCommentsByPostId(postId);
+      if (response.success && response.data) {
+        const formattedComments = response.data.map((comment) => ({
+          id: comment.commentId,
+          user: {
+            id: comment.authorId,
+            name: comment.authorName,
+            avatar: comment.authorProfileImage,
+          },
+          text: comment.content,
+          time: comment.time,
+        }));
+
+        setPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === postId ? { ...post, comments: formattedComments } : post
+          )
+        );
+      }
+    } catch (err) {
+      console.error("댓글 삭제에 실패했습니다:", err);
+      alert("댓글 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!confirm("정말로 게시물을 삭제하시겠습니까?")) return;
+
+    try {
+      await deletePost(postId);
+      alert("삭제되었습니다.");
+
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setActivateMenuPostId(null);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "삭제 실패");
+    }
+  };
+
+  const toggleMenu = (postId) => {
+    if (activateMenuPostId === postId) {
+      setActivateMenuPostId(null);
+    } else {
+      setActivateMenuPostId(postId);
     }
   };
 
@@ -376,6 +475,7 @@ const Home = () => {
           const formattedComments = commentsResponse.data.map((comment) => ({
             id: comment.commentId,
             user: {
+              id: comment.authorId,
               name: comment.authorName,
               avatar: comment.authorProfileImage,
             },
@@ -426,6 +526,14 @@ const Home = () => {
         )}
 
         <Feed>
+          {/* 팔로우 모드에서 게시글이 없어서 전체 모드로 전환된 경우 */}
+          {showEmptyTransition && !loading && !isLoadingMore && (
+            <InfoContainer>
+              <InfoText>팔로우한 친구들의 게시물을 모두 확인했어요</InfoText>
+              <InfoSubText>이제 모든 게시물을 보여드릴게요</InfoSubText>
+            </InfoContainer>
+          )}
+
           {posts.map((post, index) => {
             const showModeTransition =
               index > 0 &&
@@ -434,7 +542,7 @@ const Home = () => {
 
             return (
               <div key={post.id}>
-                {showModeTransition && (
+                {showModeTransition && !showEmptyTransition && (
                   <InfoContainer>
                     <InfoText>
                       팔로우한 친구들의 게시물을 모두 확인했어요
@@ -451,18 +559,48 @@ const Home = () => {
                           post.user.avatar.startsWith("/")) ? (
                           <AvatarImage
                             src={post.user.avatar}
-                            alt={post.user.name}
+                            alt={
+                              post.user.name || post.user.username || "사용자"
+                            }
                           />
                         ) : (
                           post.user.avatar || "👤"
                         )}
                       </Avatar>
                       <UserDetails>
-                        <Username>{post.user.name}</Username>
+                        <Username>
+                          {post.user.name || post.user.username || "사용자"}
+                        </Username>
                         <Timestamp>{post.timestamp}</Timestamp>
                       </UserDetails>
                     </UserInfo>
-                    {post.user?.id &&
+                    {user?.id === post.user?.id ? (
+                      <div style={{ position: "relative" }}>
+                        <MoreButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMenu(post.id);
+                          }}
+                        >
+                          <MoreHorizontal size={28} />
+                        </MoreButton>
+                        {activateMenuPostId === post.id && (
+                          <>
+                            <MenuOverlay
+                              onClick={() => setActivateMenuPostId(null)}
+                            />
+                            <DropdownMenu>
+                              <MenuItem
+                                onClick={() => handleDeletePost(post.id)}
+                              >
+                                삭제
+                              </MenuItem>
+                            </DropdownMenu>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      post.user?.id &&
                       followStatus[post.user.id]?.isMine !== true && (
                         <FollowButton
                           onClick={() => handleFollow(post.user.id)}
@@ -484,7 +622,8 @@ const Home = () => {
                             ? "팔로잉"
                             : "팔로우"}
                         </FollowButton>
-                      )}
+                      )
+                    )}
                   </PostHeader>
 
                   <Content>{post.content}</Content>
@@ -557,7 +696,11 @@ const Home = () => {
                                   comment.user.avatar.startsWith("/")) ? (
                                   <AvatarImage
                                     src={comment.user.avatar}
-                                    alt={comment.user.name}
+                                    alt={
+                                      comment.user.name ||
+                                      comment.user.username ||
+                                      "사용자"
+                                    }
                                   />
                                 ) : (
                                   comment.user.avatar || "👤"
@@ -566,12 +709,23 @@ const Home = () => {
                               <CommentContent>
                                 <CommentHeader>
                                   <CommentUsername>
-                                    {comment.user.name}
+                                    {comment.user.name ||
+                                      comment.user.username ||
+                                      "사용자"}
                                   </CommentUsername>
                                   <CommentTime>{comment.time}</CommentTime>
                                 </CommentHeader>
                                 <CommentText>{comment.text}</CommentText>
                               </CommentContent>
+                              {user?.id === comment.user?.id && (
+                                <CommentDeleteButton
+                                  onClick={() =>
+                                    handleDeleteComment(post.id, comment.id)
+                                  }
+                                >
+                                  <X size={18} />
+                                </CommentDeleteButton>
+                              )}
                             </CommentItem>
                           ))}
                         </CommentsList>
@@ -604,12 +758,10 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
-  padding-bottom: 80px;
-
-  @media (min-width: 768px) {
-    max-width: 600px;
-    margin: 0 auto;
-  }
+  padding-bottom: 100px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 `;
 
 const Header = styled.header`
@@ -623,12 +775,8 @@ const Header = styled.header`
 `;
 
 const Logo = styled.h1`
-  font-size: calc(36px * var(--font-scale, 1));
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
-
-  @media (min-width: 768px) {
-    font-size: calc(40px * var(--font-scale, 1));
-  }
 `;
 
 const Feed = styled.div`
@@ -732,6 +880,8 @@ const UserInfo = styled.div`
   display: flex;
   gap: 16px;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 `;
 
 const Avatar = styled.div`
@@ -759,12 +909,17 @@ const UserDetails = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  flex: 1;
 `;
 
 const Username = styled.span`
   font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const Timestamp = styled.span`
@@ -779,6 +934,7 @@ const FollowButton = styled.button`
   font-size: calc(18px * var(--font-scale, 1));
   font-weight: 700;
   min-width: 100px;
+  flex-shrink: 0;
   transition: all 0.2s;
   cursor: ${(props) => (props.$isLoading ? "not-allowed" : "pointer")};
   opacity: ${(props) => (props.$isLoading ? 0.7 : 1)};
@@ -1016,6 +1172,95 @@ const CommentText = styled.p`
   line-height: 1.6;
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
+`;
+
+const CommentDeleteButton = styled.button`
+  padding: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+    color: #ff4458;
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+`;
+
+const MoreButton = styled.button`
+  padding: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  outline: none;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    opacity: 0.5;
+  }
+
+  svg {
+    color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
+  }
+`;
+
+const MenuOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: default;
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: ${(props) => (props.theme.$darkMode ? "#262626" : "white")};
+  border: 1px solid ${(props) => (props.theme.$darkMode ? "#555" : "#dbdbdb")};
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  z-index: 20;
+  overflow: hidden;
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  padding: 16px;
+  text-align: center;
+  font-size: calc(18px * var(--font-scale, 1));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 1px solid
+    ${(props) => (props.theme.$darkMode ? "#333" : "#f0f0f0")};
+  color: ${(props) =>
+    props.$danger ? "#ff4458" : props.theme.$darkMode ? "#fff" : "#000"};
+  font-weight: ${(props) => (props.$danger ? "700" : "500")};
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: ${(props) => (props.theme.$darkMode ? "#333" : "#fafafa")};
+  }
+
+  &:active {
+    background: ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#f5f5f5")};
+  }
 `;
 
 export default Home;

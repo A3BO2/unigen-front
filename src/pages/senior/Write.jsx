@@ -162,7 +162,6 @@ const Write = () => {
     setIsAiLoading(true);
 
     try {
-      console.log("🏁 [Write-Start] 변환 시작");
       // theme.id만 보냄
       const refinedText = await refineContent(content, theme.id, photo);
       setContent(refinedText); // 결과로 내용 교체
@@ -170,7 +169,6 @@ const Write = () => {
       console.error("🚨 [Write-Error] 에러 발생:", error);
       alert("AI 변환에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
-      console.log("🛑 [Write-Finally] 로딩 종료");
       setIsAiLoading(false);
     }
   };
@@ -209,8 +207,6 @@ const Write = () => {
     }
 
     // 실제로는 백엔드에 전송
-    console.log("Posting:", { content, photo, theme: selectedTheme });
-
     alert("글이 업로드되었습니다!");
     navigate("/senior/home");
   };
@@ -237,10 +233,18 @@ const Write = () => {
           {step === "selectMode" && (
             <ModeSelector>
               <ModeButton onClick={() => handleModeSelect("text")}>
-                ✍️ 직접 쓰기
+                <ModeEmoji>✍️</ModeEmoji>
+                <ModeText>
+                  <div>직접</div>
+                  <div>쓰기</div>
+                </ModeText>
               </ModeButton>
               <ModeButton onClick={() => handleModeSelect("voice")}>
-                🎤 말로 쓰기
+                <ModeEmoji>🎤</ModeEmoji>
+                <ModeText>
+                  <div>말로</div>
+                  <div>쓰기</div>
+                </ModeText>
               </ModeButton>
             </ModeSelector>
           )}
@@ -354,7 +358,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
-  padding-bottom: 80px;
+  padding-bottom: 100px;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
@@ -365,7 +369,7 @@ const Header = styled.header`
   background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
   border-bottom: 2px solid
     ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
-  padding: 16px 24px;
+  padding: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -376,7 +380,7 @@ const CancelButton = styled.button`
   padding: 4px;
 `;
 const Title = styled.h1`
-  font-size: calc(24px * var(--font-scale, 1));
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
 `;
 const PostButton = styled.button`
@@ -392,31 +396,60 @@ const Content = styled.div`
 `;
 const ModeSelector = styled.div`
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 24px;
   padding: 48px 24px;
   min-height: 500px;
+
+  @media (max-width: 767px) {
+    flex-direction: column;
+  }
 `;
 const ModeButton = styled.button`
-  width: 280px;
+  flex: 1;
+  max-width: 280px;
+  min-width: 200px;
   height: 280px;
   font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   border: 3px solid
     ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   border-radius: 20px;
   transition: all 0.2s;
+
+  @media (max-width: 767px) {
+    width: 280px;
+    max-width: 100%;
+    min-width: unset;
+  }
+
   &:active {
     transform: scale(0.95);
     border-color: #0095f6;
   }
+`;
+
+const ModeEmoji = styled.div`
+  font-size: calc(64px * var(--font-scale, 1));
+  line-height: 1;
+`;
+
+const ModeText = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 700;
 `;
 const UploadSection = styled.div`
   display: flex;

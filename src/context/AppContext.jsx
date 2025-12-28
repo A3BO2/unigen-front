@@ -170,7 +170,6 @@ export const AppProvider = ({ children }) => {
         // 서버에서 저장된 설정 값으로 적용 (글자 크기)
         if (settingsData.fontScale) {
           setFontScale(settingsData.fontScale);
-          console.log('서버에서 폰트 크기 설정 로드:', settingsData.fontScale);
         }
         // 다크 모드는 기기(sessionStorage) 기준으로 유지하므로
         // 서버 값으로 덮어쓰지 않는다.

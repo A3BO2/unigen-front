@@ -18,7 +18,7 @@ export async function createStory(formData) {
   try {
     data = await res.json();
   } catch (error) {
-    console.log(error);
+    // JSON 파싱 실패 (정상 처리)
   }
 
   // 401 에러 (인증 실패) 처리

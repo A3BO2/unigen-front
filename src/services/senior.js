@@ -114,7 +114,6 @@ export const isLikePost = async (postId) => {
 
 // AI 글 다듬기 요청
 export const refineContent = async (text, theme, imageBase64) => {
-  console.log("🚀 [Front-1] AI 요청 보냄!"); // 요청 시작 확인
   try {
     const response = await fetch(`${baseURL}/ai/refine`, {
       method: "POST",
@@ -126,15 +125,12 @@ export const refineContent = async (text, theme, imageBase64) => {
       }),
     });
 
-    console.log("📩 [Front-2] 서버 응답 도착! 상태코드:", response.status); // 응답 도착 확인
-
     if (!response.ok) {
       const errData = await response.json();
       throw new Error(errData.message || "AI 변환 실패");
     }
 
     const data = await response.json();
-    console.log("📦 [Front-3] 데이터 해석 완료:", data); // JSON 변환 확인
 
     return data.result;
   } catch (error) {

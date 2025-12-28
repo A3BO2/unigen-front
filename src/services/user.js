@@ -9,10 +9,11 @@ function getAuthHeaders() {
   };
 }
 
-export async function getCurrentUser(page = 1, limit = 9) {
+export async function getCurrentUser(page = 1, limit = 9, postType = null) {
   const params = new URLSearchParams();
   if (page) params.append("page", String(page));
   if (limit) params.append("limit", String(limit));
+  if (postType) params.append("post_type", String(postType));
   const query = params.toString() ? `?${params.toString()}` : "";
 
   let response;
@@ -62,11 +63,66 @@ export async function getCurrentUser(page = 1, limit = 9) {
   return data;
 }
 
-// 다른 사용자 프로필 조회
-export async function getUserProfileById(userId, page = 1, limit = 9) {
+// 시니어 전용 프로필 조회 (feed 타입만)
+export async function getSeniorCurrentUser(page = 1, limit = 9) {
   const params = new URLSearchParams();
   if (page) params.append("page", String(page));
   if (limit) params.append("limit", String(limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  let response;
+  try {
+    response = await fetch(`${baseURL}/users/me/senior${query}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+  } catch (error) {
+    console.error("Network error:", error);
+    throw new Error("서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.");
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Failed to parse /users/me/senior response", error);
+    throw new Error("서버 응답을 처리할 수 없습니다.");
+  }
+
+  // 401 에러 (인증 실패) 처리
+  if (response.status === 401) {
+    // 토큰 제거
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("appMode");
+
+    // 로그인 페이지로 리다이렉트
+    const currentPath = window.location.pathname;
+    if (currentPath.includes("/senior")) {
+      window.location.href = "/senior/login";
+    } else {
+      window.location.href = "/normal/login";
+    }
+
+    const message = data?.message || "유효하지 않거나 만료된 토큰입니다.";
+    throw new Error(message);
+  }
+
+  if (!response.ok) {
+    const message = data?.message || "시니어 프로필 조회에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// 다른 사용자 프로필 조회
+export async function getUserProfileById(userId, page = 1, limit = 9, postType = null) {
+  const params = new URLSearchParams();
+  if (page) params.append("page", String(page));
+  if (limit) params.append("limit", String(limit));
+  if (postType) params.append("post_type", String(postType));
   const query = params.toString() ? `?${params.toString()}` : "";
 
   let response;
@@ -217,8 +273,11 @@ export async function updateUserProfile(profile) {
   return data;
 }
 
-export async function getFollowers() {
-  const response = await fetch(`${baseURL}/users/me/followers`, {
+export async function getFollowers(userId = null) {
+  const url = userId
+    ? `${baseURL}/users/${userId}/followers`
+    : `${baseURL}/users/me/followers`;
+  const response = await fetch(url, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -256,8 +315,11 @@ export async function getFollowers() {
   return data;
 }
 
-export async function getFollowing() {
-  const response = await fetch(`${baseURL}/users/me/following`, {
+export async function getFollowing(userId = null) {
+  const url = userId
+    ? `${baseURL}/users/${userId}/following`
+    : `${baseURL}/users/me/following`;
+  const response = await fetch(url, {
     method: "GET",
     headers: getAuthHeaders(),
   });

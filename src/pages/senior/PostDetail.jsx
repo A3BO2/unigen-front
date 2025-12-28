@@ -168,13 +168,13 @@ const PostDetail = () => {
                 {post.user.avatar &&
                 (post.user.avatar.startsWith('http') ||
                   post.user.avatar.startsWith('/')) ? (
-                  <AvatarImage src={getImageUrl(post.user.avatar)} alt={post.user.name} />
+                  <AvatarImage src={getImageUrl(post.user.avatar)} alt={post.user.name || post.user.username || "사용자"} />
                 ) : (
                   post.user.avatar || '👤'
                 )}
               </Avatar>
               <UserDetails>
-                <Username>{post.user.name}</Username>
+                <Username>{post.user.name || post.user.username || "사용자"}</Username>
                 <Timestamp>{post.timestamp}</Timestamp>
               </UserDetails>
             </UserInfo>
@@ -216,11 +216,12 @@ const PostDetail = () => {
                       }
                     }}
                   />
-                  <CommentSubmitButton 
+                  <CommentSubmitButton
                     onClick={handleCommentSubmit}
                     disabled={isSubmittingComment || !commentInput.trim()}
+                    $isSubmitting={isSubmittingComment}
                   >
-                    {isSubmittingComment ? '등록 중...' : '등록'}
+                    {isSubmittingComment ? '등록중...' : '등록'}
                   </CommentSubmitButton>
                 </CommentInputWrapper>
               </CommentInputSection>
@@ -234,7 +235,7 @@ const PostDetail = () => {
                         comment.user.avatar.startsWith('/')) ? (
                         <AvatarImage
                           src={getImageUrl(comment.user.avatar)}
-                          alt={comment.user.name}
+                          alt={comment.user.name || comment.user.username || "사용자"}
                         />
                       ) : (
                         comment.user.avatar || '👤'
@@ -242,7 +243,7 @@ const PostDetail = () => {
                     </CommentAvatar>
                     <CommentContent>
                       <CommentHeader>
-                        <CommentUsername>{comment.user.name}</CommentUsername>
+                        <CommentUsername>{comment.user.name || comment.user.username || "사용자"}</CommentUsername>
                         <CommentTime>{comment.time}</CommentTime>
                       </CommentHeader>
                       <CommentText>{comment.text}</CommentText>
@@ -264,7 +265,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.theme.$darkMode ? '#000' : '#fff')};
   color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
-  padding-bottom: 80px;
+  padding-bottom: 100px;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
@@ -276,7 +277,7 @@ const Header = styled.header`
   background: ${(props) => (props.theme.$darkMode ? '#000' : '#fff')};
   border-bottom: 2px solid
     ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
-  padding: 20px 24px;
+  padding: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -333,6 +334,11 @@ const Post = styled.article`
   border-bottom: 2px solid
     ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
   padding: 28px;
+  transition: background 0.2s;
+
+  &:active {
+    background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+  }
 `;
 
 const PostHeader = styled.div`
@@ -346,6 +352,8 @@ const UserInfo = styled.div`
   display: flex;
   gap: 16px;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 `;
 
 const Avatar = styled.div`
@@ -373,17 +381,23 @@ const UserDetails = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  flex: 1;
 `;
 
 const Username = styled.span`
   font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
   color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const Timestamp = styled.span`
-  font-size: calc(18px * var(--font-scale, 1));
+  font-size: calc(15px * var(--font-scale, 1));
   color: ${(props) => (props.theme.$darkMode ? '#999' : '#666')};
+  margin-top: 2px;
 `;
 
 const Content = styled.p`
@@ -418,25 +432,17 @@ const ActionButton = styled.button`
   border-radius: 12px;
   min-height: 56px;
   transition: all 0.2s;
-  border: none;
-  background: transparent;
-  cursor: pointer;
 
-  &:active:not(:disabled) {
+  &:active {
     background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
     transform: scale(0.95);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
   }
 
   svg {
     transition: all 0.3s;
   }
 
-  &:active:not(:disabled) svg {
+  &:active svg {
     transform: scale(1.2);
   }
 `;
@@ -500,25 +506,25 @@ const CommentInput = styled.textarea`
 `;
 
 const CommentSubmitButton = styled.button`
-  background: #0095f6;
+  background: ${(props) => (props.$isSubmitting ? '#666' : '#0095f6')};
   color: #fff;
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   padding: 16px 28px;
   border-radius: 12px;
   min-height: 80px;
-  border: 2px solid #0095f6;
+  border: 2px solid ${(props) => (props.$isSubmitting ? '#666' : '#0095f6')};
   transition: all 0.2s;
-  cursor: pointer;
+  cursor: ${(props) => (props.$isSubmitting ? 'not-allowed' : 'pointer')};
+  opacity: ${(props) => (props.$isSubmitting ? 0.7 : 1)};
 
-  &:active:not(:disabled) {
-    transform: scale(0.95);
-    background: #1877f2;
-    border-color: #1877f2;
+  &:active {
+    transform: ${(props) => (props.$isSubmitting ? 'none' : 'scale(0.95)')};
+    background: ${(props) => (props.$isSubmitting ? '#666' : '#1877f2')};
+    border-color: ${(props) => (props.$isSubmitting ? '#666' : '#1877f2')};
   }
 
   &:disabled {
-    opacity: 0.6;
     cursor: not-allowed;
   }
 `;
@@ -575,7 +581,7 @@ const CommentUsername = styled.span`
 `;
 
 const CommentTime = styled.span`
-  font-size: calc(16px * var(--font-scale, 1));
+  font-size: calc(14px * var(--font-scale, 1));
   color: ${(props) => (props.theme.$darkMode ? '#999' : '#666')};
 `;
 

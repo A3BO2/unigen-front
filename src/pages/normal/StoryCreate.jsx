@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { X, Type, Crop, ChevronDown, Check, Palette } from "lucide-react";
+import { X, Type, Crop, Check, Palette } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
@@ -170,28 +170,6 @@ const StoryCreate = () => {
                   <OptionLabel>직접 추가</OptionLabel>
                 </OptionCard>
               </OptionCards>
-
-              <RecentSection>
-                <RecentHeader>
-                  <RecentTitle>최근 항목</RecentTitle>
-                  <ChevronDown size={20} />
-                </RecentHeader>
-                <RecentGrid>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <RecentImage
-                      key={i}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <img
-                        src={`https://images.unsplash.com/photo-${
-                          1500000000000 + i * 10000000
-                        }?w=400&h=400&fit=crop`}
-                        alt=""
-                      />
-                    </RecentImage>
-                  ))}
-                </RecentGrid>
-              </RecentSection>
 
               <input
                 ref={fileInputRef}
@@ -528,53 +506,6 @@ const OptionLabel = styled.span`
   font-size: 20px;
   font-weight: 600;
   color: #262626;
-`;
-
-const RecentSection = styled.div`
-  margin-top: 24px;
-  width: 100%;
-`;
-
-const RecentHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 8px;
-  margin-bottom: 12px;
-
-  svg {
-    color: #8e8e8e;
-  }
-`;
-
-const RecentTitle = styled.h2`
-  font-size: 16px;
-  font-weight: 600;
-  color: #262626;
-`;
-
-const RecentGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-`;
-
-const RecentImage = styled.button`
-  aspect-ratio: 1;
-  overflow: hidden;
-  cursor: pointer;
-  background: #fafafa;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.2s;
-  }
-
-  &:hover img {
-    transform: scale(1.05);
-  }
 `;
 
 const EditSection = styled.div`
