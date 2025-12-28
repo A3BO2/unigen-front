@@ -767,13 +767,28 @@ const CloseButton = styled.button`
   justify-content: center;
   cursor: pointer;
   font-size: 20px;
+<<<<<<< Updated upstream
   transition: background 0.2s;
   border: none;
+=======
+  transition: all 0.2s;
+  border: none;
+  padding: 0;
+>>>>>>> Stashed changes
 
   &:hover {
     background: ${(props) =>
       props.$darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"};
   }
+<<<<<<< Updated upstream
+=======
+
+  &:active {
+    transform: scale(0.95);
+    background: ${(props) =>
+      props.$darkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"};
+  }
+>>>>>>> Stashed changes
 `;
 
 const CommentsSection = styled.div`
