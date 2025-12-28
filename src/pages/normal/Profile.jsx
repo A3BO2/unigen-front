@@ -1118,9 +1118,6 @@ const Profile = () => {
                           backgroundPosition: "center",
                         }}
                       />
-                      {reel.video_url && (
-                        <VideoIndicator $darkMode={isDarkMode}>▶</VideoIndicator>
-                      )}
                     </GridItem>
                   ))}
                 </PostGrid>
@@ -1164,7 +1161,7 @@ const Profile = () => {
                       </ModalLeft>
 
                       {/* 오른쪽: 헤더 + 댓글(본문) + 입력창 */}
-                      <ModalRight>
+                      <ModalRight $darkMode={isDarkMode}>
                         {/* 1. 모달 헤더 */}
                         <ModalHeader $darkMode={isDarkMode}>
                           <UserInfo>
@@ -1235,7 +1232,7 @@ const Profile = () => {
                         </ModalHeader>
 
                         {/* 2. 댓글 목록 섹션 */}
-                        <CommentsSection>
+                        <CommentsSection $darkMode={isDarkMode}>
                           {/* 게시물 본문(Caption)을 첫 번째 댓글처럼 표시 */}
                           <CommentItem>
                             <CommentAvatar>
@@ -1259,9 +1256,9 @@ const Profile = () => {
                           </CommentItem>
 
                           {commentLoading ? (
-                            <CommentText>불러오는 중...</CommentText>
+                            <CommentText $darkMode={isDarkMode}>불러오는 중...</CommentText>
                           ) : comments.length === 0 ? (
-                            <CommentText>첫 댓글을 남겨보세요</CommentText>
+                            <CommentText $darkMode={isDarkMode}>첫 댓글을 남겨보세요</CommentText>
                           ) : (
                             comments.map((c) => {
                               const isMineComment = user && c.user?.id === user.id;
@@ -1320,7 +1317,11 @@ const Profile = () => {
                               />
                             </ActionButton>
                             <ActionButton>
-                              <MessageCircle size={24} strokeWidth={1.5} />
+                              <MessageCircle 
+                                size={24} 
+                                strokeWidth={1.5} 
+                                color={isDarkMode ? "#fff" : "#262626"}
+                              />
                             </ActionButton>
                           </ModalActionButtons>
                           <Likes $darkMode={isDarkMode}>
@@ -1332,7 +1333,15 @@ const Profile = () => {
                         </ModalActions>
 
                         {/* 4. 댓글 입력창 */}
-                        <CommentInputBox>
+                        <CommentInputBox $darkMode={isDarkMode}>
+                          <CommentInputIcon $darkMode={isDarkMode}>
+                            <Heart 
+                              size={20} 
+                              fill="none" 
+                              stroke={isDarkMode ? "#fff" : "#262626"} 
+                              strokeWidth={1.5} 
+                            />
+                          </CommentInputIcon>
                           <input
                             value={commentInput}
                             onChange={(e) => setCommentInput(e.target.value)}
@@ -1794,18 +1803,6 @@ const TabContent = styled.div`
   -webkit-overflow-scrolling: touch;
 `;
 
-const VideoIndicator = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-`;
-
 const PostGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1946,11 +1943,12 @@ const ModalRight = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #dbdbdb;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
   @media (max-width: 767px) {
     border-left: none;
-    border-top: 1px solid #dbdbdb;
+    border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   }
 `;
 
@@ -2099,6 +2097,7 @@ const CommentsSection = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
 `;
 
 const CommentItem = styled.div`
@@ -2222,22 +2221,34 @@ const Timestamp = styled.div`
 `;
 
 const CommentInputBox = styled.div`
-  border-top: 1px solid #efefef;
+  border-top: 0.5px solid ${(props) => (props.$darkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)")};
   padding: 6px 16px;
   display: flex;
   align-items: center;
+  gap: 12px;
   min-height: 56px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
 
   input {
     flex: 1;
     font-size: 14px;
     background: transparent;
-    color: #262626;
+    border: none;
+    outline: none;
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
     &::placeholder {
-      color: #8e8e8e;
+      color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
     }
   }
+`;
+
+const CommentInputIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const PostButton = styled.button`
