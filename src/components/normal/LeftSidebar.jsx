@@ -1,12 +1,29 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import styled from 'styled-components';
-import { Home, Search, Compass, Film, PlusSquare, User, Menu, X, Settings, Moon, Sun } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { logoutWithKakao } from '../../utils/kakaoAuth';
-import { searchUsers, followUser, unfollowUser, isFollowing } from '../../services/user';
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import styled from "styled-components";
+import {
+  Home,
+  Search,
+  Compass,
+  Film,
+  PlusSquare,
+  User,
+  Menu,
+  X,
+  Settings,
+  Moon,
+  Sun,
+} from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import { logoutWithKakao } from "../../utils/kakaoAuth";
+import {
+  searchUsers,
+  followUser,
+  unfollowUser,
+  isFollowing,
+} from "../../services/user";
 
-const STORAGE_KEY = 'searchHistory';
+const STORAGE_KEY = "searchHistory";
 
 const LeftSidebar = () => {
   const navigate = useNavigate();
@@ -16,7 +33,7 @@ const LeftSidebar = () => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // 검색 관련 state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -24,7 +41,7 @@ const LeftSidebar = () => {
   const [followStatuses, setFollowStatuses] = useState({});
   const [followLoading, setFollowLoading] = useState({});
 
-  const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+  const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
 
   // sessionStorage에서 검색 기록 로드
   useEffect(() => {
@@ -35,7 +52,7 @@ const LeftSidebar = () => {
         setSearchHistory(history);
       }
     } catch (error) {
-      console.error('검색 기록 로드 실패:', error);
+      console.error("검색 기록 로드 실패:", error);
     }
   }, []);
 
@@ -61,7 +78,7 @@ const LeftSidebar = () => {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       setSearchHistory(history);
     } catch (error) {
-      console.error('검색 기록 저장 실패:', error);
+      console.error("검색 기록 저장 실패:", error);
     }
   };
 
@@ -73,7 +90,7 @@ const LeftSidebar = () => {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       setSearchHistory(history);
     } catch (error) {
-      console.error('검색 기록 삭제 실패:', error);
+      console.error("검색 기록 삭제 실패:", error);
     }
   };
 
@@ -83,7 +100,7 @@ const LeftSidebar = () => {
       sessionStorage.removeItem(STORAGE_KEY);
       setSearchHistory([]);
     } catch (error) {
-      console.error('검색 기록 전체 삭제 실패:', error);
+      console.error("검색 기록 전체 삭제 실패:", error);
     }
   };
 
@@ -100,19 +117,22 @@ const LeftSidebar = () => {
 
     try {
       const response = await searchUsers(query.trim());
-      const users = response.users || [];
+      // 백엔드 응답: { users: [...] }
+      const users = response?.users || [];
 
       setSearchResults(users);
 
       // 각 사용자의 팔로우 상태 확인
       const statusPromises = users.map(async (u) => {
-        if (u.id === user?.id) return { id: u.id, isFollowing: false, isMine: true };
+        const userId = Number(u.id);
+        if (userId === Number(user?.id))
+          return { id: userId, isFollowing: false, isMine: true };
         try {
-          const status = await isFollowing(u.id);
-          return { id: u.id, ...status };
+          const status = await isFollowing(userId);
+          return { id: userId, ...status };
         } catch (error) {
-          console.error(`팔로우 상태 확인 실패 (${u.id}):`, error);
-          return { id: u.id, isFollowing: false, isMine: false };
+          console.error(`팔로우 상태 확인 실패 (${userId}):`, error);
+          return { id: userId, isFollowing: false, isMine: false };
         }
       });
 
@@ -123,7 +143,7 @@ const LeftSidebar = () => {
       });
       setFollowStatuses(statusMap);
     } catch (error) {
-      console.error('검색 실패:', error);
+      console.error("검색 실패:", error);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -152,7 +172,7 @@ const LeftSidebar = () => {
 
   // Enter 키로 검색
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter' && searchQuery.trim().length > 0) {
+    if (e.key === "Enter" && searchQuery.trim().length > 0) {
       saveToHistory(searchQuery.trim());
       performSearch(searchQuery);
     }
@@ -162,37 +182,48 @@ const LeftSidebar = () => {
   const handleFollowToggle = async (targetUser, e) => {
     e.stopPropagation();
 
-    if (followLoading[targetUser.id] || followStatuses[targetUser.id]?.isMine) return;
+    // user.id를 명시적으로 숫자로 변환
+    const userId = Number(targetUser.id);
+    if (!targetUser.id || Number.isNaN(userId) || userId <= 0) {
+      console.error("유효하지 않은 사용자 ID:", targetUser.id);
+      alert("유효하지 않은 사용자입니다.");
+      return;
+    }
 
-    setFollowLoading((prev) => ({ ...prev, [targetUser.id]: true }));
+    if (followLoading[userId] || followStatuses[userId]?.isMine) return;
+
+    setFollowLoading((prev) => ({ ...prev, [userId]: true }));
 
     try {
-      const currentStatus = followStatuses[targetUser.id];
+      const currentStatus = followStatuses[userId];
       if (currentStatus?.isFollowing) {
-        await unfollowUser(targetUser.id);
+        await unfollowUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [targetUser.id]: { ...currentStatus, isFollowing: false },
+          [userId]: { ...currentStatus, isFollowing: false },
         }));
       } else {
-        await followUser(targetUser.id);
+        await followUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [targetUser.id]: { ...currentStatus, isFollowing: true },
+          [userId]: { ...currentStatus, isFollowing: true },
         }));
       }
     } catch (error) {
-      console.error('팔로우/언팔로우 실패:', error);
-      alert('팔로우 처리에 실패했습니다.');
+      console.error("팔로우/언팔로우 실패:", error);
+      alert(error.message || "팔로우 처리에 실패했습니다.");
     } finally {
-      setFollowLoading((prev) => ({ ...prev, [targetUser.id]: false }));
+      setFollowLoading((prev) => ({ ...prev, [userId]: false }));
     }
   };
 
   // 프로필 이미지 URL 처리
   const getProfileImageUrl = (profileImage) => {
     if (!profileImage) return null;
-    if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+    if (
+      profileImage.startsWith("http://") ||
+      profileImage.startsWith("https://")
+    ) {
       return profileImage;
     }
     return `${baseURL}${profileImage}`;
@@ -200,7 +231,8 @@ const LeftSidebar = () => {
 
   // 사용자 클릭 (프로필 이동)
   const handleUserClick = (userId) => {
-    navigate('/normal/profile');
+    navigate(`/normal/profile/${userId}`);
+    setIsSearchOpen(false); // 검색 패널 닫기
   };
 
   const handleSearchToggle = () => {
@@ -208,7 +240,7 @@ const LeftSidebar = () => {
     setIsMoreOpen(false);
     // 검색 패널을 닫을 때 검색어 초기화
     if (isSearchOpen) {
-      setSearchQuery('');
+      setSearchQuery("");
       setShowResults(false);
       setSearchResults([]);
     }
@@ -220,25 +252,79 @@ const LeftSidebar = () => {
   };
 
   const menuItems = [
-    { icon: Home, label: '홈', path: '/normal/home', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/home'); } },
-    { icon: Search, label: '검색', action: handleSearchToggle },
-    { icon: Compass, label: '탐색 탭', path: '/normal/explore', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/explore'); } },
-    { icon: Film, label: '릴스', path: '/normal/reels', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/reels'); } },
-    { icon: PlusSquare, label: '만들기', path: '/normal/upload', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/upload'); } },
-    { icon: User, label: '프로필', path: '/normal/profile', action: () => { setIsSearchOpen(false); setIsMoreOpen(false); navigate('/normal/profile'); } },
+    {
+      icon: Home,
+      label: "홈",
+      path: "/normal/home",
+      action: () => {
+        setIsSearchOpen(false);
+        setIsMoreOpen(false);
+        navigate("/normal/home");
+      },
+    },
+    { icon: Search, label: "검색", action: handleSearchToggle },
+    {
+      icon: Compass,
+      label: "탐색 탭",
+      path: "/normal/explore",
+      action: () => {
+        setIsSearchOpen(false);
+        setIsMoreOpen(false);
+        navigate("/normal/explore");
+      },
+    },
+    {
+      icon: Film,
+      label: "릴스",
+      path: "/normal/reels",
+      action: () => {
+        setIsSearchOpen(false);
+        setIsMoreOpen(false);
+        navigate("/normal/reels");
+      },
+    },
+    {
+      icon: PlusSquare,
+      label: "만들기",
+      path: "/normal/upload",
+      action: () => {
+        setIsSearchOpen(false);
+        setIsMoreOpen(false);
+        navigate("/normal/upload");
+      },
+    },
+    {
+      icon: User,
+      label: "프로필",
+      path: "/normal/profile",
+      action: () => {
+        setIsSearchOpen(false);
+        setIsMoreOpen(false);
+        navigate("/normal/profile");
+      },
+    },
   ];
 
   return (
     <>
       <Container $collapsed={isSearchOpen} $darkMode={isDarkMode}>
-        <Logo onClick={() => navigate('/normal/home')} $collapsed={isSearchOpen}>
-          <LogoImage src={isDarkMode ? "/unigen_white.png" : "/unigen_black.png"} alt="Unigen" $collapsed={isSearchOpen} />
+        <Logo
+          onClick={() => navigate("/normal/home")}
+          $collapsed={isSearchOpen}
+        >
+          <LogoImage
+            src={isDarkMode ? "/unigen_white.png" : "/unigen_black.png"}
+            alt="Unigen"
+            $collapsed={isSearchOpen}
+          />
         </Logo>
 
         <Nav>
           {menuItems.map((item, index) => {
             const Icon = item.icon;
-            const isActive = item.path ? location.pathname === item.path : isSearchOpen && item.icon === Search;
+            const isActive = item.path
+              ? location.pathname === item.path
+              : isSearchOpen && item.icon === Search;
 
             return (
               <NavItem
@@ -250,18 +336,32 @@ const LeftSidebar = () => {
                 <Icon
                   size={26}
                   strokeWidth={isActive ? 2.5 : 2}
-                  fill={isActive && item.icon === Home ? (isDarkMode ? '#fff' : '#262626') : 'none'}
-                  color={isDarkMode ? '#fff' : '#262626'}
+                  fill={
+                    isActive && item.icon === Home
+                      ? isDarkMode
+                        ? "#fff"
+                        : "#262626"
+                      : "none"
+                  }
+                  color={isDarkMode ? "#fff" : "#262626"}
                 />
-                <NavLabel $active={isActive} $collapsed={isSearchOpen} $darkMode={isDarkMode}>{item.label}</NavLabel>
+                <NavLabel
+                  $active={isActive}
+                  $collapsed={isSearchOpen}
+                  $darkMode={isDarkMode}
+                >
+                  {item.label}
+                </NavLabel>
               </NavItem>
             );
           })}
         </Nav>
 
         <MoreButton onClick={handleMoreToggle} $darkMode={isDarkMode}>
-          <Menu size={26} color={isDarkMode ? '#fff' : '#262626'} />
-          <NavLabel $collapsed={isSearchOpen} $darkMode={isDarkMode}>더보기</NavLabel>
+          <Menu size={26} color={isDarkMode ? "#fff" : "#262626"} />
+          <NavLabel $collapsed={isSearchOpen} $darkMode={isDarkMode}>
+            더보기
+          </NavLabel>
         </MoreButton>
       </Container>
 
@@ -269,15 +369,18 @@ const LeftSidebar = () => {
         <SearchPanel $darkMode={isDarkMode}>
           <SearchHeader>
             <SearchTitle $darkMode={isDarkMode}>검색</SearchTitle>
-            <CloseButton onClick={handleSearchToggle} $darkMode={isDarkMode}>
-              <X size={20} color={isDarkMode ? '#fff' : '#262626'} />
+            <CloseButton
+              onClick={() => setIsSearchOpen(false)}
+              $darkMode={isDarkMode}
+            >
+              <X size={20} color={isDarkMode ? "#fff" : "#262626"} />
             </CloseButton>
           </SearchHeader>
 
           <SearchInput $darkMode={isDarkMode}>
-            <input 
-              type="text" 
-              placeholder="검색" 
+            <input
+              type="text"
+              placeholder="검색"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleSearchKeyDown}
@@ -291,12 +394,16 @@ const LeftSidebar = () => {
               <RecentHeader>
                 <RecentTitle $darkMode={isDarkMode}>최근 검색 항목</RecentTitle>
                 {searchHistory.length > 0 && (
-                  <ClearAllButton onClick={clearAllHistory}>모두 지우기</ClearAllButton>
+                  <ClearAllButton onClick={clearAllHistory}>
+                    모두 지우기
+                  </ClearAllButton>
                 )}
               </RecentHeader>
 
               {searchHistory.length === 0 ? (
-                <NoRecentSearches $darkMode={isDarkMode}>최근 검색 항목이 없습니다.</NoRecentSearches>
+                <NoRecentSearches $darkMode={isDarkMode}>
+                  최근 검색 항목이 없습니다.
+                </NoRecentSearches>
               ) : (
                 <HistoryList>
                   {searchHistory.map((item, index) => (
@@ -324,38 +431,51 @@ const LeftSidebar = () => {
               {isSearching ? (
                 <LoadingText $darkMode={isDarkMode}>검색 중...</LoadingText>
               ) : searchResults.length === 0 ? (
-                <NoResults $darkMode={isDarkMode}>검색 결과가 없습니다.</NoResults>
+                <NoResults $darkMode={isDarkMode}>
+                  검색 결과가 없습니다.
+                </NoResults>
               ) : (
                 <UserList>
                   {searchResults.map((resultUser) => {
-                    const status = followStatuses[resultUser.id];
-                    const isMine = status?.isMine || resultUser.id === user?.id;
+                    const userId = Number(resultUser.id);
+                    const status = followStatuses[userId];
+                    const isMine =
+                      status?.isMine || userId === Number(user?.id);
                     const isFollowingUser = status?.isFollowing || false;
-                    const isLoading = followLoading[resultUser.id] || false;
+                    const isLoading = followLoading[userId] || false;
 
                     return (
                       <UserItem
                         key={resultUser.id}
-                        onClick={() => handleUserClick(resultUser.id)}
+                        onClick={() => handleUserClick(userId)}
                         $darkMode={isDarkMode}
                       >
                         <UserInfo>
                           <ProfileImageWrapper>
                             {getProfileImageUrl(resultUser.profile_image) ? (
                               <ProfileImage
-                                src={getProfileImageUrl(resultUser.profile_image)}
+                                src={getProfileImageUrl(
+                                  resultUser.profile_image
+                                )}
                                 alt={resultUser.username}
                               />
                             ) : (
-                              <DefaultAvatar $darkMode={isDarkMode}>👤</DefaultAvatar>
+                              <DefaultAvatar $darkMode={isDarkMode}>
+                                👤
+                              </DefaultAvatar>
                             )}
                           </ProfileImageWrapper>
                           <UserDetails>
-                            <Username $darkMode={isDarkMode}>{resultUser.username}</Username>
-                            <Name $darkMode={isDarkMode}>{resultUser.name}</Name>
+                            <Username $darkMode={isDarkMode}>
+                              {resultUser.username}
+                            </Username>
+                            <Name $darkMode={isDarkMode}>
+                              {resultUser.name}
+                            </Name>
                             {resultUser.follower_count > 0 && (
                               <FollowerCount $darkMode={isDarkMode}>
-                                팔로워 {resultUser.follower_count.toLocaleString()}명
+                                팔로워{" "}
+                                {resultUser.follower_count.toLocaleString()}명
                               </FollowerCount>
                             )}
                           </UserDetails>
@@ -367,7 +487,11 @@ const LeftSidebar = () => {
                             disabled={isLoading}
                             $darkMode={isDarkMode}
                           >
-                            {isLoading ? '처리 중...' : isFollowingUser ? '팔로잉' : '팔로우'}
+                            {isLoading
+                              ? "처리 중..."
+                              : isFollowingUser
+                              ? "팔로잉"
+                              : "팔로우"}
                           </FollowButton>
                         )}
                       </UserItem>
@@ -383,8 +507,11 @@ const LeftSidebar = () => {
       {isMoreOpen && (
         <MorePanel $darkMode={isDarkMode}>
           <MoreContent>
-            <MoreMenuItem onClick={() => navigate('/normal/settings')} $darkMode={isDarkMode}>
-              <Settings size={24} color={isDarkMode ? '#fff' : '#262626'} />
+            <MoreMenuItem
+              onClick={() => navigate("/normal/settings")}
+              $darkMode={isDarkMode}
+            >
+              <Settings size={24} color={isDarkMode ? "#fff" : "#262626"} />
               <MoreMenuLabel $darkMode={isDarkMode}>설정</MoreMenuLabel>
             </MoreMenuItem>
 
@@ -393,17 +520,17 @@ const LeftSidebar = () => {
               <MoreMenuLabel $darkMode={isDarkMode}>모드 전환</MoreMenuLabel>
             </MoreMenuItem>
 
-            <MoreMenuItem 
+            <MoreMenuItem
               onClick={() => {
-                if (confirm('로그아웃 하시겠습니까?')) {
+                if (confirm("로그아웃 하시겠습니까?")) {
                   // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
-                  if (user?.signup_mode === 'kakao') {
+                  if (user?.signup_mode === "kakao") {
                     logoutWithKakao();
                   }
                   logout();
-                  navigate('/');
+                  navigate("/");
                 }
-              }} 
+              }}
               $darkMode={isDarkMode}
             >
               <MoreMenuLabel $darkMode={isDarkMode}>로그아웃</MoreMenuLabel>
@@ -419,10 +546,11 @@ const Container = styled.aside`
   position: fixed;
   left: 0;
   top: 0;
-  width: ${props => props.$collapsed ? '72px' : '335px'};
+  width: ${(props) => (props.$collapsed ? "72px" : "335px")};
   height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border-right: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border-right: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   padding: 8px 12px 20px;
   display: flex;
   flex-direction: column;
@@ -439,11 +567,11 @@ const Container = styled.aside`
 `;
 
 const Logo = styled.div`
-  padding: ${props => props.$collapsed ? '25px 0 16px' : '25px 12px 16px'};
+  padding: ${(props) => (props.$collapsed ? "25px 0 16px" : "25px 12px 16px")};
   margin-bottom: 10px;
   cursor: pointer;
   display: flex;
-  justify-content: ${props => props.$collapsed ? 'center' : 'flex-start'};
+  justify-content: ${(props) => (props.$collapsed ? "center" : "flex-start")};
 
   @media (max-width: 1264px) {
     padding: 25px 0 16px;
@@ -452,7 +580,7 @@ const Logo = styled.div`
 `;
 
 const LogoImage = styled.img`
-  height: ${props => props.$collapsed ? '24px' : '29px'};
+  height: ${(props) => (props.$collapsed ? "24px" : "29px")};
   transition: height 0.3s ease;
 
   @media (max-width: 1264px) {
@@ -475,18 +603,19 @@ const NavItem = styled.button`
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  font-weight: ${props => props.$active ? '700' : '400'};
-  background: ${props => props.$active ? (props.$darkMode ? '#1a1a1a' : '#fafafa') : 'transparent'};
+  font-weight: ${(props) => (props.$active ? "700" : "400")};
+  background: ${(props) =>
+    props.$active ? (props.$darkMode ? "#1a1a1a" : "#fafafa") : "transparent"};
   position: relative;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:active {
     transform: scale(0.95);
-    background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   }
 
   svg {
@@ -501,9 +630,9 @@ const NavItem = styled.button`
 
 const NavLabel = styled.span`
   font-size: 16px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
-  font-weight: ${props => props.$active ? '700' : '400'};
-  display: ${props => props.$collapsed ? 'none' : 'inline'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  font-weight: ${(props) => (props.$active ? "700" : "400")};
+  display: ${(props) => (props.$collapsed ? "none" : "inline")};
 
   @media (max-width: 1264px) {
     display: none;
@@ -519,15 +648,15 @@ const MoreButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   margin-top: auto;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:active {
     transform: scale(0.95);
-    background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   }
 
   svg {
@@ -545,8 +674,9 @@ const SearchPanel = styled.div`
   top: 0;
   width: 397px;
   height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border-right: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border-right: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   z-index: 99;
   overflow-y: auto;
   animation: slideIn 0.3s ease;
@@ -577,7 +707,7 @@ const SearchHeader = styled.div`
 const SearchTitle = styled.h2`
   font-size: 24px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const CloseButton = styled.button`
@@ -592,12 +722,12 @@ const CloseButton = styled.button`
   border: none;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:active {
     transform: scale(0.9);
-    background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   }
 `;
 
@@ -608,10 +738,10 @@ const SearchInput = styled.div`
   input {
     width: 100%;
     padding: 10px 16px;
-    background: ${props => props.$darkMode ? '#262626' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
     border-radius: 8px;
     font-size: 14px;
-    color: ${props => props.$darkMode ? '#fff' : '#262626'};
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
     border: none;
     outline: none;
 
@@ -621,14 +751,14 @@ const SearchInput = styled.div`
 
     &:focus {
       outline: none;
-      background: ${props => props.$darkMode ? '#1a1a1a' : '#e0e0e0'};
+      background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#e0e0e0")};
     }
   }
 `;
 
 const Divider = styled.div`
   height: 1px;
-  background: ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   margin-bottom: 12px;
 `;
 
@@ -646,7 +776,7 @@ const RecentHeader = styled.div`
 const RecentTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const ClearAllButton = styled.button`
@@ -687,10 +817,11 @@ const HistoryItem = styled.div`
   justify-content: space-between;
   padding: 12px 0;
   cursor: pointer;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
     margin: 0 -24px;
     padding: 12px 24px;
   }
@@ -698,7 +829,7 @@ const HistoryItem = styled.div`
 
 const HistoryText = styled.span`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const RemoveButton = styled.button`
@@ -745,10 +876,11 @@ const UserItem = styled.div`
   justify-content: space-between;
   padding: 12px 0;
   cursor: pointer;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
     margin: 0 -24px;
     padding: 12px 24px;
   }
@@ -781,8 +913,8 @@ const DefaultAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${props => props.$darkMode ? '#262626' : '#efefef'};
-  border: 1px solid ${props => props.$darkMode ? '#404040' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#404040" : "#dbdbdb")};
   border-radius: 50%;
   font-size: 28px;
 `;
@@ -796,17 +928,17 @@ const UserDetails = styled.div`
 const Username = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Name = styled.span`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#8e8e8e' : '#8e8e8e'};
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
 `;
 
 const FollowerCount = styled.span`
   font-size: 12px;
-  color: ${props => props.$darkMode ? '#8e8e8e' : '#8e8e8e'};
+  color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
 `;
 
 const FollowButton = styled.button`
@@ -816,17 +948,12 @@ const FollowButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   border: none;
-  background: ${(props) =>
-    props.$isFollowing
-      ? "transparent"
-      : "#0095f6"};
-  color: ${(props) => 
-    props.$isFollowing 
-      ? (props.$darkMode ? "#fff" : "#262626")
-      : "#fff"};
+  background: ${(props) => (props.$isFollowing ? "transparent" : "#0095f6")};
+  color: ${(props) =>
+    props.$isFollowing ? (props.$darkMode ? "#fff" : "#262626") : "#fff"};
   border: ${(props) =>
-    props.$isFollowing 
-      ? `1px solid ${props.$darkMode ? "#404040" : "#dbdbdb"}` 
+    props.$isFollowing
+      ? `1px solid ${props.$darkMode ? "#404040" : "#dbdbdb"}`
       : "none"};
 
   &:hover {
@@ -850,8 +977,8 @@ const MorePanel = styled.div`
   left: 12px;
   bottom: 90px;
   width: 266px;
-  background: ${props => props.$darkMode ? '#262626' : 'white'};
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "white")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 101;
@@ -897,16 +1024,16 @@ const MoreMenuItem = styled.button`
   padding: 14px 16px;
   cursor: pointer;
   transition: all 0.2s;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   background: transparent;
   border: none;
 
   &:hover {
-    background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
   }
 
   &:active {
-    background: ${props => props.$darkMode ? '#000' : '#efefef'};
+    background: ${(props) => (props.$darkMode ? "#000" : "#efefef")};
   }
 
   svg {
@@ -916,7 +1043,7 @@ const MoreMenuItem = styled.button`
 
 const MoreMenuLabel = styled.span`
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const MoreDivider = styled.div`
