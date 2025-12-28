@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPosts, getReel } from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
+import { fetchComments } from "../../services/comment";
 import { getTimeAgo } from "../../util/date";
 
 const Explore = () => {
@@ -23,14 +24,18 @@ const Explore = () => {
   const [isMine, setIsMine] = useState(false); // 내 게시물인지 여부
   const [followStatusLoading, setFollowStatusLoading] = useState(false); // 팔로우 상태 확인 로딩
   const [followLoading, setFollowLoading] = useState(false); // 팔로우 로딩 상태
+  const [comments, setComments] = useState([]); // 댓글 목록
+  const [commentsLoading, setCommentsLoading] = useState(false); // 댓글 로딩 상태
   const observer = useRef();
   const isInitialMount = useRef(true); // 초기 마운트 추적
 
   const resolveUrl = (url) => {
-      if (!url) return null;
-      if (url.startsWith("http")) return url; // S3
-      return `${import.meta.env.VITE_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
-    };
+    if (!url) return null;
+    if (url.startsWith("http")) return url; // S3
+    return `${import.meta.env.VITE_BASE_URL}${
+      url.startsWith("/") ? "" : "/"
+    }${url}`;
+  };
 
   // 최신 값을 참조하기 위한 ref
   const loadingRef = useRef(loading);
@@ -105,8 +110,6 @@ const Explore = () => {
       } catch (error) {
         console.log("Reel 데이터 없음:", error);
       }
-      
-
 
       // Feed와 Reel을 합치고 랜덤으로 섞기
       const newPosts = transformedReel
@@ -166,7 +169,7 @@ const Explore = () => {
     }
   };
 
-  // 상세 모달이 열릴 때 팔로우 상태 확인
+  // 상세 모달이 열릴 때 팔로우 상태 확인 및 댓글 불러오기
   useEffect(() => {
     const checkFollowStatus = async () => {
       if (selectedPost && selectedPost.user.id) {
@@ -186,9 +189,27 @@ const Explore = () => {
         setFollowStatusLoading(false);
         setIsFollowingUser(false);
         setIsMine(false);
+        setComments([]);
       }
     };
+
+    const loadComments = async () => {
+      if (selectedPost && selectedPost.id) {
+        setCommentsLoading(true);
+        try {
+          const response = await fetchComments(selectedPost.id);
+          setComments(response.comments || []);
+        } catch (error) {
+          console.error("댓글 불러오기 실패:", error);
+          setComments([]);
+        } finally {
+          setCommentsLoading(false);
+        }
+      }
+    };
+
     checkFollowStatus();
+    loadComments();
   }, [selectedPost]);
 
   // 팔로우/언팔로우 핸들러
@@ -273,7 +294,7 @@ const Explore = () => {
                               fill="white"
                               color="white"
                             />
-                            <span>{post.comments}</span>
+                            <span>{post.comments.toLocaleString()}</span>
                           </Stat>
                         </Stats>
                       </Overlay>
@@ -305,7 +326,7 @@ const Explore = () => {
                               fill="white"
                               color="white"
                             />
-                            <span>{post.comments}</span>
+                            <span>{post.comments.toLocaleString()}</span>
                           </Stat>
                         </Stats>
                       </Overlay>
@@ -371,6 +392,7 @@ const Explore = () => {
                 </ModalHeader>
 
                 <CommentsSection>
+                  {/* 게시물 본문 */}
                   <CommentItem>
                     <CommentAvatar>
                       {selectedPost.user.avatar ? (
@@ -395,32 +417,47 @@ const Explore = () => {
                     </CommentContent>
                   </CommentItem>
 
-                  {/* 샘플 댓글 */}
-                  <CommentItem>
-                    <CommentAvatar>👴</CommentAvatar>
-                    <CommentContent>
-                      <CommentText $darkMode={isDarkMode}>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          최할아버지
-                        </CommentUsername>{" "}
-                        정말 아름다운 사진이네요!
-                      </CommentText>
-                      <CommentTime $darkMode={isDarkMode}>1시간 전</CommentTime>
-                    </CommentContent>
-                  </CommentItem>
+                  {/* 댓글 로딩 */}
+                  {commentsLoading && (
+                    <LoadingText $darkMode={isDarkMode}>
+                      댓글 불러오는 중...
+                    </LoadingText>
+                  )}
 
-                  <CommentItem>
-                    <CommentAvatar>👵</CommentAvatar>
-                    <CommentContent>
-                      <CommentText $darkMode={isDarkMode}>
-                        <CommentUsername $darkMode={isDarkMode}>
-                          정할머니
-                        </CommentUsername>{" "}
-                        저도 가보고 싶어요 ㅎㅎ
-                      </CommentText>
-                      <CommentTime $darkMode={isDarkMode}>30분 전</CommentTime>
-                    </CommentContent>
-                  </CommentItem>
+                  {/* 실제 댓글 목록 */}
+                  {!commentsLoading &&
+                    comments.map((comment) => (
+                      <CommentItem key={comment.id}>
+                        <CommentAvatar>
+                          {comment.user.avatar ? (
+                            <img
+                              src={comment.user.avatar}
+                              alt={comment.user.name}
+                            />
+                          ) : (
+                            "👤"
+                          )}
+                        </CommentAvatar>
+                        <CommentContent>
+                          <CommentText $darkMode={isDarkMode}>
+                            <CommentUsername $darkMode={isDarkMode}>
+                              {comment.user.name}
+                            </CommentUsername>{" "}
+                            {comment.text}
+                          </CommentText>
+                          <CommentTime $darkMode={isDarkMode}>
+                            {comment.time}
+                          </CommentTime>
+                        </CommentContent>
+                      </CommentItem>
+                    ))}
+
+                  {/* 댓글이 없을 때 */}
+                  {!commentsLoading && comments.length === 0 && (
+                    <NoCommentsText $darkMode={isDarkMode}>
+                      아직 댓글이 없습니다.
+                    </NoCommentsText>
+                  )}
                 </CommentsSection>
 
                 <ModalActions $darkMode={isDarkMode}>
@@ -886,6 +923,13 @@ const PostButton = styled.button`
   &:active {
     opacity: 0.5;
   }
+`;
+
+const NoCommentsText = styled.div`
+  text-align: center;
+  color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
+  font-size: 14px;
+  padding: 20px;
 `;
 
 export default Explore;
