@@ -939,7 +939,7 @@ const Home = () => {
                     </ModalLeft>
 
                     {/* 오른쪽: 헤더 + 댓글(본문) + 입력창 */}
-                    <ModalRight>
+                    <ModalRight $darkMode={isDarkMode}>
                       {/* 1. 모달 헤더 (여기에 ... 버튼 추가됨) */}
                       <ModalHeader $darkMode={isDarkMode}>
                         <UserInfo>
@@ -1010,7 +1010,7 @@ const Home = () => {
                       </ModalHeader>
 
                       {/* 2. 댓글 목록 섹션 (하드코딩 삭제됨) */}
-                      <CommentsSection>
+                      <CommentsSection $darkMode={isDarkMode}>
                         {/* 게시물 본문(Caption)을 첫 번째 댓글처럼 표시 */}
                         <CommentItem>
                           <CommentAvatar>
@@ -1034,9 +1034,9 @@ const Home = () => {
                         </CommentItem>
 
                         {commentLoading ? (
-                          <CommentText>불러오는 중...</CommentText>
+                          <CommentText $darkMode={isDarkMode}>불러오는 중...</CommentText>
                         ) : comments.length === 0 ? (
-                          <CommentText>첫 댓글을 남겨보세요</CommentText>
+                          <CommentText $darkMode={isDarkMode}>첫 댓글을 남겨보세요</CommentText>
                         ) : (
                           comments.map((c) => {
                             const isMine = user && c.user?.id === user.id;
@@ -1097,7 +1097,11 @@ const Home = () => {
                             />
                           </ActionButton>
                           <ActionButton>
-                            <MessageCircle size={24} strokeWidth={1.5} />
+                            <MessageCircle 
+                              size={24} 
+                              strokeWidth={1.5} 
+                              color={isDarkMode ? "#fff" : "#262626"}
+                            />
                           </ActionButton>
                           {/* <ActionButton>
                             <Send size={24} strokeWidth={1.5} />
@@ -1112,7 +1116,15 @@ const Home = () => {
                       </ModalActions>
 
                       {/* 4. 댓글 입력창 */}
-                      <CommentInputBox>
+                      <CommentInputBox $darkMode={isDarkMode}>
+                        <CommentInputIcon $darkMode={isDarkMode}>
+                          <Heart 
+                            size={20} 
+                            fill="none" 
+                            stroke={isDarkMode ? "#fff" : "#262626"} 
+                            strokeWidth={1.5} 
+                          />
+                        </CommentInputIcon>
                         <input
                           value={commentInput}
                           onChange={(e) => setCommentInput(e.target.value)}
@@ -1742,6 +1754,14 @@ const PostButton = styled.button`
   }
 `;
 
+const CommentInputIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+`;
+
 const CommentsOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -1806,11 +1826,12 @@ const ModalRight = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #dbdbdb;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
   @media (max-width: 767px) {
     border-left: none;
-    border-top: 1px solid #dbdbdb;
+    border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   }
 `;
 
@@ -1841,6 +1862,7 @@ const CommentsSection = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
 `;
 
 const CommentItem = styled.div`
@@ -1898,20 +1920,24 @@ const ActionButtons = styled.div`
 `;
 
 const CommentInputBox = styled.div`
-  border-top: 1px solid #efefef;
+  border-top: 0.5px solid ${(props) => (props.$darkMode ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.03)")};
   padding: 6px 16px;
   display: flex;
   align-items: center;
+  gap: 12px;
   min-height: 56px;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
 
   input {
     flex: 1;
     font-size: 14px;
     background: transparent;
-    color: #262626;
+    border: none;
+    outline: none;
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
     &::placeholder {
-      color: #8e8e8e;
+      color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
     }
   }
 `;
