@@ -1,6 +1,9 @@
 import { apifetch, getHeaders } from "./post";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 export async function createStory(formData) {
   const token = sessionStorage.getItem("token");

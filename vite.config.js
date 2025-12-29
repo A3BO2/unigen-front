@@ -8,7 +8,7 @@ export default defineConfig({
     // [추가] 프록시 설정이 있다면 여기서 시간을 늘려줍니다.
     proxy: {
       "/api": {
-        target: "http://localhost:3000", // 백엔드 주소 (포트 확인 필요)
+        target: process.env.VITE_BACKEND_URL || "http://localhost:3000", // 백엔드 주소 (환경변수에서 가져옴)
         changeOrigin: true,
         secure: false,
         timeout: 60000, // 60초 (기본값은 보통 30초)

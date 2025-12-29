@@ -11,7 +11,10 @@ import {
   createComment,
 } from "../../services/post";
 
-const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+const baseURL = import.meta.env.VITE_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 const getImageUrl = (url) => {
   if (!url) return null;
