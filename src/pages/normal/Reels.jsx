@@ -19,7 +19,7 @@ import { getReel, likePost, unlikePost, isPostLike } from "../../services/post";
 
 const Reels = () => {
   /* =========================
-   * 상태 
+   * 상태
    ========================= */
   const { user: currentUser, isDarkMode } = useApp();
   const navigate = useNavigate();
@@ -51,6 +51,7 @@ const Reels = () => {
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const myUser = JSON.parse(sessionStorage.getItem("user"));
 
   const resolveUrl = (url) => {
@@ -69,56 +70,56 @@ const Reels = () => {
       if (noMoreReelsRef.current) return;
       loadingRef.current = true;
 
-      try {
+    try {
         // targetId가 있으면 그 기준으로, 없으면 cursor 기준
         const data = await getReel(targetId ?? cursorRef.current);
 
         if (!data?.reel || data?.message === "NO_MORE_REELS") {
           noMoreReelsRef.current = true;
           loadingRef.current = false;
-          return;
-        }
+        return;
+      }
 
-        const reel = data.reel;
+      const reel = data.reel;
 
-        setReels((prev) => {
-          if (prev.some((r) => r.id === reel.id)) return prev;
+      setReels((prev) => {
+        if (prev.some((r) => r.id === reel.id)) return prev;
 
-          return [
-            ...prev,
-            {
-              id: reel.id,
+        return [
+          ...prev,
+          {
+            id: reel.id,
               video: resolveUrl(reel.video_url),
               thumbnail: resolveUrl(reel.image_url), // 썸네일 용도 (poster)
 
-              user: {
-                id: reel.author_id,
+            user: {
+              id: reel.author_id,
                 username: reel.authorName || "알 수 없음",
                 avatar: reel.authorProfile ? (
-                  <img
+                <img
                     src={resolveUrl(reel.authorProfile)}
-                    alt="프사"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  "👤"
-                ),
-              },
-              caption: reel.content,
-              likes: reel.like_count,
-              comments: reel.comment_count,
-              liked: false,
-              saved: false,
-              isSeniorMode: reel.is_senior_mode,
-              createdAt: reel.created_at,
+                  alt="프사"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                "👤"
+              ),
             },
-          ];
-        });
+            caption: reel.content,
+            likes: reel.like_count,
+            comments: reel.comment_count,
+            liked: false,
+            saved: false,
+            isSeniorMode: reel.is_senior_mode,
+            createdAt: reel.created_at,
+          },
+        ];
+      });
         // ✅ 좋아요 상태 조회 (UI 영향 없음)
         try {
           const likeRes = await isPostLike(reel.id);
@@ -135,13 +136,13 @@ const Reels = () => {
         if (data.nextCursor === cursorRef.current) {
           noMoreReelsRef.current = true;
           loadingRef.current = false;
-          return;
-        }
+        return;
+      }
 
         cursorRef.current = data.nextCursor;
-      } catch (error) {
-        console.error(error);
-      } finally {
+    } catch (error) {
+      console.error(error);
+    } finally {
         loadingRef.current = false;
       }
     },
@@ -307,7 +308,7 @@ const Reels = () => {
    * 무한 스크롤 및 영상 재생/일시정지 관리
    ========================= */
   useEffect(() => {
-    if (reels.length === 0) return;
+  if (reels.length === 0) return;
 
     const reelsContainer = document.querySelector("[data-reels-container]");
     if (!reelsContainer) return;
@@ -319,7 +320,7 @@ const Reels = () => {
       const videoElement = videoRefs.current[reel.id];
       if (!videoElement) return;
 
-      const observer = new IntersectionObserver(
+  const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
             const currentVideo = videoRefs.current[reel.id];
@@ -351,20 +352,20 @@ const Reels = () => {
     );
     if (lastReel) {
       const loadObserver = new IntersectionObserver(
-        ([entry]) => {
+    ([entry]) => {
           if (
             entry.isIntersecting &&
             !loadingRef.current &&
             !noMoreReelsRef.current
           ) {
-            fetchReel();
-          }
-        },
+        fetchReel();
+      }
+    },
         {
           root: reelsContainer,
           threshold: 0.6,
         }
-      );
+  );
 
       loadObserver.observe(lastReel);
       observers.push(loadObserver);
@@ -390,16 +391,16 @@ const Reels = () => {
    * 영상 클릭 시 재생/정지 토글
    ========================= */
   const togglePlay = (e) => {
-    const video = e.currentTarget;
-    if (!(video instanceof HTMLVideoElement)) return;
-    if (!video.src) return;
+  const video = e.currentTarget;
+  if (!(video instanceof HTMLVideoElement)) return;
+  if (!video.src) return;
 
-    if (video.paused) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  };
+  if (video.paused) {
+    video.play().catch(() => {});
+  } else {
+    video.pause();
+  }
+};
 
   /* =========================
    * 좋아요 (UI 임시)
@@ -446,8 +447,9 @@ const Reels = () => {
   };
 
   const handleCreateComment = async () => {
-    if (!commentInput.trim()) return;
+    if (!commentInput.trim() || isSubmittingComment) return;
 
+    setIsSubmittingComment(true);
     try {
       await createComment(showComments, commentInput);
 
@@ -464,6 +466,8 @@ const Reels = () => {
       setCommentInput("");
     } catch (err) {
       console.error("댓글 작성 실패", err);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -519,33 +523,33 @@ const Reels = () => {
               const isOpen = openVolumeReelId === reel.id;
 
               return (
-              <ReelWrapper key={reel.id} data-reel-id={reel.id}>
-                <VideoContainer>
-                  {/* ✅ 영상 / 이미지 분기 */}
+      <ReelWrapper key={reel.id} data-reel-id={reel.id}>
+        <VideoContainer>
+          {/* ✅ 영상 / 이미지 분기 */}
                   {reel.video && (
-                    <Video
-                      src={reel.video}
+            <Video
+              src={reel.video}
                       poster={reel.thumbnail} // ⭐ 썸네일
-                      loop
-                      muted={muted}
-                      playsInline
-                      onClick={togglePlay}
+              loop
+              muted={muted}
+              playsInline
+              onClick={togglePlay}
                       onError={() =>
                         console.error("❌ 영상 로드 실패:", reel.video)
                       }
-                      ref={(el) => {
+              ref={(el) => {
                         if (!el) return;
                         videoRefs.current[reel.id] = el;
                         el.muted = muted;
                         el.volume = muted ? 0 : volume;
-                      }}
-                    />
+            }}
+            />
                   )}
 
                   <OverlayUI>
                     <ReelInfo>
                       <UserInfo
-                        onClick={(e) => {
+              onClick={(e) => {
                           e.stopPropagation();
                           if (reel.user?.id) {
                             navigate(
@@ -592,7 +596,7 @@ const Reels = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               handleFollow(reel.id, reel.user.id);
-                            }}
+                  }}
                             disabled={followStatuses[reel.id]?.isLoading}
                             $isFollowing={followStatuses[reel.id]?.isFollowing}
                           >
@@ -603,24 +607,24 @@ const Reels = () => {
                               : "팔로우"}
                           </FollowButton>
                         )}
-                      </UserInfo>
-                      <Caption>{reel.caption}</Caption>
-                    </ReelInfo>
+            </UserInfo>
+            <Caption>{reel.caption}</Caption>
+          </ReelInfo>
 
-                    <Actions>
-                      <ActionButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleLike(reel.id);
-                        }}
-                      >
-                        <Heart
-                          size={28}
-                          color="#fff"
-                          fill={reel.liked ? "#fff" : "none"}
-                        />
-                        <ActionText>{reel.likes.toLocaleString()}</ActionText>
-                      </ActionButton>
+          <Actions>
+            <ActionButton
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike(reel.id);
+              }}
+            >
+              <Heart
+                size={28}
+                color="#fff"
+                fill={reel.liked ? "#fff" : "none"}
+              />
+              <ActionText>{reel.likes.toLocaleString()}</ActionText>
+            </ActionButton>
 
                       <ActionButton
                         onClick={(e) => {
@@ -628,9 +632,9 @@ const Reels = () => {
                           setShowComments(reel.id); // 🔥 postId
                         }}
                       >
-                        <MessageCircle size={28} color="#fff" />
-                        <ActionText>{reel.comments}</ActionText>
-                      </ActionButton>
+              <MessageCircle size={28} color="#fff" />
+              <ActionText>{reel.comments}</ActionText>
+            </ActionButton>
 
                       {/* 🔊 볼륨 버튼 */}
                       {reel.video && (
@@ -654,7 +658,7 @@ const Reels = () => {
                             ) : (
                               <Volume2 size={28} color="#fff" />
                             )}
-                          </ActionButton>
+            </ActionButton>
 
                           {isOpen && (
                             <VolumeSlider
@@ -675,15 +679,15 @@ const Reels = () => {
                           )}
                         </VolumeButtonWrapper>
                       )}
-                    </Actions>
+          </Actions>
                   </OverlayUI>
-                </VideoContainer>
-              </ReelWrapper>
+        </VideoContainer>
+      </ReelWrapper>
               );
             })
           )}
-        </ReelsContainer>
-      </Container>
+  </ReelsContainer>
+</Container>
       {showComments && (
         <CommentOverlay
           onClick={() => setShowComments(null)}
@@ -799,14 +803,21 @@ const Reels = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleCreateComment();
+                    e.stopPropagation();
+                    if (!isSubmittingComment) {
+                      handleCreateComment();
+                    }
                   }
                 }}
                 placeholder="댓글 달기..."
               />
               <PostButton
-                onClick={handleCreateComment}
-                disabled={!commentInput.trim()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateComment();
+                }}
+                disabled={!commentInput.trim() || isSubmittingComment}
               >
                 게시
               </PostButton>

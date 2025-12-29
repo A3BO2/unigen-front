@@ -38,7 +38,9 @@ export const AppProvider = ({ children }) => {
     // 세션 스토리지에서 유저 정보 불러오기
     const savedUser = safeSessionStorage.getItem("user");
     try {
-      return savedUser ? JSON.parse(savedUser) : null;
+      const parsedUser = savedUser ? JSON.parse(savedUser) : null;
+      // signup_mode가 없으면 null로 설정 (나중에 백엔드에서 가져옴)
+      return parsedUser;
     } catch {
       return null;
     }
@@ -63,10 +65,50 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      // user 객체를 저장할 때 signup_mode가 포함되도록 보장
       safeSessionStorage.setItem("user", JSON.stringify(user));
     } else {
       safeSessionStorage.removeItem("user");
     }
+  }, [user]);
+
+  // user가 있지만 signup_mode가 없으면 백엔드에서 가져오기
+  useEffect(() => {
+    const fetchUserSignupMode = async () => {
+      // user가 없거나 이미 signup_mode가 있으면 스킵
+      if (!user || user.signup_mode) {
+        return;
+      }
+
+      const token = safeSessionStorage.getItem("token");
+      if (!token || typeof token !== "string" || token.trim() === "") {
+        return;
+      }
+
+      try {
+        const baseURL =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        const response = await fetch(`${baseURL}/auth/me`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token.trim()}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.user && data.data.user.signup_mode) {
+            // signup_mode만 업데이트
+            setUser({ ...user, signup_mode: data.data.user.signup_mode });
+          }
+        }
+      } catch (error) {
+        console.error("signup_mode 가져오기 실패:", error);
+      }
+    };
+
+    fetchUserSignupMode();
   }, [user]);
 
   useEffect(() => {
@@ -90,9 +132,9 @@ export const AppProvider = ({ children }) => {
     const scaleMap = {
       small: 0.85,
       medium: 1,
-      large: 1.25
+      large: 1.25,
     };
-    root.style.setProperty('--font-scale', scaleMap[fontScale] || 1);
+    root.style.setProperty("--font-scale", scaleMap[fontScale] || 1);
   }, [fontScale]);
 
   // 토큰 기반 자동 로그인 (앱 시작 시)
@@ -101,7 +143,13 @@ export const AppProvider = ({ children }) => {
       const token = safeSessionStorage.getItem("token");
 
       // 토큰이 없거나 유효하지 않으면 (null, undefined, 빈 문자열, 공백만 있는 경우) 조기 반환
-      if (!token || typeof token !== "string" || token.trim() === "" || user) {
+      if (!token || typeof token !== "string" || token.trim() === "") {
+        return;
+      }
+
+      // user가 이미 있고 signup_mode도 있으면 백엔드 호출 생략
+      const currentUser = user;
+      if (currentUser && currentUser.signup_mode) {
         return;
       }
 
@@ -121,8 +169,17 @@ export const AppProvider = ({ children }) => {
           if (data.success && data.data?.user) {
             const userData = data.data.user;
             const userMode = userData.preferred_mode || "normal";
-            setUser(userData);
-            setMode(userMode);
+            // 기존 user가 있으면 signup_mode만 업데이트, 없으면 전체 업데이트
+            setUser((prevUser) => {
+              if (prevUser && !prevUser.signup_mode) {
+                return { ...prevUser, signup_mode: userData.signup_mode };
+              } else {
+                return userData;
+              }
+            });
+            if (!currentUser) {
+              setMode(userMode);
+            }
           } else {
             // 토큰이 유효하지 않으면 토큰 제거
             safeSessionStorage.removeItem("token");
@@ -138,6 +195,7 @@ export const AppProvider = ({ children }) => {
     };
 
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 초기 마운트 시 한 번만 실행
 
   // 로그인(또는 자동 로그인)으로 user가 설정되면 서버에서 사용자 설정을 가져와 적용
@@ -162,7 +220,7 @@ export const AppProvider = ({ children }) => {
         });
 
         if (!response.ok) {
-          console.warn('설정 로드 실패: 서버 응답 오류');
+          console.warn("설정 로드 실패: 서버 응답 오류");
           return;
         }
 
@@ -228,6 +286,7 @@ export const AppProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useApp = () => {
   const context = useContext(AppContext);
   if (!context) {

@@ -8,7 +8,6 @@ import { useApp } from "../../context/AppContext";
 import Cropper from "react-easy-crop";
 import { createPost } from "../../services/post";
 import CameraModal from "../../components/normal/CameraModal";
-import { isMobile } from "react-device-detect";
 
 // 필터 값 정의
 const FILTER_STYLES = {
@@ -47,7 +46,6 @@ const Upload = () => {
   const [contentType, setContentType] = useState("photo"); // 'photo', 'reels'
   const [preview, setPreview] = useState(null);
   const [caption, setCaption] = useState("");
-  const [location, setLocation] = useState("");
   const [step, setStep] = useState("select"); // 'select', 'crop', 'filter', 'final'
   const [editTab, setEditTab] = useState("filter"); // 'filter', 'adjust'
   const [selectedFilter, setSelectedFilter] = useState("normal");
@@ -432,7 +430,7 @@ const Upload = () => {
                   <span style={{ fontSize: "60px" }}>🎬</span>
                 )}
               </IconContainer>
-              <UploadText>
+              <UploadText $darkMode={isDarkMode}>
                 {contentType === "photo"
                   ? "사진을 여기에 끌어다 놓으세요"
                   : "동영상을 여기에 끌어다 놓으세요"}
@@ -450,7 +448,8 @@ const Upload = () => {
                 {contentType === "photo" && (
                   <SelectButton
                     onClick={handleCameraClick}
-                    style={{ backgroundColor: "#262626" }}
+                    $darkMode={isDarkMode}
+                    $isCameraButton
                   >
                     사진 촬영
                   </SelectButton>
@@ -992,14 +991,16 @@ const IconContainer = styled.div`
 
 const UploadText = styled.p`
   font-size: 22px;
-  color: #262626;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin-bottom: 24px;
   text-align: center;
 `;
 
 const SelectButton = styled.button`
-  background: #0095f6;
-  color: white;
+  background: ${(props) =>
+    props.$isCameraButton ? (props.$darkMode ? "#fff" : "#262626") : "#0095f6"};
+  color: ${(props) =>
+    props.$isCameraButton ? (props.$darkMode ? "#262626" : "white") : "white"};
   font-size: 14px;
   font-weight: 600;
   padding: 8px 16px;
@@ -1007,10 +1008,16 @@ const SelectButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   outline: none;
-  border: none;
+  border: ${(props) =>
+    props.$isCameraButton && props.$darkMode ? "1px solid #dbdbdb" : "none"};
 
   &:hover {
-    background: #1877f2;
+    background: ${(props) =>
+      props.$isCameraButton
+        ? props.$darkMode
+          ? "#f0f0f0"
+          : "#000"
+        : "#1877f2"};
   }
 
   &:active {

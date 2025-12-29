@@ -118,7 +118,12 @@ export async function getSeniorCurrentUser(page = 1, limit = 9) {
 }
 
 // 다른 사용자 프로필 조회
-export async function getUserProfileById(userId, page = 1, limit = 9, postType = null) {
+export async function getUserProfileById(
+  userId,
+  page = 1,
+  limit = 9,
+  postType = null
+) {
   const params = new URLSearchParams();
   if (page) params.append("page", String(page));
   if (limit) params.append("limit", String(limit));

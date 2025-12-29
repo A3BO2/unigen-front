@@ -14,7 +14,6 @@ const StoryCreate = () => {
   const { isDarkMode } = useApp();
   const [step, setStep] = useState("select"); // select, edit
   const [preview, setPreview] = useState(null);
-  const [originalfile, setOriginalFile] = useState(null);
   const [originalPreview, setOriginalPreview] = useState(null);
   const [caption, setCaption] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -38,8 +37,6 @@ const StoryCreate = () => {
   const handleImageSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      setOriginalFile(selectedFile); // 원본 파일 저장
-
       // FileReader 대신 URL.createObjectURL 사용 (더 빠르고 간단함)
       const objectUrl = URL.createObjectURL(selectedFile);
 
@@ -59,8 +56,8 @@ const StoryCreate = () => {
 
   // 자르기 시작
   const startCropping = () => {
-    // setPrevCrop(crop);
-    // setPrevZoom(zoom);
+    setPrevCrop(crop);
+    setPrevZoom(zoom);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setIsCropping(true);
@@ -229,19 +226,20 @@ const StoryCreate = () => {
 
               {/* 텍스트 스타일 조절 패널 */}
               {showStyleControls && !isCropping && (
-                <StyleControlPanel>
-                  <ControlRow>
-                    <span>크기</span>
-                    <input
+                <StyleControlPanel $darkMode={isDarkMode}>
+                  <ControlRow $darkMode={isDarkMode}>
+                    <ControlLabel $darkMode={isDarkMode}>크기</ControlLabel>
+                    <RangeInput
                       type="range"
-                      min="10"
-                      max="30"
+                      min="1"
+                      max="60"
                       value={fontSize}
                       onChange={(e) => setFontSize(Number(e.target.value))}
+                      $darkMode={isDarkMode}
                     />
                   </ControlRow>
-                  <ControlRow>
-                    <span>색상</span>
+                  <ControlRow $darkMode={isDarkMode}>
+                    <ControlLabel $darkMode={isDarkMode}>색상</ControlLabel>
                     <ColorPicker>
                       {[
                         "#ffffff",
@@ -692,26 +690,57 @@ const DraggableText = styled.div`
 
 // 👇 [추가] 스타일 조절 패널
 const StyleControlPanel = styled.div`
-  background: #f0f0f0;
-  padding: 12px 20px;
-  border-top: 1px solid #dbdbdb;
+  background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#f0f0f0")};
+  padding: 16px 20px;
+  border-top: 1px solid ${(props) => (props.$darkMode ? "#2a2a2a" : "#dbdbdb")};
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 `;
 
 const ControlRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  span {
-    font-size: 12px;
-    font-weight: 600;
-    width: 30px;
-  }
-  input[type="range"] {
-    flex: 1;
+  gap: 16px;
+`;
+
+const ControlLabel = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  min-width: 40px;
+  flex-shrink: 0;
+`;
+
+const RangeInput = styled.input`
+  flex: 1;
+  cursor: pointer;
+  height: 6px;
+  border-radius: 3px;
+  background: ${(props) => (props.$darkMode ? "#2a2a2a" : "#dbdbdb")};
+  outline: none;
+  -webkit-appearance: none;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: ${(props) => (props.$darkMode ? "#0095f6" : "#0095f6")};
     cursor: pointer;
+    border: 2px solid ${(props) => (props.$darkMode ? "#1a1a1a" : "#fff")};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  &::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: ${(props) => (props.$darkMode ? "#0095f6" : "#0095f6")};
+    cursor: pointer;
+    border: 2px solid ${(props) => (props.$darkMode ? "#1a1a1a" : "#fff")};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -721,14 +750,46 @@ const ColorPicker = styled.div`
 `;
 
 const ColorCircle = styled.button`
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border-radius: 50%;
   background: ${(props) => props.color};
   border: ${(props) =>
-    props.$selected ? "2px solid #0095f6" : "1px solid #ddd"};
+    props.$selected
+      ? "3px solid #0095f6"
+      : props.color === "#ffffff"
+      ? "2px solid #dbdbdb"
+      : "2px solid transparent"};
   cursor: pointer;
-  transform: ${(props) => (props.$selected ? "scale(1.1)" : "scale(1)")};
+  padding: 0;
+  margin: 0;
+  outline: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: ${(props) => (props.$selected ? "scale(1.15)" : "scale(1)")};
+  transition: all 0.2s ease;
+  box-shadow: ${(props) =>
+    props.$selected ? "0 2px 8px rgba(0, 149, 246, 0.4)" : "none"};
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  appearance: none;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: ${(props) => (props.$selected ? "scale(1.1)" : "scale(0.95)")};
+  }
+
+  &:focus {
+    outline: none;
+  }
 `;
 
 export default StoryCreate;
