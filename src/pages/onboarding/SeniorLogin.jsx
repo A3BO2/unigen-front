@@ -36,8 +36,12 @@ const SeniorLogin = () => {
   const processKakaoAuth = useCallback(
     async (accessToken) => {
       try {
+        const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+        if (!apiBaseURL) {
+          throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+        }
         const response = await fetch(
-          "http://localhost:3000/api/v1/senior/auth/kakao/login",
+          `${apiBaseURL}/senior/auth/kakao/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -226,8 +230,13 @@ const SeniorLogin = () => {
         return;
       }
 
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBaseURL) {
+        throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+      }
+
       const response = await fetch(
-        "http://localhost:3000/api/v1/senior/auth/kakao/signup",
+        `${apiBaseURL}/senior/auth/kakao/signup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

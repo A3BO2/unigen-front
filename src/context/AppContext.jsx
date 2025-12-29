@@ -86,8 +86,10 @@ export const AppProvider = ({ children }) => {
       }
 
       try {
-        const baseURL =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        const baseURL = import.meta.env.VITE_API_BASE_URL;
+        if (!baseURL) {
+          throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+        }
         const response = await fetch(`${baseURL}/auth/me`, {
           method: "GET",
           headers: {
@@ -154,8 +156,10 @@ export const AppProvider = ({ children }) => {
       }
 
       try {
-        const baseURL =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        const baseURL = import.meta.env.VITE_API_BASE_URL;
+        if (!baseURL) {
+          throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+        }
         const response = await fetch(`${baseURL}/auth/me`, {
           method: "GET",
           headers: {
@@ -209,8 +213,10 @@ export const AppProvider = ({ children }) => {
       }
 
       try {
-        const baseURL =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        const baseURL = import.meta.env.VITE_API_BASE_URL;
+        if (!baseURL) {
+          throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+        }
         const response = await fetch(`${baseURL}/users/me/settings`, {
           method: "GET",
           headers: {

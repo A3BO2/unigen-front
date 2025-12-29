@@ -1,7 +1,9 @@
 import axios from "axios";
 
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 const getHeaders = () => {
   const token = sessionStorage.getItem("token");
