@@ -18,7 +18,12 @@ import {
   followUser,
 } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
-import { likePost, unlikePost, deletePost } from "../../services/post";
+import {
+  likePost,
+  unlikePost,
+  deletePost,
+  isPostLike,
+} from "../../services/post";
 import { X, Heart, MessageCircle, Send, Search, Play } from "lucide-react";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
@@ -113,11 +118,33 @@ const Profile = () => {
 
         if (data?.posts) {
           // 백엔드에서 이미 필터링된 feed 게시물만 반환됨
+          console.log("로드된 posts 데이터 샘플:", data.posts[0]);
+
+          // 초기 liked 상태를 false로 설정
+          const postsWithLiked = data.posts.map((post) => ({
+            ...post,
+            liked: false,
+          }));
+
           if (pageNum === 1) {
-            setPosts(data.posts);
+            setPosts(postsWithLiked);
           } else {
-            setPosts((prev) => [...prev, ...data.posts]);
+            setPosts((prev) => [...prev, ...postsWithLiked]);
           }
+
+          // 좋아요 상태 비동기 조회
+          postsWithLiked.forEach(async (post) => {
+            try {
+              const res = await isPostLike(post.id);
+              setPosts((prev) =>
+                prev.map((p) =>
+                  p.id === post.id ? { ...p, liked: res.isLiked } : p
+                )
+              );
+            } catch (e) {
+              console.error("좋아요 상태 조회 실패", e);
+            }
+          });
 
           // pagination 정보로 hasMore 결정
           if (data.pagination) {
@@ -169,7 +196,12 @@ const Profile = () => {
 
         if (data?.posts) {
           // 백엔드에서 이미 필터링된 reel 게시물만 반환됨
-          allReels = [...allReels, ...data.posts];
+          // 초기 liked 상태를 false로 설정
+          const reelsWithLiked = data.posts.map((post) => ({
+            ...post,
+            liked: false,
+          }));
+          allReels = [...allReels, ...reelsWithLiked];
 
           // pagination 정보로 hasMore 결정
           if (data.pagination) {
@@ -185,6 +217,21 @@ const Profile = () => {
       }
 
       setReels(allReels);
+
+      // 좋아요 상태 비동기 조회
+      allReels.forEach(async (reel) => {
+        try {
+          const res = await isPostLike(reel.id);
+          setReels((prev) =>
+            prev.map((r) =>
+              r.id === reel.id ? { ...r, liked: res.isLiked } : r
+            )
+          );
+        } catch (e) {
+          console.error("릴스 좋아요 상태 조회 실패", e);
+        }
+      });
+
       setHasMoreReels(false); // 모든 릴스를 로드했으므로 더 이상 없음
     } catch (err) {
       console.error("릴스 로드 실패:", err);
@@ -496,6 +543,12 @@ const Profile = () => {
 
     const isReel = reels.some((r) => r.id === postId);
 
+    // 백엔드가 반환하는 liked 필드명 확인 (liked, is_liked, isLiked 등)
+    const currentLiked =
+      target.liked ?? target.is_liked ?? target.isLiked ?? false;
+
+    console.log("좋아요 클릭:", { postId, currentLiked, isReel, target });
+
     // optimistic update
     if (isReel) {
       setReels((prev) =>
@@ -503,8 +556,9 @@ const Profile = () => {
           r.id === postId
             ? {
                 ...r,
-                liked: !r.liked,
-                like_count: r.liked ? r.like_count - 1 : r.like_count + 1,
+                liked: !currentLiked,
+                is_liked: !currentLiked,
+                like_count: currentLiked ? r.like_count - 1 : r.like_count + 1,
               }
             : r
         )
@@ -515,8 +569,9 @@ const Profile = () => {
           p.id === postId
             ? {
                 ...p,
-                liked: !p.liked,
-                like_count: p.liked ? p.like_count - 1 : p.like_count + 1,
+                liked: !currentLiked,
+                is_liked: !currentLiked,
+                like_count: currentLiked ? p.like_count - 1 : p.like_count + 1,
               }
             : p
         )
@@ -524,11 +579,14 @@ const Profile = () => {
     }
 
     try {
-      if (target.liked) {
+      if (currentLiked) {
+        console.log("좋아요 취소 요청 중...");
         await unlikePost(postId);
       } else {
+        console.log("좋아요 추가 요청 중...");
         await likePost(postId);
       }
+      console.log("좋아요 성공");
     } catch (error) {
       console.error("좋아요 실패 → 롤백", error);
       // 실패 시 롤백
@@ -538,7 +596,8 @@ const Profile = () => {
             r.id === postId
               ? {
                   ...r,
-                  liked: target.liked,
+                  liked: currentLiked,
+                  is_liked: currentLiked,
                   like_count: target.like_count,
                 }
               : r
@@ -550,7 +609,8 @@ const Profile = () => {
             p.id === postId
               ? {
                   ...p,
-                  liked: target.liked,
+                  liked: currentLiked,
+                  is_liked: currentLiked,
                   like_count: target.like_count,
                 }
               : p
@@ -1199,6 +1259,7 @@ const Profile = () => {
                 caption: selectedPost.content,
                 timestamp: selectedPost.created_at,
                 likes: selectedPost.like_count || 0,
+                liked: selectedPost.liked || false,
                 user: {
                   id: profileData?.id,
                   username: profileData?.username || "사용자",
@@ -1730,14 +1791,7 @@ const PostGrid = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding-top: 4px;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 767px) {
-    grid-template-columns: repeat(1, 1fr);
-  }
+  width: 100%;
 `;
 
 const GridItem = styled.div`

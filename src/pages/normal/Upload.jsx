@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Maximize2, Loader2 } from "lucide-react";
+import { Maximize2, Loader2, ArrowLeft } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
@@ -231,6 +231,9 @@ const Upload = () => {
       setStep("select");
       setPreview(null);
       setOriginalFile(null);
+    } else if (step === "select") {
+      // select 단계에서는 모달 닫기
+      handleClose();
     }
   };
 
@@ -247,7 +250,16 @@ const Upload = () => {
     try {
       // 서버로 보낼 FormData 만들기
       const formData = new FormData();
-      formData.append("images", finalFile); // 다 적용된 최종 파일
+
+      // 모바일에서 Blob 타입 처리 추가
+      let uploadFile = finalFile;
+      if (finalFile instanceof Blob && !(finalFile instanceof File)) {
+        uploadFile = new File([finalFile], "upload.jpg", {
+          type: "image/jpeg",
+        });
+      }
+
+      formData.append("images", uploadFile); // 다 적용된 최종 파일
       formData.append("content", caption); // 글
       // postType을 명시적으로 추가해야 벡엔드가 구분
       formData.append("postType", contentType === "reels" ? "reel" : "feed");
@@ -258,6 +270,9 @@ const Upload = () => {
       navigate("/normal/home");
     } catch (error) {
       console.error("업로드 에러:", error);
+      alert(
+        `업로드 실패: ${error.message || "알 수 없는 오류가 발생했습니다."}`
+      );
     } finally {
       setIsUploading(false);
     }
@@ -377,9 +392,9 @@ const Upload = () => {
           $darkMode={isDarkMode}
         >
           <ModalHeader $darkMode={isDarkMode}>
-            {step !== "select" && (
-              <BackButton onClick={handleBack}>뒤로</BackButton>
-            )}
+            <BackButton onClick={handleBack}>
+              <ArrowLeft size={20} />
+            </BackButton>
             <ModalTitle $darkMode={isDarkMode}>
               {step === "select" &&
                 (contentType === "reels"
@@ -865,16 +880,29 @@ const ModalHeader = styled.div`
 const BackButton = styled.button`
   position: absolute;
   left: 16px;
-  font-size: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 8px;
   color: #0095f6;
-  font-weight: 600;
   cursor: pointer;
   outline: none;
   border: none;
   background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  z-index: 10;
+  min-width: 44px;
+  min-height: 44px;
 
   &:hover {
-    color: #00376b;
+    opacity: 0.7;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
   }
 `;
 
@@ -1209,19 +1237,25 @@ const FilterTab = styled.button`
 `;
 
 const FilterGrid = styled.div`
-  display: flex;
-  flex-direction: row;
-  gap: 1px;
-  background: #dbdbdb;
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 0;
+  row-gap: 0;
+  background: white;
+  overflow-y: auto;
   height: 100%;
   flex: 1;
   scroll-behavior: smooth;
+  padding: 0;
 
   @media (max-width: 767px) {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
     max-height: 120px;
     height: auto;
+    padding: 0;
   }
 `;
 
@@ -1232,11 +1266,14 @@ const FilterOption = styled.div`
   aspect-ratio: 1;
   overflow: hidden;
   border: ${(props) => (props.$active ? "2px solid #0095f6" : "none")};
-  min-width: 100px;
   flex-shrink: 0;
 
   &:hover {
     opacity: 0.8;
+  }
+
+  @media (max-width: 767px) {
+    min-width: 100px;
   }
 `;
 
