@@ -7,6 +7,8 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
 import Cropper from "react-easy-crop";
 import { createPost } from "../../services/post";
+import CameraModal from "../../components/normal/CameraModal";
+import { isMobile } from "react-device-detect";
 
 // 필터 값 정의
 const FILTER_STYLES = {
@@ -61,6 +63,10 @@ const Upload = () => {
 
   // 업로드 시 상태 관리 state(업로드 로딩 창)
   const [isUploading, setIsUploading] = useState(false);
+
+  // 카메라 모달 표시 여부 state 추가
+  const [showCamera, setShowCamera] = useState(false);
+  const mobileCameraInputRef = useRef(null); // 모바일 카메라용
 
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
@@ -326,10 +332,45 @@ const Upload = () => {
     });
   };
 
+  // 모바일 감지 함수
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+  };
+
+  // 카메라 버튼 클릭 시 분기 처리 (모바일 vs PC)
+  const handleCameraClick = () => {
+    if (isMobileDevice()) {
+      mobileCameraInputRef.current?.click();
+    } else {
+      setShowCamera(true);
+    }
+  };
+
+  // 카메라로 찍은 사진 처리 함수 추가
+  const handleCameraCapture = (file) => {
+    if (file) {
+      setOriginalFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setPreview(objectUrl);
+
+      setStep("crop");
+    }
+  };
+
   return (
     <>
       <LeftSidebar />
       <RightSidebar />
+
+      {/* 카메라 모달 */}
+      {showCamera && (
+        <CameraModal
+          onClose={() => setShowCamera(false)}
+          onCapture={handleCameraCapture}
+        />
+      )}
 
       <CloseButtonOuter onClick={handleClose}>
         <X size={24} />
@@ -396,9 +437,34 @@ const Upload = () => {
                   ? "사진을 여기에 끌어다 놓으세요"
                   : "동영상을 여기에 끌어다 놓으세요"}
               </UploadText>
-              <SelectButton onClick={() => fileInputRef.current?.click()}>
-                컴퓨터에서 선택
-              </SelectButton>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
+                }}
+              >
+                <SelectButton onClick={() => fileInputRef.current?.click()}>
+                  컴퓨터에서 선택
+                </SelectButton>
+                {contentType === "photo" && (
+                  <SelectButton
+                    onClick={handleCameraClick}
+                    style={{ backgroundColor: "#262626" }}
+                  >
+                    사진 촬영
+                  </SelectButton>
+                )}
+              </div>
+              <input
+                ref={mobileCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment" // 핵심: 후면 카메라 바로 실행
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              {/* 기존 파일 선택 Input [유지] */}
               <input
                 ref={fileInputRef}
                 type="file"

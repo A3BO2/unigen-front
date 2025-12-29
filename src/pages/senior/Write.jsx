@@ -13,6 +13,7 @@ import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { createPost } from "../../services/post";
 import { refineContent } from "../../services/senior";
+import CameraModal from "../../components/normal/CameraModal";
 
 // AI 테마 목록
 const THEMES = [
@@ -83,6 +84,7 @@ const Write = () => {
   const [isUploading, setIsUploading] = useState(false); // 업로드 로딩 상태
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const [showCamera, setShowCamera] = useState(false);
 
   // 모드 선택
   const handleModeSelect = (selectedMode) => {
@@ -211,8 +213,46 @@ const Write = () => {
     navigate("/senior/home");
   };
 
+  // 모바일 감지 함수
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+  };
+
+  // 카메라 버튼 클릭 핸들러
+  const handleCameraClick = () => {
+    if (isMobileDevice()) {
+      cameraInputRef.currnent?.click();
+    } else {
+      setShowCamera(true);
+    }
+  };
+
+  // 웹캠 모달에서 찍은 사진 처리 (압축 로직 재사용)
+  const handleWebcamCapture = async (file) => {
+    try {
+      const compressedDataUrl = await compressImage(file); // 기존 함수 재사용
+      setPhoto(compressedDataUrl);
+      setStep("write");
+      if (mode === "voice") {
+        setTimeout(() => startVoiceRecording(), 500);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("사진 처리 실패");
+    }
+  };
+
   return (
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
+      {/* 카메라 모달 추가 */}
+      {showCamera && (
+        <CameraModal
+          onClose={() => setShowCamera(false)}
+          onCapture={handleWebcamCapture}
+        />
+      )}
       <Container>
         <Header>
           <CancelButton onClick={() => navigate("/senior/home")}>
@@ -253,7 +293,7 @@ const Write = () => {
             <UploadSection>
               <UploadTitle>사진을 선택해주세요</UploadTitle>
               <ButtonGroup>
-                <PhotoButton onClick={() => cameraInputRef.current?.click()}>
+                <PhotoButton onClick={handleCameraClick}>
                   <Camera size={56} strokeWidth={2.5} />
                   <PhotoButtonLabel>사진 찍기</PhotoButtonLabel>
                 </PhotoButton>
