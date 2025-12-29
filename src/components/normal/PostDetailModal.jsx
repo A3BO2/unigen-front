@@ -117,8 +117,9 @@ const PostDetailModal = ({
   };
 
   const handleCommentSubmit = async () => {
-    if (!commentInput.trim() || !post?.id) return;
+    if (!commentInput.trim() || !post?.id || commentLoading) return;
 
+    setCommentLoading(true);
     try {
       await createComment(post.id, commentInput.trim());
       const res = await fetchComments(post.id);
@@ -126,6 +127,8 @@ const PostDetailModal = ({
       setCommentInput("");
     } catch (e) {
       console.error("댓글 작성 실패", e);
+    } finally {
+      setCommentLoading(false);
     }
   };
 
@@ -413,14 +416,21 @@ const PostDetailModal = ({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleCommentSubmit();
+                    e.stopPropagation();
+                    if (!commentLoading) {
+                      handleCommentSubmit();
+                    }
                   }
                 }}
                 placeholder="댓글 달기..."
               />
               <PostButton
-                onClick={handleCommentSubmit}
-                disabled={!commentInput.trim()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCommentSubmit();
+                }}
+                disabled={!commentInput.trim() || commentLoading}
               >
                 게시
               </PostButton>

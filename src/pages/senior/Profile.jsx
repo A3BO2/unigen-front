@@ -29,7 +29,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const [settings, setSettings] = useState({
     fontScale: "large",
-    notificationsOn: true,
     seniorSimpleMode: true,
     language: "ko",
   });
@@ -326,7 +325,7 @@ const Profile = () => {
 
         <QuickActions>
           <QuickActionButton onClick={() => navigate("/senior/settings")}>
-            <ActionTitle>글자 · 알림 설정</ActionTitle>
+            <ActionTitle>글자 크기 설정</ActionTitle>
             <ActionDescription>
               {!loading && (
                 <>
@@ -335,11 +334,10 @@ const Profile = () => {
                     ? "작게"
                     : settings.fontScale === "medium"
                     ? "보통"
-                    : "크게"}{" "}
-                  · 알림: {settings.notificationsOn ? "켜짐" : "꺼짐"}
+                    : "크게"}
                 </>
               )}
-              {loading && "글씨 크기와 알림을 한눈에 조절해요"}
+              {loading && "글씨 크기를 조절해요"}
             </ActionDescription>
           </QuickActionButton>
           <QuickActionButton onClick={handleSwitchToNormal}>

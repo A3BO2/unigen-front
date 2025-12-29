@@ -9,8 +9,10 @@ const RightSidebar = () => {
   const { user, isDarkMode, switchMode } = useApp();
 
   const handleSwitchMode = () => {
-    switchMode("senior");
-    navigate("/senior/home");
+    if (confirm("시니어 모드로 전환하시겠습니까?")) {
+      switchMode("senior");
+      navigate("/senior/home");
+    }
   };
 
   // profile_image 처리: http:// 또는 https://로 시작하는 URL은 그대로 사용

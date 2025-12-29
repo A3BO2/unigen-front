@@ -19,7 +19,7 @@ import {
 } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
 import { likePost, unlikePost, deletePost } from "../../services/post";
-import { X, Heart, MessageCircle, Send, Search } from "lucide-react";
+import { X, Heart, MessageCircle, Send, Search, Play } from "lucide-react";
 
 const baseURL = import.meta.env.VITE_BASE_URL;
 
@@ -1049,19 +1049,40 @@ const Profile = () => {
                         ref={index === posts.length - 1 ? lastPostRef : null}
                         onClick={() => handleShowComments(post.id)}
                       >
-                        <PostImage
-                          style={{
-                            backgroundImage: post.image_url
-                              ? `url(${getImageUrl(post.image_url)})`
-                              : "none",
-                            backgroundColor: !post.image_url
-                              ? `hsl(${index * 40}, 70%, 80%)`
-                              : "transparent",
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
-                        {/* 게시물 피드에서는 VideoIndicator를 절대 표시하지 않음 */}
+                        <ImageWrapper>
+                          <PostImage
+                            style={{
+                              backgroundImage: post.image_url
+                                ? `url(${getImageUrl(post.image_url)})`
+                                : "none",
+                              backgroundColor: !post.image_url
+                                ? `hsl(${index * 40}, 70%, 80%)`
+                                : "transparent",
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          />
+                          <Overlay>
+                            <OverlayStats>
+                              <OverlayStat>
+                                <Heart size={20} fill="white" color="white" />
+                                <span>
+                                  {(post.like_count || 0).toLocaleString()}
+                                </span>
+                              </OverlayStat>
+                              <OverlayStat>
+                                <MessageCircle
+                                  size={20}
+                                  fill="white"
+                                  color="white"
+                                />
+                                <span>
+                                  {(post.comment_count || 0).toLocaleString()}
+                                </span>
+                              </OverlayStat>
+                            </OverlayStats>
+                          </Overlay>
+                        </ImageWrapper>
                       </GridItem>
                     );
                   })}
@@ -1091,20 +1112,47 @@ const Profile = () => {
                       <GridItem
                         key={reel.id || index}
                         ref={index === reels.length - 1 ? lastReelRef : null}
-                        onClick={() => navigate(`/normal/reels?startId=${reel.id}`)}
+                        onClick={() =>
+                          navigate(`/normal/reels?startId=${reel.id}`)
+                        }
                       >
-                        <PostImage
-                          style={{
-                            backgroundImage: reel.image_url
-                              ? `url(${getImageUrl(reel.image_url)})`
-                              : "none",
-                            backgroundColor: !reel.image_url
-                              ? `hsl(${index * 40}, 70%, 80%)`
-                              : "transparent",
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
+                        <ImageWrapper>
+                          <PostImage
+                            style={{
+                              backgroundImage: reel.image_url
+                                ? `url(${getImageUrl(reel.image_url)})`
+                                : "none",
+                              backgroundColor: !reel.image_url
+                                ? `hsl(${index * 40}, 70%, 80%)`
+                                : "transparent",
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          />
+                          <ReelIndicator>
+                            <Play size={20} fill="white" color="white" />
+                          </ReelIndicator>
+                          <Overlay>
+                            <OverlayStats>
+                              <OverlayStat>
+                                <Heart size={20} fill="white" color="white" />
+                                <span>
+                                  {(reel.like_count || 0).toLocaleString()}
+                                </span>
+                              </OverlayStat>
+                              <OverlayStat>
+                                <MessageCircle
+                                  size={20}
+                                  fill="white"
+                                  color="white"
+                                />
+                                <span>
+                                  {(reel.comment_count || 0).toLocaleString()}
+                                </span>
+                              </OverlayStat>
+                            </OverlayStats>
+                          </Overlay>
+                        </ImageWrapper>
                       </GridItem>
                     ))}
                   </PostGrid>
@@ -1685,18 +1733,65 @@ const PostGrid = styled.div`
 `;
 
 const GridItem = styled.div`
+  position: relative;
   aspect-ratio: 1;
   cursor: pointer;
+`;
+
+const ImageWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 
-  &:hover {
-    opacity: 0.8;
+  &:hover > div:last-child {
+    opacity: 1;
   }
 `;
 
 const PostImage = styled.div`
   width: 100%;
   height: 100%;
+`;
+
+const Overlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+`;
+
+const OverlayStats = styled.div`
+  display: flex;
+  gap: 30px;
+  color: white;
+`;
+
+const OverlayStat = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+
+  svg {
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+  }
+`;
+
+const ReelIndicator = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
 `;
 
 const ErrorMessage = styled.div`

@@ -192,7 +192,9 @@ const StoryCreate = () => {
                       zoom={zoom}
                       aspect={9 / 16}
                       onCropChange={setCrop}
-                      onZoomChange={setZoom}
+                      onZoomChange={() => {}}
+                      maxZoom={1}
+                      minZoom={1}
                       onCropComplete={onCropComplete}
                     />
                   ) : (
@@ -232,8 +234,8 @@ const StoryCreate = () => {
                     <span>크기</span>
                     <input
                       type="range"
-                      min="1"
-                      max0="60"
+                      min="10"
+                      max="30"
                       value={fontSize}
                       onChange={(e) => setFontSize(Number(e.target.value))}
                     />
@@ -327,8 +329,43 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  const width = pixelCrop ? pixelCrop.width : image.width;
-  const height = pixelCrop ? pixelCrop.height : image.height;
+
+  let width, height;
+  let drawX, drawY, drawW, drawH;
+
+  if (pixelCrop) {
+    // [사용자가 자르기 도구를 쓴 경우] -> 자른 영역 그대로 사용
+    width = pixelCrop.width;
+    height = pixelCrop.height;
+    drawX = 0;
+    drawY = 0;
+    drawW = width;
+    drawH = height;
+  } else {
+    // [자르기 안 한 경우] -> 9:16 비율(스토리 규격) 캔버스 생성 및 레터박스(여백) 처리
+    const targetAspect = 9 / 16;
+    const imageAspect = image.width / image.height;
+
+    if (imageAspect > targetAspect) {
+      // 이미지가 더 납작함 (가로형, 정사각형 등) -> 가로를 꽉 채우고 위아래 여백
+      width = image.width;
+      height = image.width / targetAspect; // 9:16 비율에 맞게 높이 늘림
+
+      drawW = image.width;
+      drawH = image.height;
+      drawX = 0;
+      drawY = (height - image.height) / 2; // 세로 중앙 정렬
+    } else {
+      // 이미지가 더 길쭉함 (세로형 파노라마 등) -> 세로를 꽉 채우고 좌우 여백
+      height = image.height;
+      width = image.height * targetAspect; // 9:16 비율에 맞게 너비 늘림
+
+      drawW = image.width;
+      drawH = image.height;
+      drawX = (width - image.width) / 2; // 가로 중앙 정렬
+      drawY = 0;
+    }
+  }
 
   canvas.width = width;
   canvas.height = height;
@@ -346,7 +383,7 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
       height
     );
   } else {
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, drawX, drawY, drawW, drawH);
   }
 
   // 텍스트 그리기
@@ -391,7 +428,8 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
       }
     }
 
-    ctx.fillText(text, finalX, currentY);
+    ctx.fillText(line, finalX, currentY);
+    currentY += lineHeight;
   }
 
   return new Promise((resolve) => {
@@ -540,7 +578,7 @@ const StoryFrame = styled.div`
 const PreviewImage = styled.img`
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
 `;
 

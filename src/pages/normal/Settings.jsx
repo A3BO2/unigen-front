@@ -7,28 +7,12 @@ import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { useApp } from "../../context/AppContext";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
-import { getUserSettings, updateUserSettings } from "../../services/user";
+import { updateUserSettings } from "../../services/user";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
   const [loading, setLoading] = useState(false);
-  const [notificationsOn, setNotificationsOn] = useState(true);
-
-  // 초기 설정 로드
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await getUserSettings();
-        setNotificationsOn(
-          settings.notificationsOn !== undefined ? settings.notificationsOn : true
-        );
-      } catch (error) {
-        console.error("설정 로드 실패:", error);
-      }
-    };
-    loadSettings();
-  }, []);
 
   const handleDarkModeToggle = async () => {
     const newValue = !isDarkMode;
@@ -46,27 +30,11 @@ const Settings = () => {
     }
   };
 
-  // 알림 설정 변경 핸들러
-  const handleNotificationsChange = async () => {
-    const newValue = !notificationsOn;
-    const previousValue = notificationsOn;
-    setNotificationsOn(newValue);
-
-    try {
-      setLoading(true);
-      await updateUserSettings({ notificationsOn: newValue });
-    } catch (error) {
-      console.error("설정 저장 실패:", error);
-      // 실패 시 원래 값으로 복구
-      setNotificationsOn(previousValue);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleModeSwitch = () => {
-    switchMode("senior");
-    navigate("/senior/home");
+    if (confirm("시니어 모드로 전환하시겠습니까?")) {
+      switchMode("senior");
+      navigate("/senior/home");
+    }
   };
 
   const handleLogout = () => {
@@ -125,19 +93,6 @@ const Settings = () => {
                 <ToggleCircle $active={isDarkMode} />
               </Toggle>
             </SettingItem>
-
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={handleNotificationsChange}
-              style={{ opacity: loading ? 0.6 : 1 }}
-            >
-              <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>알림 설정</SettingLabel>
-              </SettingLeft>
-              <Toggle $active={notificationsOn}>
-                <ToggleCircle $active={notificationsOn} />
-              </Toggle>
-            </SettingItem>
           </Section>
 
           <Section>
@@ -181,6 +136,7 @@ const Container = styled.div`
 
   @media (max-width: 1264px) {
     margin-left: 72px;
+    margin-right: 0;
   }
 
   @media (max-width: 767px) {
@@ -193,7 +149,7 @@ const Container = styled.div`
 const Header = styled.div`
   max-width: 600px;
   margin: 0 auto;
-  padding: 30px 0 20px;
+  padding: 30px 0 20px 20px;
   border-bottom: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
