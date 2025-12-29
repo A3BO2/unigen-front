@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { Home, Search, PlusSquare, Film, User } from "lucide-react";
+import { Home, Compass, PlusSquare, Film, User } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
 const BottomNav = () => {
@@ -31,13 +31,13 @@ const BottomNav = () => {
         />
       </NavItem>
       <NavItem
-        onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
-        $active={isActive("/normal/search")}
+        onClick={() => navigate("/normal/explore")}
+        $active={isActive("/normal/explore")}
         $darkMode={isDarkMode}
       >
-        <Search
+        <Compass
           size={24}
-          strokeWidth={isActive("/normal/search") ? 2.5 : 2}
+          strokeWidth={isActive("/normal/explore") ? 2.5 : 2}
           color={isDarkMode ? "#fff" : "#262626"}
         />
       </NavItem>

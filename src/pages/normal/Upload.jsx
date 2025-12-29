@@ -556,11 +556,6 @@ const Upload = () => {
                   style={{
                     // 필터 + 조정값 모두 적용
                     filter: getAppliedFilterStyle(),
-
-                    // 아까 만든 자르기 비율도 유지
-                    aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
-                    objectFit: aspectRatio ? "cover" : "contain",
-                    width: aspectRatio ? "100%" : "auto",
                   }}
                 />
               </FilterLeft>
@@ -1124,8 +1119,12 @@ const CropButton = styled.button`
 
 const FilterContainer = styled.div`
   display: flex;
-  height: min(70vh, 600px);
+  height: min(84vh, 720px);
   overflow: hidden;
+
+  @media (max-width: 1024px) {
+    height: min(78vh, 660px);
+  }
 
   @media (max-width: 767px) {
     flex-direction: column;
@@ -1141,15 +1140,26 @@ const FilterLeft = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
 `;
 
 const PreviewImageLarge = styled.img`
   max-width: 100%;
-  max-height: 100%;
+  max-height: 720px;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  display: block;
+
+  @media (max-width: 1024px) {
+    max-height: 660px;
+  }
 
   @media (max-width: 767px) {
-    object-fit: cover; /* 모바일에서는 화면 채움 */
+    max-height: 60vh;
+    object-fit: contain;
   }
 `;
 
@@ -1160,6 +1170,11 @@ const FilterRight = styled.div`
   flex-direction: column;
   background: white;
   overflow: hidden;
+  flex-shrink: 0;
+
+  @media (max-width: 1024px) {
+    width: 280px;
+  }
 
   @media (max-width: 767px) {
     width: 100%;
@@ -1200,11 +1215,13 @@ const FilterGrid = styled.div`
   background: #dbdbdb;
   overflow-x: auto;
   overflow-y: hidden;
-  max-height: min(calc(600px - 45px), 40vh);
+  height: 100%;
+  flex: 1;
   scroll-behavior: smooth;
 
   @media (max-width: 767px) {
     max-height: 120px;
+    height: auto;
   }
 `;
 
@@ -1247,11 +1264,13 @@ const AdjustmentPanel = styled.div`
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   overflow-y: auto;
-  max-height: min(calc(600px - 45px), 40vh);
+  height: 100%;
+  flex: 1;
 
   @media (max-width: 767px) {
     gap: 16px;
     padding: 12px;
+    height: auto;
   }
 `;
 

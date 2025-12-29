@@ -58,6 +58,13 @@ const Home = () => {
 
   const POSTS_PER_PAGE = 5; // 한 번에 불러올 포스트 개수
 
+  // 이미지 URL 변환 함수
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return url;
+  };
+
   // 스토리 데이터
   const [stories, setStories] = useState([]);
   const [storiesLoading, setStoriesLoading] = useState(false);
@@ -195,11 +202,15 @@ const Home = () => {
             avatar: toAbsolute(item.author.profileImageUrl),
           },
           image: toAbsolute(`${item.imageUrl}`),
+          image_url: toAbsolute(`${item.imageUrl}`),
           likes: item.likeCount,
+          like_count: item.likeCount,
           caption: item.content,
+          content: item.content,
           timestamp: item.timestamp || item.createdAt,
           createdAt: item.createdAt || item.timestamp,
           liked: false,
+          comment_count: item.commentCount,
           comments: item.commentCount,
         }));
 
@@ -974,6 +985,7 @@ const Home = () => {
                 isFollowing={isFollowingUser}
                 isMine={isMine}
                 followLoading={followLoading}
+                getImageUrl={getImageUrl}
               />
             );
           })()}
@@ -1237,10 +1249,15 @@ const Stories = styled.div`
   overflow-y: hidden;
   margin-bottom: 24px;
   padding-left: 16px;
+  padding-right: 16px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 
   &::-webkit-scrollbar {
     display: none;
   }
+
+  scrollbar-width: none;
 
   @media (max-width: 767px) {
     border: none;
@@ -1357,10 +1374,6 @@ const AddStoryButton = styled.div`
 
   &:hover {
     background: #1877f2;
-  }
-
-  @media (max-width: 767px) {
-    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1818,8 +1831,9 @@ const StoryContent = styled.div`
 `;
 
 const StoryImage = styled.img`
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  height: 90vh;
+  width: auto;
   object-fit: contain;
 `;
 
