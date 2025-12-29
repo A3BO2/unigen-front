@@ -189,7 +189,9 @@ const StoryCreate = () => {
                       zoom={zoom}
                       aspect={9 / 16}
                       onCropChange={setCrop}
-                      onZoomChange={setZoom}
+                      onZoomChange={() => {}}
+                      maxZoom={1}
+                      minZoom={1}
                       onCropComplete={onCropComplete}
                     />
                   ) : (
@@ -424,7 +426,8 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
       }
     }
 
-    ctx.fillText(text, finalX, currentY);
+    ctx.fillText(line, finalX, currentY);
+    currentY += lineHeight;
   }
 
   return new Promise((resolve) => {
