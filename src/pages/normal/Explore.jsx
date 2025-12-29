@@ -285,7 +285,14 @@ const Explore = () => {
   }, [selectedPost]); // selectedPost 변경 시에만 실행
 
   // 팔로우/언팔로우 핸들러
-  const handleFollow = async () => {
+  const handleFollow = async (e) => {
+    // 1. 이벤트 객체(e)를 파라미터로 받음
+    // 2. 이벤트가 존재하면 전파 중단 및 기본 동작 방지
+    if (e) {
+      e.preventDefault(); // 링크 이동 방지
+      e.stopPropagation(); // 부모 요소로의 클릭 이벤트 전파 방지 (프로필 이동 방지)
+    }
+
     if (!selectedPost || !selectedPost.user.id || followLoading) return;
 
     setFollowLoading(true);
