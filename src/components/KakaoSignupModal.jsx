@@ -12,6 +12,15 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (formData.phone) {
+      // 전화번호 검증 (010으로 시작하는 11자리)
+      const phoneRegex = /^010\d{8}$/;
+      if (!phoneRegex.test(formData.phone)) {
+        alert("010으로 시작하는 11자리 숫자를 입력해주세요. (예: 01012341234)");
+        return;
+      }
+    }
+
     if (!formData.username || !formData.phone) {
       alert("사용자 이름과 전화번호는 필수입니다.");
       return;
@@ -63,7 +72,7 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
           <Input
             type="text"
             name="name"
-            placeholder="성명 (실명)"
+            placeholder="성명"
             value={formData.name}
             onChange={handleChange}
             required
@@ -85,7 +94,7 @@ const KakaoSignupModal = ({ isOpen, onClose, kakaoUser, onSignup }) => {
           <Input
             type="tel"
             name="phone"
-            placeholder="전화번호"
+            placeholder="전화번호 (예: 01012341234)"
             value={formData.phone}
             onChange={handleChange}
             required
@@ -246,4 +255,3 @@ const SubmitButton = styled.button`
 `;
 
 export default KakaoSignupModal;
-
