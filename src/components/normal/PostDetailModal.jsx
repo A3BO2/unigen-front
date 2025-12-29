@@ -64,9 +64,10 @@ const PostDetailModal = ({
   useEffect(() => {
     if (post) {
       setIsLiked(post.liked || false);
+      // 좋아요 수는 post.id가 변경될 때만 초기화 (같은 게시물이면 유지)
       setLikesCount(post.likes || post.like_count || 0);
     }
-  }, [post]);
+  }, [post?.id]); // post 전체가 아닌 post.id만 의존성으로 설정
 
   // 모달 열릴 때 body 스크롤 막기/풀기
   useEffect(() => {
