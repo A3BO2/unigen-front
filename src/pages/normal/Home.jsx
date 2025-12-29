@@ -713,11 +713,13 @@ const Home = () => {
           />
           <MobileIcons>
             <IconButton
+              $darkMode={isDarkMode}
               onClick={() => window.dispatchEvent(new Event("open-search"))}
             >
               <Search size={24} />
             </IconButton>
             <IconButton
+              $darkMode={isDarkMode}
               onClick={() => window.dispatchEvent(new Event("open-more"))}
             >
               <MoreHorizontal size={24} />
@@ -1222,6 +1224,11 @@ const IconButton = styled.button`
   padding: 4px;
   cursor: pointer;
   transition: opacity 0.2s;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+
+  svg {
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  }
 
   &:hover {
     opacity: 0.6;

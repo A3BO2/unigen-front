@@ -51,6 +51,13 @@ const CameraModal = ({ onClose, onCapture }) => {
       const context = canvas.getContext("2d");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+
+      // 전면 카메라일 때 좌우반전하여 정상적으로 저장
+      if (facingMode === "user") {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+      }
+
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       canvas.toBlob(
@@ -76,7 +83,13 @@ const CameraModal = ({ onClose, onCapture }) => {
     <Overlay>
       <Container>
         {/* 카메라 화면 */}
-        <Video ref={videoRef} autoPlay playsInline muted />
+        <Video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          $isFlipped={facingMode === "user"}
+        />
 
         {/* 캡처용 숨겨진 캔버스 */}
         <canvas ref={canvasRef} style={{ display: "none" }} />
@@ -143,6 +156,7 @@ const Video = styled.video`
   width: 100%;
   height: 100%;
   object-fit: contain; /* 비율 유지하며 화면에 맞춤 */
+  transform: ${(props) => (props.$isFlipped ? "scaleX(-1)" : "none")};
 
   @media (max-width: 767px) {
     object-fit: cover; /* 모바일에서는 화면 채움 */
