@@ -530,7 +530,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 767px) {
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -546,10 +546,11 @@ const MainContent = styled.main`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
 
   @media (max-width: 767px) {
+    grid-template-columns: repeat(2, 1fr);
     gap: 2px;
   }
 `;

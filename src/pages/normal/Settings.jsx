@@ -151,7 +151,7 @@ const Container = styled.div`
   @media (max-width: 767px) {
     margin-left: 0;
     margin-right: 0;
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 

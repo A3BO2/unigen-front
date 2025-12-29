@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Plus,
   Loader2,
+  Search,
 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
@@ -56,6 +57,13 @@ const Home = () => {
   const storiesRef = useRef([]);
 
   const POSTS_PER_PAGE = 5; // 한 번에 불러올 포스트 개수
+
+  // 이미지 URL 변환 함수
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return url;
+  };
 
   // 스토리 데이터
   const [stories, setStories] = useState([]);
@@ -194,11 +202,15 @@ const Home = () => {
             avatar: toAbsolute(item.author.profileImageUrl),
           },
           image: toAbsolute(`${item.imageUrl}`),
+          image_url: toAbsolute(`${item.imageUrl}`),
           likes: item.likeCount,
+          like_count: item.likeCount,
           caption: item.content,
+          content: item.content,
           timestamp: item.timestamp || item.createdAt,
           createdAt: item.createdAt || item.timestamp,
           liked: false,
+          comment_count: item.commentCount,
           comments: item.commentCount,
         }));
 
@@ -700,8 +712,15 @@ const Home = () => {
             alt="Unigen"
           />
           <MobileIcons>
-            <IconButton>
-              <Heart size={24} />
+            <IconButton
+              onClick={() => window.dispatchEvent(new Event("open-search"))}
+            >
+              <Search size={24} />
+            </IconButton>
+            <IconButton
+              onClick={() => window.dispatchEvent(new Event("open-more"))}
+            >
+              <MoreHorizontal size={24} />
             </IconButton>
           </MobileIcons>
         </MobileHeader>
@@ -966,6 +985,7 @@ const Home = () => {
                 isFollowing={isFollowingUser}
                 isMine={isMine}
                 followLoading={followLoading}
+                getImageUrl={getImageUrl}
               />
             );
           })()}
@@ -1165,7 +1185,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 767px) {
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1229,10 +1249,15 @@ const Stories = styled.div`
   overflow-y: hidden;
   margin-bottom: 24px;
   padding-left: 16px;
+  padding-right: 16px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 
   &::-webkit-scrollbar {
     display: none;
   }
+
+  scrollbar-width: none;
 
   @media (max-width: 767px) {
     border: none;
@@ -1806,8 +1831,9 @@ const StoryContent = styled.div`
 `;
 
 const StoryImage = styled.img`
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  height: 90vh;
+  width: auto;
   object-fit: contain;
 `;
 
@@ -1838,6 +1864,11 @@ const StoryFooter = styled.div`
   right: 0;
   padding: 16px;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    bottom: calc(env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 /* ==========================================
    1. 게시글 수정/삭제 메뉴 스타일 (기존 HEAD)
@@ -1895,7 +1926,7 @@ const MenuItem = styled.button`
 const ActivityButton = styled.button`
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);

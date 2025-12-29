@@ -66,7 +66,7 @@ const PostDetailModal = ({
       setIsLiked(post.liked || false);
       setLikesCount(post.likes || post.like_count || 0);
     }
-  }, [post]);
+  }, [post?.id, post?.liked, post?.likes, post?.like_count]);
 
   // 모달 열릴 때 body 스크롤 막기/풀기
   useEffect(() => {
@@ -471,9 +471,12 @@ const ModalContainer = styled.div`
 
   @media (max-width: 767px) {
     width: 100%;
-    height: 100%;
-    max-height: 100vh;
+    height: calc(
+      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
+    max-height: none;
     border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 `;
 
@@ -501,8 +504,8 @@ const CloseButton = styled.button`
   }
 
   @media (max-width: 767px) {
-    top: 10px;
-    right: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
   }
 `;
 
@@ -682,6 +685,8 @@ const CommentsSection = styled.div`
   overflow-y: auto;
   padding: 16px;
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -694,6 +699,10 @@ const CommentsSection = styled.div`
   &::-webkit-scrollbar-thumb {
     background: ${(props) => (props.$darkMode ? "#363636" : "#dbdbdb")};
     border-radius: 4px;
+  }
+
+  @media (max-width: 767px) {
+    max-height: 40vh;
   }
 `;
 
@@ -826,6 +835,10 @@ const CommentInputBox = styled.div`
   padding: 12px 16px;
   border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   gap: 12px;
+  flex-shrink: 0;
+  background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
+  pointer-events: auto;
+  z-index: 10;
 `;
 
 const CommentInputIcon = styled.div`
@@ -833,6 +846,8 @@ const CommentInputIcon = styled.div`
   align-items: center;
   justify-content: center;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  flex-shrink: 0;
+  pointer-events: auto;
 `;
 
 const PostButton = styled.button`
@@ -843,6 +858,9 @@ const PostButton = styled.button`
   font-size: 14px;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
+  pointer-events: auto;
+  z-index: 10;
 
   &:hover:not(:disabled) {
     color: #1877f2;
@@ -861,6 +879,8 @@ const StyledInput = styled.input`
   background: transparent;
   font-size: 14px;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  pointer-events: auto;
+  z-index: 10;
 
   &::placeholder {
     color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};

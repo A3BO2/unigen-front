@@ -92,6 +92,10 @@ const Container = styled.aside`
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
   border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
+  @media (max-width: 1264px) {
+    display: none; /* 태블릿 및 모바일은 숨김 (대안 UI 사용) */
+  }
+
   &::-webkit-scrollbar {
     display: none;
   }

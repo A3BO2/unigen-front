@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { X, Maximize2, Loader2 } from "lucide-react";
+import { Maximize2, Loader2 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
@@ -370,10 +370,6 @@ const Upload = () => {
         />
       )}
 
-      <CloseButtonOuter onClick={handleClose}>
-        <X size={24} />
-      </CloseButtonOuter>
-
       <Overlay onClick={handleClose}>
         <Modal
           onClick={(e) => e.stopPropagation()}
@@ -424,11 +420,7 @@ const Upload = () => {
           {step === "select" && (
             <UploadSection>
               <IconContainer>
-                {contentType === "photo" ? (
-                  <span style={{ fontSize: "60px" }}>📷</span>
-                ) : (
-                  <span style={{ fontSize: "60px" }}>🎬</span>
-                )}
+                {contentType === "photo" ? <span>📷</span> : <span>🎬</span>}
               </IconContainer>
               <UploadText $darkMode={isDarkMode}>
                 {contentType === "photo"
@@ -497,14 +489,7 @@ const Upload = () => {
                   </ReelsFrame>
                 ) : (
                   // 라이브러리 사용
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "100%",
-                      height: "500px",
-                      backgroundColor: "#333",
-                    }}
-                  >
+                  <CropperWrapper>
                     <Cropper
                       image={preview}
                       crop={crop}
@@ -516,7 +501,7 @@ const Upload = () => {
                       onMediaLoaded={onMediaLoaded}
                       objectFit="contain"
                     />
-                  </div>
+                  </CropperWrapper>
                 )}
               </PreviewSection>
               {contentType === "photo" && (
@@ -554,7 +539,7 @@ const Upload = () => {
                       step={0.1}
                       value={zoom}
                       onChange={(e) => setZoom(e.target.value)}
-                      style={{ width: "80px" }}
+                      style={{ width: "min(80px, 30vw)" }}
                     />
                   </div>
                 </CropToolbar>
@@ -571,11 +556,6 @@ const Upload = () => {
                   style={{
                     // 필터 + 조정값 모두 적용
                     filter: getAppliedFilterStyle(),
-
-                    // 아까 만든 자르기 비율도 유지
-                    aspectRatio: aspectRatio ? `${aspectRatio}` : "auto",
-                    objectFit: aspectRatio ? "cover" : "contain",
-                    width: aspectRatio ? "100%" : "auto",
                   }}
                 />
               </FilterLeft>
@@ -715,11 +695,11 @@ const Upload = () => {
                         gap: "20px",
                       }}
                     >
-                      <span style={{ fontSize: "50px" }}>🎬</span>
+                      <span style={{ fontSize: "min(50px, 12vw)" }}>🎬</span>
                       <div>
                         <p
                           style={{
-                            fontSize: "18px",
+                            fontSize: "min(18px, 4vw)",
                             fontWeight: "bold",
                             marginBottom: "8px",
                           }}
@@ -848,6 +828,22 @@ const Modal = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @media (max-width: 767px) {
+    width: 100%;
+    /* 전체 높이에서 안전영역 분리. 상단/하단 안전영역을 고려하고 내부 스크롤을 허용 */
+    height: calc(
+      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
+    max-width: none;
+    max-height: none;
+    border-radius: 0; /* 둥근 모서리 제거 */
+    aspect-ratio: auto; /* 비율 해제 */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -858,6 +854,12 @@ const ModalHeader = styled.div`
   border-bottom: 1px solid ${(props) => (props.$darkMode ? "#000" : "#dbdbdb")};
   position: relative;
   min-height: 43px;
+
+  @media (max-width: 767px) {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: 12px;
+    min-height: 56px;
+  }
 `;
 
 const BackButton = styled.button`
@@ -882,34 +884,6 @@ const ModalTitle = styled.h2`
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   flex: 1;
   text-align: center;
-`;
-
-const CloseButtonOuter = styled.button`
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 1001;
-  transition: opacity 0.2s;
-  outline: none;
-  border: none;
-  background: transparent;
-
-  &:hover {
-    opacity: 0.7;
-  }
-
-  svg {
-    color: white;
-  }
-
-  @media (max-width: 767px) {
-    top: 0;
-    right: 0;
-  }
 `;
 
 const NextButton = styled.button`
@@ -978,6 +952,12 @@ const UploadSection = styled.div`
   justify-content: center;
   padding: 60px 20px;
   min-height: 500px;
+
+  @media (max-width: 767px) {
+    padding: 24px 12px;
+    min-height: auto;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const IconContainer = styled.div`
@@ -987,6 +967,17 @@ const IconContainer = styled.div`
   margin-bottom: 16px;
   height: 80px;
   color: #262626;
+
+  span {
+    font-size: 60px;
+  }
+
+  @media (max-width: 767px) {
+    height: 60px;
+    span {
+      font-size: 44px;
+    }
+  }
 `;
 
 const UploadText = styled.p`
@@ -1030,10 +1021,14 @@ const PreviewSection = styled.div`
   align-items: center;
   justify-content: center;
   background: #000;
-  min-height: 500px;
+  min-height: 360px;
   max-height: 70vh;
   position: relative;
   padding: 24px;
+
+  @media (max-width: 1024px) {
+    min-height: 320px;
+  }
 
   @media (max-width: 767px) {
     min-height: auto;
@@ -1047,6 +1042,21 @@ const PreviewImage = styled.img`
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+`;
+
+/* 크로퍼 래퍼: 인라인 높이 대신 여기서 제어. 모바일에서는 헤더/컨트롤을 고려해 높이 계산 */
+const CropperWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  height: min(60vh, 500px);
+  background-color: #333;
+  overflow: hidden;
+
+  @media (max-width: 767px) {
+    /* 모달 헤더(약 56px) + 하단 컨트롤을 고려하여 동적으로 계산 */
+    height: calc(100vh - 160px - env(safe-area-inset-bottom, 0px));
+    max-height: calc(70vh - env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const ReelsFrame = styled.div`
@@ -1109,8 +1119,19 @@ const CropButton = styled.button`
 
 const FilterContainer = styled.div`
   display: flex;
-  height: 600px;
+  height: min(84vh, 720px);
   overflow: hidden;
+
+  @media (max-width: 1024px) {
+    height: min(78vh, 660px);
+  }
+
+  @media (max-width: 767px) {
+    flex-direction: column;
+    height: auto;
+    max-height: calc(100vh - 140px - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
 `;
 
 const FilterLeft = styled.div`
@@ -1119,12 +1140,27 @@ const FilterLeft = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
 `;
 
 const PreviewImageLarge = styled.img`
   max-width: 100%;
-  max-height: 100%;
+  max-height: 720px;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  display: block;
+
+  @media (max-width: 1024px) {
+    max-height: 660px;
+  }
+
+  @media (max-width: 767px) {
+    max-height: 60vh;
+    object-fit: contain;
+  }
 `;
 
 const FilterRight = styled.div`
@@ -1134,6 +1170,19 @@ const FilterRight = styled.div`
   flex-direction: column;
   background: white;
   overflow: hidden;
+  flex-shrink: 0;
+
+  @media (max-width: 1024px) {
+    width: 280px;
+  }
+
+  @media (max-width: 767px) {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #dbdbdb;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
 `;
 
 const FilterTabs = styled.div`
@@ -1160,12 +1209,20 @@ const FilterTab = styled.button`
 `;
 
 const FilterGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: row;
   gap: 1px;
   background: #dbdbdb;
-  overflow-y: auto;
-  max-height: calc(600px - 45px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  flex: 1;
+  scroll-behavior: smooth;
+
+  @media (max-width: 767px) {
+    max-height: 120px;
+    height: auto;
+  }
 `;
 
 const FilterOption = styled.div`
@@ -1175,6 +1232,8 @@ const FilterOption = styled.div`
   aspect-ratio: 1;
   overflow: hidden;
   border: ${(props) => (props.$active ? "2px solid #0095f6" : "none")};
+  min-width: 100px;
+  flex-shrink: 0;
 
   &:hover {
     opacity: 0.8;
@@ -1201,12 +1260,22 @@ const FilterName = styled.div`
 
 const AdjustmentPanel = styled.div`
   padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
   overflow-y: auto;
-  max-height: calc(600px - 45px);
+  height: 100%;
+  flex: 1;
+
+  @media (max-width: 767px) {
+    gap: 16px;
+    padding: 12px;
+    height: auto;
+  }
 `;
 
 const AdjustmentItem = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 0;
 `;
 
 const AdjustmentLabel = styled.div`
@@ -1257,7 +1326,7 @@ const AdjustmentValue = styled.div`
 
 const FinalContainer = styled.div`
   display: flex;
-  height: 600px;
+  height: min(70vh, 600px);
   overflow: hidden;
 
   @media (max-width: 767px) {
@@ -1279,9 +1348,10 @@ const FinalLeft = styled.div`
   @media (max-width: 767px) {
     width: 100%;
     padding: 16px 12px;
-    min-height: 60vh;
+    min-height: 40vh;
     flex: none; /* 남은 공간 다 차지하지 않게 설정 */
-    height: 350px; /* 적당한 높이 고정 */
+    height: auto;
+    max-height: calc(60vh - env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1398,6 +1468,7 @@ const LoadingOverlay = styled.div`
   align-items: center;
   justify-content: center;
   gap: 20px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 `;
 
 // 빙글빙글 도는 애니메이션

@@ -136,6 +136,13 @@ const Container = styled.div`
   min-height: 100vh;
   padding: 20px;
   background: #fafafa;
+
+  @media (max-width: 767px) {
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+  }
 `;
 
 const FormContainer = styled.div`
@@ -148,10 +155,15 @@ const FormContainer = styled.div`
   flex-direction: column;
   align-items: center;
 
-  @media (max-width: 450px) {
+  @media (max-width: 767px) {
     background: transparent;
     border: none;
-    padding: 20px;
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  @media (max-width: 450px) {
+    padding: 12px;
   }
 `;
 

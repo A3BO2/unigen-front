@@ -1,8 +1,16 @@
 #root {
-  max-width: 1280px;
+  max-width: min(1280px, 100%);
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  width: 100%;
+}
+
+/* 모바일 반응형 패딩 */
+@media (max-width: 767px) {
+  #root {
+    padding: 12px;
+  }
 }
 
 .logo {

@@ -143,6 +143,10 @@ const Video = styled.video`
   width: 100%;
   height: 100%;
   object-fit: contain; /* 비율 유지하며 화면에 맞춤 */
+
+  @media (max-width: 767px) {
+    object-fit: cover; /* 모바일에서는 화면 채움 */
+  }
 `;
 
 const Controls = styled.div`
@@ -155,6 +159,11 @@ const Controls = styled.div`
   align-items: flex-end; /* 아래쪽 라인 맞춤 */
   padding: 0 20px;
   z-index: 10000; /* 최상위로 올림 */
+
+  @media (max-width: 767px) {
+    bottom: 80px; /* 모바일에서는 더 낮게 */
+    padding: 0 12px;
+  }
 `;
 
 // 취소/전환 버튼 래퍼
@@ -182,6 +191,11 @@ const IconCircle = styled.div`
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(4px);
+
+  @media (max-width: 767px) {
+    width: 40px;
+    height: 40px;
+  }
 `;
 
 // 텍스트 라벨
@@ -218,6 +232,12 @@ const ShutterButtonOuter = styled.div`
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.2);
+
+  @media (max-width: 767px) {
+    width: 56px;
+    height: 56px;
+    border: 3px solid white;
+  }
 `;
 
 // 촬영 버튼 안쪽 원
@@ -226,4 +246,9 @@ const ShutterButtonInner = styled.div`
   height: 58px;
   border-radius: 50%;
   background: white;
+
+  @media (max-width: 767px) {
+    width: 44px;
+    height: 44px;
+  }
 `;

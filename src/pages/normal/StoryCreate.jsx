@@ -464,6 +464,20 @@ const Modal = styled.div`
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+  @media (max-width: 767px) {
+    width: 100%;
+    height: calc(
+      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
 `;
 
 const Header = styled.header`
@@ -501,6 +515,15 @@ const SelectSection = styled.div`
   align-items: center;
   overflow-y: auto;
   max-height: calc(90vh - 55px);
+
+  @media (max-width: 767px) {
+    padding: 20px 16px;
+    max-height: calc(
+      100vh - 56px - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    box-sizing: border-box;
+  }
 `;
 
 const OptionCards = styled.div`
@@ -532,10 +555,19 @@ const OptionCard = styled.button`
   &:active {
     transform: scale(0.98);
   }
+
+  @media (max-width: 767px) {
+    padding: 32px 24px;
+    max-width: 220px;
+  }
 `;
 
 const OptionIcon = styled.div`
   font-size: 72px;
+
+  @media (max-width: 767px) {
+    font-size: 56px;
+  }
 `;
 
 const OptionLabel = styled.span`
@@ -549,6 +581,15 @@ const EditSection = styled.div`
   flex-direction: column;
   overflow-y: auto;
   max-height: calc(90vh - 55px);
+
+  @media (max-width: 767px) {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(
+      100vh - 56px - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    box-sizing: border-box;
+  }
 `;
 
 const PreviewArea = styled.div`
@@ -636,6 +677,10 @@ const BottomActions = styled.div`
   padding: 12px 16px 20px;
   background: white;
   border-top: 1px solid #dbdbdb;
+
+  @media (max-width: 767px) {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const ActionButton = styled.button`

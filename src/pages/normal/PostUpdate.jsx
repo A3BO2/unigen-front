@@ -77,6 +77,13 @@ const Container = styled.div`
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 767px) {
+    max-width: 100%;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
 `;
 
 const Header = styled.div`
@@ -90,6 +97,11 @@ const Header = styled.div`
   position: sticky;
   top: 0;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    top: env(safe-area-inset-top, 0px);
+  }
 `;
 
 const BackButton = styled.button`

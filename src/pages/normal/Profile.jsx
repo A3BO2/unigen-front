@@ -1347,7 +1347,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 767px) {
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1730,6 +1730,14 @@ const PostGrid = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding-top: 4px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(1, 1fr);
+  }
 `;
 
 const GridItem = styled.div`
@@ -2107,6 +2115,11 @@ const FollowModalOverlay = styled.div`
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+
+  @media (max-width: 767px) {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const FollowModalContainer = styled.div`
@@ -2118,6 +2131,10 @@ const FollowModalContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @media (max-width: 767px) {
+    max-height: calc(80vh - env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 const FollowModalHeader = styled.div`

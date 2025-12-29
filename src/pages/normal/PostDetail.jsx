@@ -313,7 +313,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 
   @media (min-width: 768px) {
     max-width: 600px;
@@ -365,7 +365,8 @@ const MoreButton = styled.button`
 const PostContent = styled.div`
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 60px);
+  /* 모바일에서 하단 네비/홈 인디케이터 고려 */
+  min-height: calc(100vh - 60px - env(safe-area-inset-bottom, 0px));
 
   @media (min-width: 768px) {
     flex-direction: row;
