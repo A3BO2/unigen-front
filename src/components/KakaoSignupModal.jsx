@@ -131,6 +131,13 @@ const ModalContainer = styled.div`
   max-width: 400px;
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+  @media (max-width: 767px) {
+    width: 94vw;
+    max-width: 94vw;
+    padding: 16px;
+    border-radius: 8px;
+  }
 `;
 
 const Header = styled.div`

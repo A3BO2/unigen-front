@@ -471,9 +471,12 @@ const ModalContainer = styled.div`
 
   @media (max-width: 767px) {
     width: 100%;
-    height: 100%;
-    max-height: 100vh;
+    height: calc(
+      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
+    max-height: none;
     border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 `;
 
@@ -501,8 +504,8 @@ const CloseButton = styled.button`
   }
 
   @media (max-width: 767px) {
-    top: 10px;
-    right: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
   }
 `;
 

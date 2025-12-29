@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Plus,
   Loader2,
+  Search,
 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
@@ -700,8 +701,11 @@ const Home = () => {
             alt="Unigen"
           />
           <MobileIcons>
-            <IconButton>
-              <Heart size={24} />
+            <IconButton onClick={() => window.dispatchEvent(new Event("open-search"))}>
+              <Search size={24} />
+            </IconButton>
+            <IconButton onClick={() => window.dispatchEvent(new Event("open-more"))}>
+              <MoreHorizontal size={24} />
             </IconButton>
           </MobileIcons>
         </MobileHeader>
@@ -1165,7 +1169,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 767px) {
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1349,6 +1353,10 @@ const AddStoryButton = styled.div`
 
   &:hover {
     background: #1877f2;
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
@@ -1838,6 +1846,11 @@ const StoryFooter = styled.div`
   right: 0;
   padding: 16px;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    bottom: calc(env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 /* ==========================================
    1. 게시글 수정/삭제 메뉴 스타일 (기존 HEAD)
@@ -1895,7 +1908,7 @@ const MenuItem = styled.button`
 const ActivityButton = styled.button`
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);

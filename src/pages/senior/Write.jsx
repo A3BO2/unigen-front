@@ -418,6 +418,10 @@ const Header = styled.header`
   justify-content: space-between;
   align-items: center;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    padding: 12px 16px;
+  }
 `;
 const CancelButton = styled.button`
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};

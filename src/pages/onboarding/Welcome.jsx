@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { Smartphone, Zap } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { Smartphone, Zap } from "lucide-react";
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -10,11 +10,15 @@ const Welcome = () => {
       <Content>
         <LogoSection>
           <LogoImage src="/unigen_black.png" alt="Unigen" />
-          <Tagline>사진과 동영상을 공유하며<br />친구들과 소통하세요</Tagline>
+          <Tagline>
+            사진과 동영상을 공유하며
+            <br />
+            친구들과 소통하세요
+          </Tagline>
         </LogoSection>
 
         <ButtonSection>
-          <PrimaryButton onClick={() => navigate('/login/normal?mode=signup')}>
+          <PrimaryButton onClick={() => navigate("/login/normal?mode=signup")}>
             새 계정 만들기
           </PrimaryButton>
 
@@ -26,7 +30,7 @@ const Welcome = () => {
 
           <ModeOptionsText>시니어 분들을 위한 간편 모드</ModeOptionsText>
 
-          <SecondaryButton onClick={() => navigate('/login/senior')}>
+          <SecondaryButton onClick={() => navigate("/login/senior")}>
             <IconWrapper>
               <Smartphone size={20} strokeWidth={2.5} />
             </IconWrapper>
@@ -53,7 +57,10 @@ const Welcome = () => {
       <Footer>
         <FooterText>
           계정이 있으신가요?
-          <LoginLink onClick={() => navigate('/login/normal')}> 로그인</LoginLink>
+          <LoginLink onClick={() => navigate("/login/normal")}>
+            {" "}
+            로그인
+          </LoginLink>
         </FooterText>
       </Footer>
     </Container>
@@ -68,6 +75,13 @@ const Container = styled.div`
   min-height: 100vh;
   padding: 20px;
   background: #fafafa;
+
+  @media (max-width: 767px) {
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+  }
 `;
 
 const Content = styled.div`

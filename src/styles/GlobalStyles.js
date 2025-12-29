@@ -1,4 +1,4 @@
-import { createGlobalStyle } from 'styled-components';
+import { createGlobalStyle } from "styled-components";
 
 export const GlobalStyles = createGlobalStyle`
   * {
@@ -8,14 +8,34 @@ export const GlobalStyles = createGlobalStyle`
   }
 
   :root {
-    --font-scale: ${props => {
+    --font-scale: ${(props) => {
       const scaleMap = {
         small: 0.85,
         medium: 1,
-        large: 1.25
+        large: 1.25,
       };
       return scaleMap[props.$fontScale] || 1;
     }};
+
+    /* 반응형 유틸 변수 */
+    --container-padding: 2rem;
+    --gap-sm: 8px;
+    --gap-md: 16px;
+    --gap-lg: 24px;
+  }
+
+  /* 반응형 폰트 스케일링 */
+  @media (max-width: 767px) {
+    :root {
+      --container-padding: 12px;
+      --font-scale: ${(props) => {
+        const scaleMap = { small: 0.85, medium: 0.95, large: 1.1 };
+        return scaleMap[props.$fontScale] || 0.95;
+      }};
+    }
+
+    /* 모바일에서 하단 네비(약 60px) 때문에 콘텐츠가 가려지지 않도록 기본 바텀 패딩 추가 */
+    body { padding-bottom: 78px; }
   }
 
   body {
@@ -24,11 +44,11 @@ export const GlobalStyles = createGlobalStyle`
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: ${props => {
+    background-color: ${(props) => {
       if (props.$isSeniorMode) {
-        return props.$isDarkMode ? '#000000' : '#f6f6f6';
+        return props.$isDarkMode ? "#000000" : "#f6f6f6";
       }
-      return '#fafafa';
+      return "#fafafa";
     }};
     font-size: calc(16px * var(--font-scale, 1));
   }
@@ -43,6 +63,12 @@ export const GlobalStyles = createGlobalStyle`
     color: inherit;
   }
 
+  img, video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
   button {
     cursor: pointer;
     border: none;
@@ -54,5 +80,10 @@ export const GlobalStyles = createGlobalStyle`
     font-family: inherit;
     border: none;
     outline: none;
+  }
+
+  /* 터치 친화성: 모바일에서 버튼 최소 높이 보장 */
+  @media (max-width: 767px) {
+    button { min-height: 44px; }
   }
 `;

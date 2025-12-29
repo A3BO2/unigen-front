@@ -23,7 +23,7 @@ import PostUpdate from "./pages/normal/PostUpdate";
 import NormalPostDetail from "./pages/normal/PostDetail";
 
 // Senior Mode
-import SeniorHome from "./pages/senior/Home";
+import SeniorHome from "./pages/senior/SeniorHome";
 import SeniorWrite from "./pages/senior/Write";
 import SeniorProfile from "./pages/senior/Profile";
 import SeniorProfileEdit from "./pages/senior/ProfileEdit";

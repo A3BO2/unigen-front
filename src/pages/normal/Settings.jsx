@@ -115,7 +115,10 @@ const Settings = () => {
 
             <SettingItem $darkMode={isDarkMode} onClick={handleLogout}>
               <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode} style={{ color: "#ed4956" }}>
+                <SettingLabel
+                  $darkMode={isDarkMode}
+                  style={{ color: "#ed4956" }}
+                >
                   로그아웃
                 </SettingLabel>
               </SettingLeft>
@@ -142,7 +145,7 @@ const Container = styled.div`
   @media (max-width: 767px) {
     margin-left: 0;
     margin-right: 0;
-    padding-bottom: 60px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 `;
 

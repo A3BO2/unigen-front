@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { ArrowLeft, Heart, MessageCircle, Send, MoreHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  Heart,
+  MessageCircle,
+  Send,
+  MoreHorizontal,
+} from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { getPostById } from "../../services/post";
 import LeftSidebar from "../../components/normal/LeftSidebar";
@@ -46,11 +52,11 @@ const PostDetail = () => {
         setLoading(true);
         setError(null);
         const data = await getPostById(postId);
-        
+
         if (!data) {
           throw new Error("게시물 데이터를 받지 못했습니다.");
         }
-        
+
         setPost(data);
         setIsLiked(data.is_liked || false);
       } catch (err) {
@@ -60,7 +66,7 @@ const PostDetail = () => {
         console.error("에러 상세:", {
           message: err.message,
           stack: err.stack,
-          name: err.name
+          name: err.name,
         });
       } finally {
         setLoading(false);
@@ -104,7 +110,14 @@ const PostDetail = () => {
           <ErrorMessage $darkMode={isDarkMode}>
             {error}
             <br />
-            <small style={{ fontSize: "12px", marginTop: "8px", display: "block", opacity: 0.7 }}>
+            <small
+              style={{
+                fontSize: "12px",
+                marginTop: "8px",
+                display: "block",
+                opacity: 0.7,
+              }}
+            >
               서버가 실행 중인지 확인해주세요.
             </small>
           </ErrorMessage>
@@ -151,7 +164,11 @@ const PostDetail = () => {
                 src={getImageUrl(post.image_url)}
                 alt="게시물 이미지"
                 onError={(e) => {
-                  console.error("이미지 로드 실패:", post.image_url, getImageUrl(post.image_url));
+                  console.error(
+                    "이미지 로드 실패:",
+                    post.image_url,
+                    getImageUrl(post.image_url)
+                  );
                   e.target.style.display = "none";
                 }}
               />
@@ -173,7 +190,11 @@ const PostDetail = () => {
                     }}
                   />
                 ) : null}
-                <AvatarPlaceholder style={{ display: post.author?.profile_image ? "none" : "flex" }}>
+                <AvatarPlaceholder
+                  style={{
+                    display: post.author?.profile_image ? "none" : "flex",
+                  }}
+                >
                   👤
                 </AvatarPlaceholder>
                 <Username $darkMode={isDarkMode}>
@@ -243,9 +264,7 @@ const PostDetail = () => {
                   ))}
                 </CommentsList>
               ) : (
-                <NoComments $darkMode={isDarkMode}>
-                  댓글이 없습니다.
-                </NoComments>
+                <NoComments $darkMode={isDarkMode}>댓글이 없습니다.</NoComments>
               )}
 
               <CommentInputSection $darkMode={isDarkMode}>
@@ -255,7 +274,9 @@ const PostDetail = () => {
                     alt="내 프로필"
                   />
                 ) : (
-                  <CommentInputAvatarPlaceholder>👤</CommentInputAvatarPlaceholder>
+                  <CommentInputAvatarPlaceholder>
+                    👤
+                  </CommentInputAvatarPlaceholder>
                 )}
                 <CommentInput
                   type="text"
@@ -289,7 +310,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 
   @media (min-width: 768px) {
     max-width: 600px;
@@ -301,7 +322,8 @@ const Header = styled.header`
   position: sticky;
   top: 0;
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
-  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -340,7 +362,8 @@ const MoreButton = styled.button`
 const PostContent = styled.div`
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 60px);
+  /* 모바일에서 하단 네비/홈 인디케이터 고려 */
+  min-height: calc(100vh - 60px - env(safe-area-inset-bottom, 0px));
 
   @media (min-width: 768px) {
     flex-direction: row;
@@ -393,7 +416,8 @@ const PostInfoSection = styled.div`
   @media (min-width: 768px) {
     width: 40%;
     border-top: none;
-    border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+    border-left: 1px solid
+      ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
     overflow-y: auto;
     height: 100%;
   }
@@ -404,7 +428,8 @@ const PostHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 `;
 
 const UserInfo = styled.div`
@@ -439,7 +464,8 @@ const Username = styled.span`
 
 const PostTextSection = styled.div`
   padding: 0 16px 12px 16px;
-  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 `;
 
 const PostText = styled.p`
@@ -455,7 +481,8 @@ const PostActions = styled.div`
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
-  border-bottom: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 `;
 
 const ActionButton = styled.button`
@@ -623,4 +650,3 @@ const ErrorMessage = styled.div`
 `;
 
 export default PostDetail;
-

@@ -316,6 +316,21 @@ const LeftSidebar = () => {
     }
   };
 
+  // 전역 이벤트 리스너: 모바일 하단 Nav에서 'open-search' 이벤트 발생 시 검색 열기
+  useEffect(() => {
+    const openSearchHandler = () => setIsSearchOpen(true);
+    const openMoreHandler = () => {
+      setIsMoreOpen(prev => !prev);
+      setIsSearchOpen(false);
+    };
+    window.addEventListener("open-search", openSearchHandler);
+    window.addEventListener("open-more", openMoreHandler);
+    return () => {
+      window.removeEventListener("open-search", openSearchHandler);
+      window.removeEventListener("open-more", openMoreHandler);
+    };
+  }, []);
+
   const handleMoreToggle = () => {
     setIsMoreOpen(!isMoreOpen);
     setIsSearchOpen(false);
@@ -649,6 +664,8 @@ const LeftSidebar = () => {
           </MoreContent>
         </MorePanel>
       )}
+
+      {/* 모바일용 플로팅 버튼들은 Home.jsx의 MobileHeader에서 처리 */}
     </>
   );
 };
@@ -788,7 +805,7 @@ const SearchPanel = styled.div`
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
   border-right: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
-  z-index: 99;
+  z-index: 10001;
   overflow-y: auto;
   animation: slideIn 0.3s ease;
 
@@ -803,8 +820,19 @@ const SearchPanel = styled.div`
     }
   }
 
+  /* 모바일: 풀스크린 오버레이로 변경 + safe-area 대응 */
   @media (max-width: 767px) {
-    display: none;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    border-right: none;
+    z-index: 1100;
+    animation: none;
+    display: block;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   }
 `;
 
@@ -813,6 +841,10 @@ const SearchHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  @media (max-width: 767px) {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 20px;
+  }
 `;
 
 const SearchTitle = styled.h2`
@@ -1010,6 +1042,11 @@ const ProfileImageWrapper = styled.div`
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
+
+  @media (max-width: 767px) {
+    width: 44px;
+    height: 44px;
+  }
 `;
 
 const ProfileImage = styled.img`
@@ -1060,6 +1097,11 @@ const FollowButton = styled.button`
   cursor: pointer;
   border: none;
   background: ${(props) => (props.$isFollowing ? "transparent" : "#0095f6")};
+
+  @media (max-width: 767px) {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
   color: ${(props) =>
     props.$isFollowing ? (props.$darkMode ? "#fff" : "#262626") : "#fff"};
   border: ${(props) =>
@@ -1092,7 +1134,7 @@ const MorePanel = styled.div`
   border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 101;
+  z-index: 10000;
   overflow: hidden;
   animation: slideUp 0.2s ease;
 
@@ -1108,7 +1150,19 @@ const MorePanel = styled.div`
   }
 
   @media (max-width: 767px) {
-    display: none;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+    display: block;
+    z-index: 1100;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
   }
 `;
 
@@ -1155,6 +1209,33 @@ const MoreMenuItem = styled.button`
 const MoreMenuLabel = styled.span`
   font-size: 14px;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+`;
+
+/* 모바일 플로팅 버튼 */
+const MobileFab = styled.button`
+  display: none;
+  @media (max-width: 767px) {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #0095f6;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+    color: white;
+    border: none;
+  }
+`;
+
+const MobileFabSecondary = styled(MobileFab)`
+  @media (max-width: 767px) {
+    right: 72px;
+  }
 `;
 
 const MoreDivider = styled.div`

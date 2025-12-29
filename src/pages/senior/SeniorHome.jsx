@@ -758,10 +758,15 @@ const Container = styled.div`
   min-height: 100vh;
   background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
-  padding-bottom: 100px;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
+
+  @media (max-width: 767px) {
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
+  }
 `;
 
 const Header = styled.header`
@@ -772,6 +777,11 @@ const Header = styled.header`
     ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   padding: 24px;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    top: env(safe-area-inset-top, 0px);
+  }
 `;
 
 const Logo = styled.h1`
