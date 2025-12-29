@@ -1,5 +1,4 @@
 import { apifetch, getHeaders } from "./post";
-const baseURL = import.meta.env.VITE_API_BASE_URL; // http://localhost:3000/api/v1
 
 /* =========================
  * 게시글별 댓글 조회
@@ -39,4 +38,3 @@ export async function deleteComment(commentId) {
     headers: getHeaders(), // 🔥 핵심
   });
 }
-

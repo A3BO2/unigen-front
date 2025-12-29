@@ -50,8 +50,12 @@ const NormalLogin = () => {
     async (accessToken) => {
       try {
         // 백엔드에 카카오 로그인 요청 (사용자 확인)
+        const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+        if (!apiBaseURL) {
+          throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+        }
         const response = await fetch(
-          "http://localhost:3000/api/v1/auth/kakao/login",
+          `${apiBaseURL}/auth/kakao/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -184,10 +188,14 @@ const NormalLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBaseURL) {
+        throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+      }
       if (isLogin) {
         // 로그인
         const response = await fetch(
-          "http://localhost:3000/api/v1/auth/login",
+          `${apiBaseURL}/auth/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -229,7 +237,7 @@ const NormalLogin = () => {
         };
 
         const response = await fetch(
-          "http://localhost:3000/api/v1/auth/signup",
+          `${apiBaseURL}/auth/signup`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -274,8 +282,13 @@ const NormalLogin = () => {
         return;
       }
 
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBaseURL) {
+        throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+      }
+
       const response = await fetch(
-        "http://localhost:3000/api/v1/auth/kakao/signup",
+        `${apiBaseURL}/auth/kakao/signup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

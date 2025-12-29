@@ -12,7 +12,10 @@ import {
   uploadProfileImage,
 } from "../../services/user";
 
-const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+const baseURL = import.meta.env.VITE_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (url) => {
@@ -122,6 +125,7 @@ const ProfileEdit = () => {
       }
 
       // 프로필 업데이트 (username, email, phone 제외, 업로드된 이미지 URL 포함)
+      // eslint-disable-next-line no-unused-vars
       const { username, email, phone, ...updateData } = formData;
       const profileUpdateData = {
         ...updateData,
@@ -310,7 +314,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 767px) {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 60px;
   }
 `;
 

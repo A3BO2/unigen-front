@@ -1,5 +1,7 @@
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem("token");
@@ -118,7 +120,12 @@ export async function getSeniorCurrentUser(page = 1, limit = 9) {
 }
 
 // 다른 사용자 프로필 조회
-export async function getUserProfileById(userId, page = 1, limit = 9, postType = null) {
+export async function getUserProfileById(
+  userId,
+  page = 1,
+  limit = 9,
+  postType = null
+) {
   const params = new URLSearchParams();
   if (page) params.append("page", String(page));
   if (limit) params.append("limit", String(limit));

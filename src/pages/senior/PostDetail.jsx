@@ -1,32 +1,24 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import styled, { ThemeProvider } from 'styled-components';
-import { Heart, MessageCircle, ArrowLeft } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import SeniorBottomNav from '../../components/senior/BottomNav';
-import { getPostById, likePost, unlikePost, createComment } from '../../services/post';
-// 상대 시간 포맷 함수
-const getRelativeTime = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now - date;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import styled, { ThemeProvider } from "styled-components";
+import { Heart, MessageCircle, ArrowLeft } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import SeniorBottomNav from "../../components/senior/BottomNav";
+import {
+  getPostById,
+  likePost,
+  unlikePost,
+  createComment,
+} from "../../services/post";
 
-  if (days > 0) return `${days}일 전`;
-  if (hours > 0) return `${hours}시간 전`;
-  if (minutes > 0) return `${minutes}분 전`;
-  return '방금 전';
-};
-
-const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+const baseURL = import.meta.env.VITE_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 const getImageUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
   return `${baseURL}${url}`;
@@ -35,12 +27,12 @@ const getImageUrl = (url) => {
 const PostDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isDarkMode, user } = useApp();
+  const { isDarkMode } = useApp();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedComments, setExpandedComments] = useState(true);
-  const [commentInput, setCommentInput] = useState('');
+  const [commentInput, setCommentInput] = useState("");
   const [isLiking, setIsLiking] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
@@ -52,8 +44,8 @@ const PostDetail = () => {
         const data = await getPostById(id);
         setPost(data);
       } catch (err) {
-        console.error('게시물 로드 실패:', err);
-        setError(err.message || '게시물을 불러오는데 실패했습니다.');
+        console.error("게시물 로드 실패:", err);
+        setError(err.message || "게시물을 불러오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -88,14 +80,14 @@ const PostDetail = () => {
       const updatedPost = await getPostById(id);
       setPost(updatedPost);
     } catch (err) {
-      console.error('좋아요 처리 실패:', err);
+      console.error("좋아요 처리 실패:", err);
       // 실패 시 원래 상태로 복구
       setPost({
         ...post,
         liked: wasLiked,
         likes: previousLikes,
       });
-      alert('좋아요 처리에 실패했습니다. 다시 시도해주세요.');
+      alert("좋아요 처리에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLiking(false);
     }
@@ -110,14 +102,14 @@ const PostDetail = () => {
     try {
       // 댓글 생성 API 호출
       await createComment(post.id, commentText);
-      
+
       // 성공 시 게시물 다시 로드하여 최신 댓글 반영
       const updatedPost = await getPostById(id);
       setPost(updatedPost);
-      setCommentInput('');
+      setCommentInput("");
     } catch (err) {
-      console.error('댓글 작성 실패:', err);
-      alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
+      console.error("댓글 작성 실패:", err);
+      alert("댓글 작성에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsSubmittingComment(false);
     }
@@ -140,8 +132,8 @@ const PostDetail = () => {
       <ThemeProvider theme={{ $darkMode: isDarkMode }}>
         <Container>
           <ErrorContainer>
-            <ErrorText>{error || '게시물을 찾을 수 없습니다.'}</ErrorText>
-            <BackButton onClick={() => navigate('/senior/profile')}>
+            <ErrorText>{error || "게시물을 찾을 수 없습니다."}</ErrorText>
+            <BackButton onClick={() => navigate("/senior/profile")}>
               프로필로 돌아가기
             </BackButton>
           </ErrorContainer>
@@ -154,7 +146,7 @@ const PostDetail = () => {
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
       <Container>
         <Header>
-          <BackButton onClick={() => navigate('/senior/profile')}>
+          <BackButton onClick={() => navigate("/senior/profile")}>
             <ArrowLeft size={28} />
           </BackButton>
           <Title>게시물</Title>
@@ -166,15 +158,20 @@ const PostDetail = () => {
             <UserInfo>
               <Avatar>
                 {post.user.avatar &&
-                (post.user.avatar.startsWith('http') ||
-                  post.user.avatar.startsWith('/')) ? (
-                  <AvatarImage src={getImageUrl(post.user.avatar)} alt={post.user.name || post.user.username || "사용자"} />
+                (post.user.avatar.startsWith("http") ||
+                  post.user.avatar.startsWith("/")) ? (
+                  <AvatarImage
+                    src={getImageUrl(post.user.avatar)}
+                    alt={post.user.name || post.user.username || "사용자"}
+                  />
                 ) : (
-                  post.user.avatar || '👤'
+                  post.user.avatar || "👤"
                 )}
               </Avatar>
               <UserDetails>
-                <Username>{post.user.name || post.user.username || "사용자"}</Username>
+                <Username>
+                  {post.user.name || post.user.username || "사용자"}
+                </Username>
                 <Timestamp>{post.timestamp}</Timestamp>
               </UserDetails>
             </UserInfo>
@@ -182,18 +179,26 @@ const PostDetail = () => {
 
           <Content>{post.content}</Content>
 
-          {post.photo && <PostImage src={getImageUrl(post.photo)} alt="게시물 사진" />}
+          {post.photo && (
+            <PostImage src={getImageUrl(post.photo)} alt="게시물 사진" />
+          )}
 
           <PostActions>
-            <ActionButton onClick={handleLike} $liked={post.liked} disabled={isLiking}>
+            <ActionButton
+              onClick={handleLike}
+              $liked={post.liked}
+              disabled={isLiking}
+            >
               <Heart
                 size={36}
                 strokeWidth={3}
-                fill={post.liked ? '#ff4458' : 'none'}
+                fill={post.liked ? "#ff4458" : "none"}
               />
               <ActionText $liked={post.liked}>{post.likes}</ActionText>
             </ActionButton>
-            <ActionButton onClick={() => setExpandedComments(!expandedComments)}>
+            <ActionButton
+              onClick={() => setExpandedComments(!expandedComments)}
+            >
               <MessageCircle size={36} strokeWidth={3} />
               <ActionText>{post.comments.length}</ActionText>
             </ActionButton>
@@ -210,7 +215,7 @@ const PostDetail = () => {
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleCommentSubmit();
                       }
@@ -221,7 +226,7 @@ const PostDetail = () => {
                     disabled={isSubmittingComment || !commentInput.trim()}
                     $isSubmitting={isSubmittingComment}
                   >
-                    {isSubmittingComment ? '등록중...' : '등록'}
+                    {isSubmittingComment ? "등록중..." : "등록"}
                   </CommentSubmitButton>
                 </CommentInputWrapper>
               </CommentInputSection>
@@ -231,19 +236,27 @@ const PostDetail = () => {
                   <CommentItem key={comment.id}>
                     <CommentAvatar>
                       {comment.user.avatar &&
-                      (comment.user.avatar.startsWith('http') ||
-                        comment.user.avatar.startsWith('/')) ? (
+                      (comment.user.avatar.startsWith("http") ||
+                        comment.user.avatar.startsWith("/")) ? (
                         <AvatarImage
                           src={getImageUrl(comment.user.avatar)}
-                          alt={comment.user.name || comment.user.username || "사용자"}
+                          alt={
+                            comment.user.name ||
+                            comment.user.username ||
+                            "사용자"
+                          }
                         />
                       ) : (
-                        comment.user.avatar || '👤'
+                        comment.user.avatar || "👤"
                       )}
                     </CommentAvatar>
                     <CommentContent>
                       <CommentHeader>
-                        <CommentUsername>{comment.user.name || comment.user.username || "사용자"}</CommentUsername>
+                        <CommentUsername>
+                          {comment.user.name ||
+                            comment.user.username ||
+                            "사용자"}
+                        </CommentUsername>
                         <CommentTime>{comment.time}</CommentTime>
                       </CommentHeader>
                       <CommentText>{comment.text}</CommentText>
@@ -263,8 +276,8 @@ const PostDetail = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${(props) => (props.theme.$darkMode ? '#000' : '#fff')};
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   padding-bottom: 100px;
   max-width: 600px;
   margin: 0 auto;
@@ -274,9 +287,9 @@ const Container = styled.div`
 const Header = styled.header`
   position: sticky;
   top: 0;
-  background: ${(props) => (props.theme.$darkMode ? '#000' : '#fff')};
+  background: ${(props) => (props.theme.$darkMode ? "#000" : "#fff")};
   border-bottom: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   padding: 24px;
   display: flex;
   justify-content: space-between;
@@ -292,7 +305,7 @@ const Title = styled.h1`
 const BackButton = styled.button`
   background: transparent;
   border: none;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   cursor: pointer;
   padding: 8px;
   display: flex;
@@ -313,7 +326,7 @@ const LoadingContainer = styled.div`
 
 const LoadingText = styled.p`
   font-size: calc(22px * var(--font-scale, 1));
-  color: ${(props) => (props.theme.$darkMode ? '#999' : '#666')};
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const ErrorContainer = styled.div`
@@ -326,18 +339,18 @@ const ErrorContainer = styled.div`
 
 const ErrorText = styled.p`
   font-size: calc(22px * var(--font-scale, 1));
-  color: ${(props) => (props.theme.$darkMode ? '#ff6b6b' : '#e74c3c')};
+  color: ${(props) => (props.theme.$darkMode ? "#ff6b6b" : "#e74c3c")};
   text-align: center;
 `;
 
 const Post = styled.article`
   border-bottom: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   padding: 28px;
   transition: background 0.2s;
 
   &:active {
-    background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   }
 `;
 
@@ -360,14 +373,14 @@ const Avatar = styled.div`
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: calc(32px * var(--font-scale, 1));
   flex-shrink: 0;
   border: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   overflow: hidden;
 `;
 
@@ -388,7 +401,7 @@ const UserDetails = styled.div`
 const Username = styled.span`
   font-size: calc(24px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -396,7 +409,7 @@ const Username = styled.span`
 
 const Timestamp = styled.span`
   font-size: calc(15px * var(--font-scale, 1));
-  color: ${(props) => (props.theme.$darkMode ? '#999' : '#666')};
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
   margin-top: 2px;
 `;
 
@@ -404,7 +417,7 @@ const Content = styled.p`
   font-size: calc(24px * var(--font-scale, 1));
   line-height: 1.7;
   margin-bottom: 24px;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
 `;
 
@@ -427,14 +440,14 @@ const ActionButton = styled.button`
   align-items: center;
   gap: 16px;
   color: ${(props) =>
-    props.$liked ? '#ff4458' : props.theme.$darkMode ? '#999' : '#666'};
+    props.$liked ? "#ff4458" : props.theme.$darkMode ? "#999" : "#666"};
   padding: 16px 20px;
   border-radius: 12px;
   min-height: 56px;
   transition: all 0.2s;
 
   &:active {
-    background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+    background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
     transform: scale(0.95);
   }
 
@@ -451,7 +464,7 @@ const ActionText = styled.span`
   font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
   color: ${(props) =>
-    props.$liked ? '#ff4458' : props.theme.$darkMode ? '#fff' : '#000'};
+    props.$liked ? "#ff4458" : props.theme.$darkMode ? "#fff" : "#000"};
   min-width: 36px;
 `;
 
@@ -459,13 +472,13 @@ const CommentsSection = styled.div`
   margin-top: 24px;
   padding-top: 24px;
   border-top: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
 `;
 
 const CommentsHeader = styled.h3`
   font-size: calc(22px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   margin-bottom: 20px;
 `;
 
@@ -473,7 +486,7 @@ const CommentInputSection = styled.div`
   margin-bottom: 24px;
   padding-bottom: 24px;
   border-bottom: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
 `;
 
 const CommentInputWrapper = styled.div`
@@ -484,19 +497,19 @@ const CommentInputWrapper = styled.div`
 
 const CommentInput = styled.textarea`
   flex: 1;
-  background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   border: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   border-radius: 12px;
   padding: 16px;
   font-size: calc(20px * var(--font-scale, 1));
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   resize: none;
   min-height: 80px;
   line-height: 1.5;
 
   &::placeholder {
-    color: ${(props) => (props.theme.$darkMode ? '#6a6a6a' : '#999')};
+    color: ${(props) => (props.theme.$darkMode ? "#6a6a6a" : "#999")};
   }
 
   &:focus {
@@ -506,22 +519,22 @@ const CommentInput = styled.textarea`
 `;
 
 const CommentSubmitButton = styled.button`
-  background: ${(props) => (props.$isSubmitting ? '#666' : '#0095f6')};
+  background: ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   color: #fff;
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   padding: 16px 28px;
   border-radius: 12px;
   min-height: 80px;
-  border: 2px solid ${(props) => (props.$isSubmitting ? '#666' : '#0095f6')};
+  border: 2px solid ${(props) => (props.$isSubmitting ? "#666" : "#0095f6")};
   transition: all 0.2s;
-  cursor: ${(props) => (props.$isSubmitting ? 'not-allowed' : 'pointer')};
+  cursor: ${(props) => (props.$isSubmitting ? "not-allowed" : "pointer")};
   opacity: ${(props) => (props.$isSubmitting ? 0.7 : 1)};
 
   &:active {
-    transform: ${(props) => (props.$isSubmitting ? 'none' : 'scale(0.95)')};
-    background: ${(props) => (props.$isSubmitting ? '#666' : '#1877f2')};
-    border-color: ${(props) => (props.$isSubmitting ? '#666' : '#1877f2')};
+    transform: ${(props) => (props.$isSubmitting ? "none" : "scale(0.95)")};
+    background: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
+    border-color: ${(props) => (props.$isSubmitting ? "#666" : "#1877f2")};
   }
 
   &:disabled {
@@ -539,7 +552,7 @@ const CommentItem = styled.div`
   gap: 16px;
   padding: 16px 0;
   border-bottom: 1px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#f0f0f0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#f0f0f0")};
 
   &:last-child {
     border-bottom: none;
@@ -550,14 +563,14 @@ const CommentAvatar = styled.div`
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: ${(props) => (props.theme.$darkMode ? '#1a1a1a' : '#f5f5f5')};
+  background: ${(props) => (props.theme.$darkMode ? "#1a1a1a" : "#f5f5f5")};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: calc(28px * var(--font-scale, 1));
   flex-shrink: 0;
   border: 2px solid
-    ${(props) => (props.theme.$darkMode ? '#2a2a2a' : '#e0e0e0')};
+    ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
   overflow: hidden;
 `;
 
@@ -577,20 +590,19 @@ const CommentHeader = styled.div`
 const CommentUsername = styled.span`
   font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
 `;
 
 const CommentTime = styled.span`
   font-size: calc(14px * var(--font-scale, 1));
-  color: ${(props) => (props.theme.$darkMode ? '#999' : '#666')};
+  color: ${(props) => (props.theme.$darkMode ? "#999" : "#666")};
 `;
 
 const CommentText = styled.p`
   font-size: calc(20px * var(--font-scale, 1));
   line-height: 1.6;
-  color: ${(props) => (props.theme.$darkMode ? '#fff' : '#000')};
+  color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
 `;
 
 export default PostDetail;
-

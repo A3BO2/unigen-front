@@ -11,7 +11,10 @@ import {
 } from "../../services/user";
 import { logoutWithKakao } from "../../utils/kakaoAuth";
 
-const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+const baseURL = import.meta.env.VITE_BASE_URL;
+if (!baseURL) {
+  throw new Error("VITE_BASE_URL 환경변수가 설정되지 않았습니다.");
+}
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (url) => {

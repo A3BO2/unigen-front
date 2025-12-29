@@ -19,7 +19,7 @@ import { getReel, likePost, unlikePost, isPostLike } from "../../services/post";
 
 const Reels = () => {
   /* =========================
-   * 상태 
+   * 상태
    ========================= */
   const { user: currentUser, isDarkMode } = useApp();
   const navigate = useNavigate();
@@ -51,6 +51,7 @@ const Reels = () => {
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const myUser = JSON.parse(sessionStorage.getItem("user"));
 
   const resolveUrl = (url) => {
@@ -69,56 +70,56 @@ const Reels = () => {
       if (noMoreReelsRef.current) return;
       loadingRef.current = true;
 
-      try {
+    try {
         // targetId가 있으면 그 기준으로, 없으면 cursor 기준
         const data = await getReel(targetId ?? cursorRef.current);
 
         if (!data?.reel || data?.message === "NO_MORE_REELS") {
           noMoreReelsRef.current = true;
           loadingRef.current = false;
-          return;
-        }
+        return;
+      }
 
-        const reel = data.reel;
+      const reel = data.reel;
 
-        setReels((prev) => {
-          if (prev.some((r) => r.id === reel.id)) return prev;
+      setReels((prev) => {
+        if (prev.some((r) => r.id === reel.id)) return prev;
 
-          return [
-            ...prev,
-            {
-              id: reel.id,
+        return [
+          ...prev,
+          {
+            id: reel.id,
               video: resolveUrl(reel.video_url),
               thumbnail: resolveUrl(reel.image_url), // 썸네일 용도 (poster)
 
-              user: {
-                id: reel.author_id,
+            user: {
+              id: reel.author_id,
                 username: reel.authorName || "알 수 없음",
                 avatar: reel.authorProfile ? (
-                  <img
+                <img
                     src={resolveUrl(reel.authorProfile)}
-                    alt="프사"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  "👤"
-                ),
-              },
-              caption: reel.content,
-              likes: reel.like_count,
-              comments: reel.comment_count,
-              liked: false,
-              saved: false,
-              isSeniorMode: reel.is_senior_mode,
-              createdAt: reel.created_at,
+                  alt="프사"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                "👤"
+              ),
             },
-          ];
-        });
+            caption: reel.content,
+            likes: reel.like_count,
+            comments: reel.comment_count,
+            liked: false,
+            saved: false,
+            isSeniorMode: reel.is_senior_mode,
+            createdAt: reel.created_at,
+          },
+        ];
+      });
         // ✅ 좋아요 상태 조회 (UI 영향 없음)
         try {
           const likeRes = await isPostLike(reel.id);
@@ -135,13 +136,13 @@ const Reels = () => {
         if (data.nextCursor === cursorRef.current) {
           noMoreReelsRef.current = true;
           loadingRef.current = false;
-          return;
-        }
+        return;
+      }
 
         cursorRef.current = data.nextCursor;
-      } catch (error) {
-        console.error(error);
-      } finally {
+    } catch (error) {
+      console.error(error);
+    } finally {
         loadingRef.current = false;
       }
     },
@@ -307,7 +308,7 @@ const Reels = () => {
    * 무한 스크롤 및 영상 재생/일시정지 관리
    ========================= */
   useEffect(() => {
-    if (reels.length === 0) return;
+  if (reels.length === 0) return;
 
     const reelsContainer = document.querySelector("[data-reels-container]");
     if (!reelsContainer) return;
@@ -319,7 +320,7 @@ const Reels = () => {
       const videoElement = videoRefs.current[reel.id];
       if (!videoElement) return;
 
-      const observer = new IntersectionObserver(
+  const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
             const currentVideo = videoRefs.current[reel.id];
@@ -351,20 +352,20 @@ const Reels = () => {
     );
     if (lastReel) {
       const loadObserver = new IntersectionObserver(
-        ([entry]) => {
+    ([entry]) => {
           if (
             entry.isIntersecting &&
             !loadingRef.current &&
             !noMoreReelsRef.current
           ) {
-            fetchReel();
-          }
-        },
+        fetchReel();
+      }
+    },
         {
           root: reelsContainer,
           threshold: 0.6,
         }
-      );
+  );
 
       loadObserver.observe(lastReel);
       observers.push(loadObserver);
@@ -390,16 +391,16 @@ const Reels = () => {
    * 영상 클릭 시 재생/정지 토글
    ========================= */
   const togglePlay = (e) => {
-    const video = e.currentTarget;
-    if (!(video instanceof HTMLVideoElement)) return;
-    if (!video.src) return;
+  const video = e.currentTarget;
+  if (!(video instanceof HTMLVideoElement)) return;
+  if (!video.src) return;
 
-    if (video.paused) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  };
+  if (video.paused) {
+    video.play().catch(() => {});
+  } else {
+    video.pause();
+  }
+};
 
   /* =========================
    * 좋아요 (UI 임시)
@@ -446,8 +447,9 @@ const Reels = () => {
   };
 
   const handleCreateComment = async () => {
-    if (!commentInput.trim()) return;
+    if (!commentInput.trim() || isSubmittingComment) return;
 
+    setIsSubmittingComment(true);
     try {
       await createComment(showComments, commentInput);
 
@@ -464,6 +466,8 @@ const Reels = () => {
       setCommentInput("");
     } catch (err) {
       console.error("댓글 작성 실패", err);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -509,7 +513,8 @@ const Reels = () => {
                 </EmptyStateTitle>
                 <EmptyStateMessage $darkMode={isDarkMode}>
                   아직 업로드된 릴스가 없습니다.
-                  <br />첫 릴스를 업로드해보세요!
+                  <br />
+                  첫 릴스를 업로드해보세요!
                 </EmptyStateMessage>
               </EmptyStateContent>
             </EmptyState>
@@ -518,32 +523,45 @@ const Reels = () => {
               const isOpen = openVolumeReelId === reel.id;
 
               return (
-                <ReelWrapper key={reel.id} data-reel-id={reel.id}>
-                  <VideoContainer>
-                    {/* ✅ 영상 / 이미지 분기 */}
-                    {reel.video && (
-                      <Video
-                        src={reel.video}
-                        poster={reel.thumbnail} // ⭐ 썸네일
-                        loop
-                        muted={muted}
-                        playsInline
-                        onClick={togglePlay}
-                        onError={() =>
-                          console.error("❌ 영상 로드 실패:", reel.video)
-                        }
-                        ref={(el) => {
-                          if (!el) return;
-                          videoRefs.current[reel.id] = el;
-                          el.muted = muted;
-                          el.volume = muted ? 0 : volume;
-                        }}
-                      />
-                    )}
+      <ReelWrapper key={reel.id} data-reel-id={reel.id}>
+        <VideoContainer>
+          {/* ✅ 영상 / 이미지 분기 */}
+                  {reel.video && (
+            <Video
+              src={reel.video}
+                      poster={reel.thumbnail} // ⭐ 썸네일
+              loop
+              muted={muted}
+              playsInline
+              onClick={togglePlay}
+                      onError={() =>
+                        console.error("❌ 영상 로드 실패:", reel.video)
+                      }
+              ref={(el) => {
+                        if (!el) return;
+                        videoRefs.current[reel.id] = el;
+                        el.muted = muted;
+                        el.volume = muted ? 0 : volume;
+            }}
+            />
+                  )}
 
-                    <OverlayUI>
-                      <ReelInfo>
-                        <UserInfo
+                  <OverlayUI>
+                    <ReelInfo>
+                      <UserInfo
+              onClick={(e) => {
+                          e.stopPropagation();
+                          if (reel.user?.id) {
+                            navigate(
+                              reel.user.id === currentUser?.id
+                                ? "/normal/profile"
+                                : `/normal/profile/${reel.user.id}`
+                            );
+                          }
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <Avatar
                           onClick={(e) => {
                             e.stopPropagation();
                             if (reel.user?.id) {
@@ -556,135 +574,120 @@ const Reels = () => {
                           }}
                           style={{ cursor: "pointer" }}
                         >
-                          <Avatar
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (reel.user?.id) {
-                                navigate(
-                                  reel.user.id === currentUser?.id
-                                    ? "/normal/profile"
-                                    : `/normal/profile/${reel.user.id}`
-                                );
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {reel.user.avatar}
-                          </Avatar>
-                          <Username
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (reel.user?.id) {
-                                navigate(
-                                  reel.user.id === currentUser?.id
-                                    ? "/normal/profile"
-                                    : `/normal/profile/${reel.user.id}`
-                                );
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {reel.user.username}
-                          </Username>
-                          {reel.user.id !== currentUser?.id && (
-                            <FollowButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFollow(reel.id, reel.user.id);
-                              }}
-                              disabled={followStatuses[reel.id]?.isLoading}
-                              $isFollowing={
-                                followStatuses[reel.id]?.isFollowing
-                              }
-                            >
-                              {followStatuses[reel.id]?.isLoading
-                                ? "..."
-                                : followStatuses[reel.id]?.isFollowing
-                                ? "팔로잉"
-                                : "팔로우"}
-                            </FollowButton>
-                          )}
-                        </UserInfo>
-                        <Caption>{reel.caption}</Caption>
-                      </ReelInfo>
-
-                      <Actions>
-                        <ActionButton
+                          {reel.user.avatar}
+                        </Avatar>
+                        <Username
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleLike(reel.id);
+                            if (reel.user?.id) {
+                              navigate(
+                                reel.user.id === currentUser?.id
+                                  ? "/normal/profile"
+                                  : `/normal/profile/${reel.user.id}`
+                              );
+                            }
                           }}
+                          style={{ cursor: "pointer" }}
                         >
-                          <Heart
-                            size={28}
-                            color="#fff"
-                            fill={reel.liked ? "#fff" : "none"}
-                          />
-                          <ActionText>{reel.likes.toLocaleString()}</ActionText>
-                        </ActionButton>
-
-                        <ActionButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowComments(reel.id); // 🔥 postId
-                          }}
-                        >
-                          <MessageCircle size={28} color="#fff" />
-                          <ActionText>{reel.comments}</ActionText>
-                        </ActionButton>
-
-                        {/* 🔊 볼륨 버튼 */}
-                        {reel.video && (
-                          <VolumeButtonWrapper>
-                            <ActionButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-
-                                setOpenVolumeReelId((prev) =>
-                                  prev === reel.id ? null : reel.id
-                                );
-
-                                if (muted) {
-                                  setMuted(false);
-                                  setVolume((v) => (v > 0 ? v : 0.7));
-                                }
-                              }}
-                            >
-                              {muted || volume === 0 ? (
-                                <VolumeX size={28} color="#fff" />
-                              ) : (
-                                <Volume2 size={28} color="#fff" />
-                              )}
-                            </ActionButton>
-
-                            {isOpen && (
-                              <VolumeSlider
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value={muted ? 0 : volume}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  setVolume(v);
-                                  setMuted(v === 0);
-                                }}
-                              />
-                            )}
-                          </VolumeButtonWrapper>
+                          {reel.user.username}
+                        </Username>
+                        {reel.user.id !== currentUser?.id && (
+                          <FollowButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFollow(reel.id, reel.user.id);
+                  }}
+                            disabled={followStatuses[reel.id]?.isLoading}
+                            $isFollowing={followStatuses[reel.id]?.isFollowing}
+                          >
+                            {followStatuses[reel.id]?.isLoading
+                              ? "..."
+                              : followStatuses[reel.id]?.isFollowing
+                              ? "팔로잉"
+                              : "팔로우"}
+                          </FollowButton>
                         )}
-                      </Actions>
-                    </OverlayUI>
-                  </VideoContainer>
-                </ReelWrapper>
+            </UserInfo>
+            <Caption>{reel.caption}</Caption>
+          </ReelInfo>
+
+          <Actions>
+            <ActionButton
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike(reel.id);
+              }}
+            >
+              <Heart
+                size={28}
+                color="#fff"
+                fill={reel.liked ? "#fff" : "none"}
+              />
+              <ActionText>{reel.likes.toLocaleString()}</ActionText>
+            </ActionButton>
+
+                      <ActionButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowComments(reel.id); // 🔥 postId
+                        }}
+                      >
+              <MessageCircle size={28} color="#fff" />
+              <ActionText>{reel.comments}</ActionText>
+            </ActionButton>
+
+                      {/* 🔊 볼륨 버튼 */}
+                      {reel.video && (
+                        <VolumeButtonWrapper>
+                          <ActionButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+
+                              setOpenVolumeReelId((prev) =>
+                                prev === reel.id ? null : reel.id
+                              );
+
+                              if (muted) {
+                                setMuted(false);
+                                setVolume((v) => (v > 0 ? v : 0.7));
+                              }
+                            }}
+                          >
+                            {muted || volume === 0 ? (
+                              <VolumeX size={28} color="#fff" />
+                            ) : (
+                              <Volume2 size={28} color="#fff" />
+                            )}
+            </ActionButton>
+
+                          {isOpen && (
+                            <VolumeSlider
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              value={muted ? 0 : volume}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                setVolume(v);
+                                setMuted(v === 0);
+                              }}
+                            />
+                          )}
+                        </VolumeButtonWrapper>
+                      )}
+          </Actions>
+                  </OverlayUI>
+        </VideoContainer>
+      </ReelWrapper>
               );
             })
           )}
-        </ReelsContainer>
-      </Container>
+  </ReelsContainer>
+</Container>
       {showComments && (
         <CommentOverlay
           onClick={() => setShowComments(null)}
@@ -761,16 +764,12 @@ const Reels = () => {
                                 );
                               }
                             }}
-                            style={{
-                              cursor: c.user?.id ? "pointer" : "default",
-                            }}
+                            style={{ cursor: c.user?.id ? "pointer" : "default" }}
                           >
                             {c.user?.username || "사용자"}
                           </CommentUsername>
                           {isMine && (
-                            <DeleteBtn
-                              onClick={() => handleDeleteComment(c.id)}
-                            >
+                            <DeleteBtn onClick={() => handleDeleteComment(c.id)}>
                               삭제
                             </DeleteBtn>
                           )}
@@ -804,14 +803,21 @@ const Reels = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleCreateComment();
+                    e.stopPropagation();
+                    if (!isSubmittingComment) {
+                      handleCreateComment();
+                    }
                   }
                 }}
                 placeholder="댓글 달기..."
               />
               <PostButton
-                onClick={handleCreateComment}
-                disabled={!commentInput.trim()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateComment();
+                }}
+                disabled={!commentInput.trim() || isSubmittingComment}
               >
                 게시
               </PostButton>
@@ -1068,7 +1074,7 @@ const Container = styled.div`
   @media (max-width: 767px) {
     margin-left: 0;
     margin-right: 0;
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 60px;
   }
 `;
 
@@ -1105,23 +1111,12 @@ const VideoContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-
-  @media (max-width: 767px) {
-    /* 모바일에서는 하단 네비 높이(약 78px)를 고려해 화면에 맞춤 */
-    height: calc(100vh - 78px - env(safe-area-inset-bottom, 0px));
-    max-width: 100%;
-  }
 `;
 
 const Video = styled.video`
   width: 100%;
   height: 100%;
   object-fit: contain;
-
-  @media (max-width: 767px) {
-    object-fit: cover; /* 모바일에서 비디오가 화면을 꽉 채우도록 */
-    height: 100%;
-  }
 `;
 
 const VolumeSlider = styled.input`
@@ -1142,19 +1137,15 @@ const VolumeSlider = styled.input`
     width: 10px;
     height: 10px;
     background: #fff;
-  }
-
-  @media (max-width: 767px) {
-    right: 18px;
-    width: 60px;
+    border-radius: 50%;
   }
 `;
 
 const ReelInfo = styled.div`
   position: absolute;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  bottom: 80px;
   left: 16px;
-  right: calc(80px + env(safe-area-inset-right, 0px));
+  right: 80px;
   z-index: 5;
 `;
 
@@ -1301,40 +1292,38 @@ const RightSidebarWrapper = styled.div`
   aside {
     background: white !important;
     border-left-color: #dbdbdb !important;
-
+    
     /* 모든 텍스트를 다크 색상으로 */
-    div,
-    span,
-    button {
+    div, span, button {
       color: #262626 !important;
     }
-
+    
     /* Username은 더 진한 색상 */
     div[class*="Username"] {
       color: #262626 !important;
     }
-
+    
     /* Name은 회색 */
     div[class*="Name"] {
       color: #8e8e8e !important;
     }
-
+    
     /* Divider 색상 */
     div[class*="Divider"] {
       background: #dbdbdb !important;
     }
-
+    
     /* Copyright 색상 */
     div[class*="Copyright"] {
       color: #c7c7c7 !important;
     }
-
+    
     /* DefaultAvatar 배경 */
     div[class*="DefaultAvatar"] {
       background: #fafafa !important;
       border-color: #dbdbdb !important;
     }
-
+    
     /* SwitchButton은 파란색 유지 */
     button[class*="SwitchButton"] {
       color: #0095f6 !important;
