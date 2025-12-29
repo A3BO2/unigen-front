@@ -192,7 +192,9 @@ const StoryCreate = () => {
                       zoom={zoom}
                       aspect={9 / 16}
                       onCropChange={setCrop}
-                      onZoomChange={setZoom}
+                      onZoomChange={() => {}}
+                      maxZoom={1}
+                      minZoom={1}
                       onCropComplete={onCropComplete}
                     />
                   ) : (
@@ -232,8 +234,8 @@ const StoryCreate = () => {
                     <span>크기</span>
                     <input
                       type="range"
-                      min="1"
-                      max0="60"
+                      min="10"
+                      max="30"
                       value={fontSize}
                       onChange={(e) => setFontSize(Number(e.target.value))}
                     />
@@ -426,7 +428,8 @@ async function getFinalImage(imageSrc, pixelCrop, textData) {
       }
     }
 
-    ctx.fillText(text, finalX, currentY);
+    ctx.fillText(line, finalX, currentY);
+    currentY += lineHeight;
   }
 
   return new Promise((resolve) => {
