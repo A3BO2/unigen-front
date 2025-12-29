@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import styled from "styled-components";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
 import { Heart, MessageCircle, Volume2, VolumeX } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -492,14 +493,32 @@ const Reels = () => {
   return (
     <>
       <LeftSidebar />
+      <RightSidebarWrapper>
+        <RightSidebar />
+      </RightSidebarWrapper>
       <BottomNav />
 
       <Container>
         <ReelsContainer data-reels-container>
-          {reels.map((reel) => {
-            const isOpen = openVolumeReelId === reel.id;
+          {initialLoaded && reels.length === 0 ? (
+            <EmptyState>
+              <EmptyStateContent $darkMode={isDarkMode}>
+                <EmptyStateIcon>🎬</EmptyStateIcon>
+                <EmptyStateTitle $darkMode={isDarkMode}>
+                  릴스가 없습니다
+                </EmptyStateTitle>
+                <EmptyStateMessage $darkMode={isDarkMode}>
+                  아직 업로드된 릴스가 없습니다.
+                  <br />
+                  첫 릴스를 업로드해보세요!
+                </EmptyStateMessage>
+              </EmptyStateContent>
+            </EmptyState>
+          ) : (
+            reels.map((reel) => {
+              const isOpen = openVolumeReelId === reel.id;
 
-            return (
+              return (
               <ReelWrapper key={reel.id} data-reel-id={reel.id}>
                 <VideoContainer>
                   {/* ✅ 영상 / 이미지 분기 */}
@@ -660,8 +679,9 @@ const Reels = () => {
                   </OverlayUI>
                 </VideoContainer>
               </ReelWrapper>
-            );
-          })}
+              );
+            })
+          )}
         </ReelsContainer>
       </Container>
       {showComments && (
@@ -1025,13 +1045,24 @@ const OverlayUI = styled.div`
 const Container = styled.div`
   min-height: 100vh;
   background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  @media (min-width: 768px) {
+  @media (min-width: 1265px) {
+    margin-left: 335px;
+    margin-right: 335px;
+  }
+
+  @media (min-width: 768px) and (max-width: 1264px) {
     margin-left: 72px;
+    margin-right: 0;
   }
 
   @media (max-width: 767px) {
     margin-left: 0;
+    margin-right: 0;
     padding-bottom: 60px;
   }
 `;
@@ -1200,10 +1231,42 @@ const ActionText = styled.span`
 `;
 
 const EmptyState = styled.div`
-  height: 100vh;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
+  width: 100%;
+`;
+
+const EmptyStateContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+`;
+
+const EmptyStateIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 24px;
+`;
+
+const EmptyStateTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 12px;
+`;
+
+const EmptyStateMessage = styled.p`
+  font-size: 16px;
+  color: #8e8e8e;
+  line-height: 1.5;
 `;
 
 const Image = styled.img`
@@ -1211,6 +1274,50 @@ const Image = styled.img`
   height: 100%;
   object-fit: cover;
   background: black;
+`;
+
+const RightSidebarWrapper = styled.div`
+  /* 릴스 화면에서는 RightSidebar를 강제로 흰색 배경으로 표시 */
+  aside {
+    background: white !important;
+    border-left-color: #dbdbdb !important;
+    
+    /* 모든 텍스트를 다크 색상으로 */
+    div, span, button {
+      color: #262626 !important;
+    }
+    
+    /* Username은 더 진한 색상 */
+    div[class*="Username"] {
+      color: #262626 !important;
+    }
+    
+    /* Name은 회색 */
+    div[class*="Name"] {
+      color: #8e8e8e !important;
+    }
+    
+    /* Divider 색상 */
+    div[class*="Divider"] {
+      background: #dbdbdb !important;
+    }
+    
+    /* Copyright 색상 */
+    div[class*="Copyright"] {
+      color: #c7c7c7 !important;
+    }
+    
+    /* DefaultAvatar 배경 */
+    div[class*="DefaultAvatar"] {
+      background: #fafafa !important;
+      border-color: #dbdbdb !important;
+    }
+    
+    /* SwitchButton은 파란색 유지 */
+    button[class*="SwitchButton"] {
+      color: #0095f6 !important;
+    }
+  }
 `;
 
 export default Reels;

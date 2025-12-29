@@ -7,7 +7,14 @@ import { Heart, MessageCircle, Play } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getPosts, getReel, deletePost } from "../../services/post";
+import {
+  getPosts,
+  getReel,
+  deletePost,
+  likePost,
+  unlikePost,
+  isPostLike,
+} from "../../services/post";
 import { isFollowing, followUser, unfollowUser } from "../../services/user";
 
 const Explore = () => {
@@ -21,10 +28,11 @@ const Explore = () => {
   const [selectedPost, setSelectedPost] = useState(null); // 선택된 피드 상세보기
   const [isFollowingUser, setIsFollowingUser] = useState(false); // 팔로우 상태
   const [isMine, setIsMine] = useState(false); // 내 게시물인지 여부
-  const [followStatusLoading, setFollowStatusLoading] = useState(false); // 팔로우 상태 확인 로딩
   const [followLoading, setFollowLoading] = useState(false); // 팔로우 로딩 상태
   const observer = useRef();
   const isInitialMount = useRef(true); // 초기 마운트 추적
+  const isModalOpening = useRef(false); // 모달이 열리는 중인지 추적
+  const isModalClosing = useRef(false); // 모달이 닫히는 중인지 추적
 
   const resolveUrl = (url) => {
     if (!url) return null;
@@ -66,27 +74,52 @@ const Explore = () => {
     try {
       // Feed 데이터 가져오기
       const feedData = await getPosts(undefined, pageRef.current, 14, true);
-      const transformedFeeds = feedData.items.map((item) => ({
-        id: item.id,
-        type: "feed",
-        image: resolveUrl(item.imageUrl),
-        likes: item.likeCount,
-        comments: item.commentCount,
-        user: {
-          id: item.author.id || item.authorId,
-          username: item.author.username || "사용자",
-          avatar: item.author.profileImageUrl || null,
-        },
-        caption: item.content || "",
-        timestamp: item.createdAt || "",
-        liked: false,
-      }));
+      const transformedFeeds = await Promise.all(
+        feedData.items.map(async (item) => {
+          // 각 게시물의 좋아요 상태 확인
+          let liked = false;
+          try {
+            const likeStatus = await isPostLike(item.id);
+            liked = likeStatus.isLiked || false;
+          } catch (error) {
+            console.error(`좋아요 상태 확인 실패 (postId: ${item.id}):`, error);
+          }
+
+          return {
+            id: item.id,
+            type: "feed",
+            image: resolveUrl(item.imageUrl),
+            likes: item.likeCount,
+            comments: item.commentCount,
+            user: {
+              id: item.author.id || item.authorId,
+              username: item.author.username || "사용자",
+              avatar: item.author.profileImageUrl || null,
+            },
+            caption: item.content || "",
+            timestamp: item.createdAt || "",
+            liked: liked,
+          };
+        })
+      );
 
       // Reel 데이터 가져오기 (한 개)
       let transformedReel = null;
       try {
         const reelData = await getReel(nextCursorRef.current);
         if (reelData.reel) {
+          // 릴스의 좋아요 상태 확인
+          let liked = false;
+          try {
+            const likeStatus = await isPostLike(reelData.reel.id);
+            liked = likeStatus.isLiked || false;
+          } catch (error) {
+            console.error(
+              `좋아요 상태 확인 실패 (reelId: ${reelData.reel.id}):`,
+              error
+            );
+          }
+
           transformedReel = {
             id: reelData.reel.id,
             type: "reel",
@@ -100,11 +133,11 @@ const Explore = () => {
             },
             caption: reelData.reel.content || "",
             timestamp: reelData.reel.created_at || "",
-            liked: false,
+            liked: liked,
           };
           setNextCursor(reelData.nextCursor);
         }
-      } catch (error) {
+      } catch {
         // Reel 데이터 없음 (정상)
       }
 
@@ -152,45 +185,104 @@ const Explore = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 초기 한 번만 실행
 
+  // 모달 닫기 핸들러 (메모이제이션)
+  const handleCloseModal = useCallback(() => {
+    if (isModalClosing.current) return;
+    isModalClosing.current = true;
+    isModalOpening.current = false;
+    setSelectedPost(null);
+
+    // 모달 닫힘 플래그 리셋
+    setTimeout(() => {
+      isModalClosing.current = false;
+    }, 300);
+  }, []);
+
   // 포스트 클릭 핸들러
-  const handlePostClick = (post) => {
-    if (post.type === "reel") {
-      // 릴스는 Reels 페이지로 이동 (해당 릴스 ID와 함께)
-      navigate(`/normal/reels?startId=${post.id}`);
-    } else {
-      // 피드는 상세 모달 표시 - 상태 초기화 후 설정
-      setFollowStatusLoading(true);
+  const handlePostClick = useCallback(
+    (e, post) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 이미 같은 포스트의 모달이 열려있거나 모달이 열리는/닫히는 중이면 무시
+      if (isModalOpening.current) return;
+      if (isModalClosing.current) return;
+
+      if (post.type === "reel") {
+        // 릴스는 Reels 페이지로 이동 (해당 릴스 ID와 함께)
+        navigate(`/normal/reels?startId=${post.id}`);
+      } else {
+        // 피드는 상세 모달 표시 - 상태 초기화 후 설정
+        isModalOpening.current = true;
+        isModalClosing.current = false;
+        setIsFollowingUser(false);
+        setIsMine(false);
+        setSelectedPost(post);
+
+        // 모달 열림 플래그 리셋 (다음 렌더링 사이클에서)
+        setTimeout(() => {
+          isModalOpening.current = false;
+        }, 100);
+      }
+    },
+    [navigate]
+  );
+
+  // 상세 모달이 열릴 때 팔로우 상태 확인 및 좋아요 상태 확인
+  const selectedPostIdRef = useRef(null);
+
+  useEffect(() => {
+    // 모달이 닫히는 중이면 실행하지 않음
+    if (isModalClosing.current) {
+      selectedPostIdRef.current = null;
+      return;
+    }
+
+    // selectedPost가 없으면 상태 초기화
+    if (!selectedPost) {
+      selectedPostIdRef.current = null;
       setIsFollowingUser(false);
       setIsMine(false);
-      setSelectedPost(post);
+      return;
     }
-  };
 
-  // 상세 모달이 열릴 때 팔로우 상태 확인 및 댓글 불러오기
-  useEffect(() => {
+    // 같은 포스트면 중복 실행 방지
+    if (selectedPostIdRef.current === selectedPost.id) return;
+    selectedPostIdRef.current = selectedPost.id;
+
     const checkFollowStatus = async () => {
-      if (selectedPost && selectedPost.user.id) {
+      if (!selectedPost || !selectedPost.user || !selectedPost.user.id) {
+        return;
+      }
+
+      try {
+        const response = await isFollowing(selectedPost.user.id);
+        setIsFollowingUser(response.isFollowing);
+        setIsMine(response.isMine);
+
+        // 좋아요 상태도 확인 (setSelectedPost를 호출하지 않고 직접 업데이트)
         try {
-          const response = await isFollowing(selectedPost.user.id);
-          setIsFollowingUser(response.isFollowing);
-          setIsMine(response.isMine);
+          const likeStatus = await isPostLike(selectedPost.id);
+          // selectedPost가 여전히 같은 포스트인지 확인 후 업데이트
+          setSelectedPost((prev) => {
+            if (!prev || prev.id !== selectedPost.id) return prev;
+            return {
+              ...prev,
+              liked: likeStatus.isLiked || false,
+            };
+          });
         } catch (error) {
-          console.error("팔로우 상태 확인 실패:", error);
-          setIsFollowingUser(false);
-          setIsMine(false);
-        } finally {
-          setFollowStatusLoading(false);
+          console.error("좋아요 상태 확인 실패:", error);
         }
-      } else if (!selectedPost) {
-        // 모달이 닫힐 때 상태 초기화
-        setFollowStatusLoading(false);
+      } catch (error) {
+        console.error("팔로우 상태 확인 실패:", error);
         setIsFollowingUser(false);
         setIsMine(false);
       }
     };
 
     checkFollowStatus();
-  }, [selectedPost]);
+  }, [selectedPost]); // selectedPost 변경 시에만 실행
 
   // 팔로우/언팔로우 핸들러
   const handleFollow = async () => {
@@ -215,7 +307,12 @@ const Explore = () => {
   };
 
   // 좋아요 핸들러
-  const handleLike = (postId) => {
+  const handleLike = async (postId) => {
+    const target = explorePosts.find((p) => p.id === postId);
+    if (!target) return;
+
+    // Optimistic update
+    const wasLiked = target.liked;
     setExplorePosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -234,6 +331,36 @@ const Explore = () => {
         liked: !prev.liked,
         likes: prev.liked ? prev.likes - 1 : prev.likes + 1,
       }));
+    }
+
+    // API 호출
+    try {
+      if (wasLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
+    } catch (error) {
+      console.error("좋아요 실패 → 롤백", error);
+      // 실패 시 롤백
+      setExplorePosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                liked: wasLiked,
+                likes: wasLiked ? post.likes + 1 : post.likes - 1,
+              }
+            : post
+        )
+      );
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost((prev) => ({
+          ...prev,
+          liked: wasLiked,
+          likes: wasLiked ? prev.likes + 1 : prev.likes - 1,
+        }));
+      }
     }
   };
 
@@ -289,7 +416,7 @@ const Explore = () => {
                   <GridItem
                     key={`${post.type}-${post.id}`}
                     ref={lastPostElementRef}
-                    onClick={() => handlePostClick(post)}
+                    onClick={(e) => handlePostClick(e, post)}
                   >
                     <ImageWrapper>
                       <Image src={post.image} alt="" />
@@ -321,7 +448,7 @@ const Explore = () => {
                 return (
                   <GridItem
                     key={`${post.type}-${post.id}`}
-                    onClick={() => handlePostClick(post)}
+                    onClick={(e) => handlePostClick(e, post)}
                   >
                     <ImageWrapper>
                       <Image src={post.image} alt="" />
@@ -363,7 +490,7 @@ const Explore = () => {
         <PostDetailModal
           post={selectedPost}
           isOpen={!!selectedPost}
-          onClose={() => setSelectedPost(null)}
+          onClose={handleCloseModal}
           isDarkMode={isDarkMode}
           user={user}
           onLike={handleModalLike}
@@ -491,6 +618,5 @@ const ReelIndicator = styled.div`
   z-index: 2;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
 `;
-
 
 export default Explore;
