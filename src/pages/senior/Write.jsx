@@ -14,12 +14,16 @@ import SeniorBottomNav from "../../components/senior/BottomNav";
 import { createPost } from "../../services/post";
 import { refineContent } from "../../services/senior";
 
-// AI 테마 목록
+// AI 테마 목록 (시니어 SNS 실사용 기준)
 const THEMES = [
-  { id: "kind", label: "온화한 말투", emoji: "😊" },
-  { id: "cute", label: "귀여운 말투", emoji: "🥰" },
-  { id: "letter", label: "손주에게 편지", emoji: "💌" },
-  { id: "friend", label: "친구에게 안부", emoji: "👋" },
+  { id: "intro", label: "소개하기", emoji: "🙋‍♀️" },
+  { id: "daily", label: "오늘의 일상", emoji: "🌿" },
+  { id: "greeting", label: "안부 인사", emoji: "👋" },
+  { id: "family", label: "가족 이야기", emoji: "👨‍👩‍👧" },
+  { id: "thanks", label: "감사 인사", emoji: "🙏" },
+  { id: "memory", label: "추억 이야기", emoji: "📷" },
+  { id: "cheer", label: "응원 · 다짐", emoji: "💪" },
+  { id: "light", label: "소소한 웃음", emoji: "😊" },
 ];
 
 // Base64 => File 변환 헬퍼
