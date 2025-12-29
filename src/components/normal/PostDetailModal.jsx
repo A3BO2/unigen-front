@@ -66,7 +66,7 @@ const PostDetailModal = ({
       setIsLiked(post.liked || false);
       setLikesCount(post.likes || post.like_count || 0);
     }
-  }, [post?.id, post?.liked, post?.likes, post?.like_count]);
+  }, [post]);
 
   // 모달 열릴 때 body 스크롤 막기/풀기
   useEffect(() => {
@@ -374,7 +374,7 @@ const PostDetailModal = ({
 
             {/* 3. 하단 액션 버튼 (좋아요 등) */}
             <ModalActions>
-              <ActionButtons>
+              <LikesRow $darkMode={isDarkMode}>
                 <ActionButton onClick={handleLike}>
                   <Heart
                     size={24}
@@ -385,17 +385,10 @@ const PostDetailModal = ({
                     strokeWidth={isLiked ? 2 : 1.5}
                   />
                 </ActionButton>
-                <ActionButton>
-                  <MessageCircle
-                    size={24}
-                    strokeWidth={1.5}
-                    color={isDarkMode ? "#fff" : "#262626"}
-                  />
-                </ActionButton>
-              </ActionButtons>
-              <Likes $darkMode={isDarkMode}>
-                좋아요 {postLikes.toLocaleString()}개
-              </Likes>
+                <LikesText $darkMode={isDarkMode}>
+                  좋아요 {postLikes.toLocaleString()}개
+                </LikesText>
+              </LikesRow>
               <Timestamp $darkMode={isDarkMode}>{postTime || ""}</Timestamp>
             </ModalActions>
 
@@ -544,6 +537,8 @@ const ModalRight = styled.div`
   flex-direction: column;
   background: ${(props) => (props.$darkMode ? "#000" : "#fff")};
   border-left: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  min-height: 0;
+  overflow: hidden;
 
   @media (max-width: 767px) {
     border-left: none;
@@ -796,10 +791,11 @@ const ModalActions = styled.div`
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 `;
 
-const ActionButtons = styled.div`
+const LikesRow = styled.div`
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 `;
 
 const ActionButton = styled.button`
@@ -816,11 +812,10 @@ const ActionButton = styled.button`
   }
 `;
 
-const Likes = styled.div`
+const LikesText = styled.div`
   font-weight: 600;
   font-size: 14px;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
-  margin-bottom: 8px;
 `;
 
 const Timestamp = styled.div`

@@ -193,18 +193,28 @@ export async function createPost(formData) {
 
 // 좋아요 추가
 export async function likePost(postId) {
-  return await apifetch(`/posts/${postId}/like`, {
+  console.log("likePost API 호출:", postId);
+  const token = sessionStorage.getItem("token");
+  console.log("토큰 확인:", token ? "있음" : "없음");
+  const result = await apifetch(`/posts/${postId}/like`, {
     method: "POST",
     headers: getHeaders(),
   });
+  console.log("likePost 응답:", result);
+  return result;
 }
 
 // 좋아요 취소
 export async function unlikePost(postId) {
-  return await apifetch(`/posts/${postId}/like`, {
+  console.log("unlikePost API 호출:", postId);
+  const token = sessionStorage.getItem("token");
+  console.log("토큰 확인:", token ? "있음" : "없음");
+  const result = await apifetch(`/posts/${postId}/like`, {
     method: "DELETE",
     headers: getHeaders(),
   });
+  console.log("unlikePost 응답:", result);
+  return result;
 }
 
 // 좋아요 여부 확인
