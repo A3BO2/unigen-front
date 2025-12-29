@@ -701,10 +701,14 @@ const Home = () => {
             alt="Unigen"
           />
           <MobileIcons>
-            <IconButton onClick={() => window.dispatchEvent(new Event("open-search"))}>
+            <IconButton
+              onClick={() => window.dispatchEvent(new Event("open-search"))}
+            >
               <Search size={24} />
             </IconButton>
-            <IconButton onClick={() => window.dispatchEvent(new Event("open-more"))}>
+            <IconButton
+              onClick={() => window.dispatchEvent(new Event("open-more"))}
+            >
               <MoreHorizontal size={24} />
             </IconButton>
           </MobileIcons>

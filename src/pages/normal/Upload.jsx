@@ -892,7 +892,6 @@ const ModalTitle = styled.h2`
   text-align: center;
 `;
 
-
 const NextButton = styled.button`
   position: absolute;
   right: 16px;

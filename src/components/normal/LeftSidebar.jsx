@@ -320,7 +320,7 @@ const LeftSidebar = () => {
   useEffect(() => {
     const openSearchHandler = () => setIsSearchOpen(true);
     const openMoreHandler = () => {
-      setIsMoreOpen(prev => !prev);
+      setIsMoreOpen((prev) => !prev);
       setIsSearchOpen(false);
     };
     window.addEventListener("open-search", openSearchHandler);
