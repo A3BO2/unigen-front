@@ -1,20 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { ArrowLeft } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import LeftSidebar from '../../components/normal/LeftSidebar';
-import RightSidebar from '../../components/normal/RightSidebar';
-import BottomNav from '../../components/normal/BottomNav';
-import { getCurrentUser, updateUserProfile, uploadProfileImage } from '../../services/user';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { ArrowLeft } from "lucide-react";
+import { useApp } from "../../context/AppContext";
+import LeftSidebar from "../../components/normal/LeftSidebar";
+import RightSidebar from "../../components/normal/RightSidebar";
+import BottomNav from "../../components/normal/BottomNav";
+import {
+  getCurrentUser,
+  updateUserProfile,
+  uploadProfileImage,
+} from "../../services/user";
 
-const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
 
 // 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (url) => {
   if (!url) return null;
   // 이미 http:// 또는 https://로 시작하면 그대로 반환
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
   // 상대 경로면 baseURL 붙이기
@@ -26,11 +30,11 @@ const ProfileEdit = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    username: user?.username || '',
-    profile_image: user?.profile_image || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
+    name: user?.name || "",
+    username: user?.username || "",
+    profile_image: user?.profile_image || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
   });
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -52,7 +56,7 @@ const ProfileEdit = () => {
           }));
         }
       } catch (e) {
-        console.error('프로필 불러오기 실패:', e);
+        console.error("프로필 불러오기 실패:", e);
       }
     };
 
@@ -70,9 +74,9 @@ const ProfileEdit = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -85,8 +89,8 @@ const ProfileEdit = () => {
     if (!file) return;
 
     // 이미지 파일만 허용
-    if (!file.type.startsWith('image/')) {
-      alert('이미지 파일만 업로드할 수 있습니다.');
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드할 수 있습니다.");
       return;
     }
 
@@ -100,7 +104,7 @@ const ProfileEdit = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      
+
       // 선택된 파일이 있으면 먼저 업로드
       let uploadedImageUrl = formData.profile_image;
       if (selectedFile) {
@@ -110,14 +114,15 @@ const ProfileEdit = () => {
             uploadedImageUrl = uploadResult.imageUrl;
           }
         } catch (uploadError) {
-          console.error('이미지 업로드 실패:', uploadError);
-          alert('프로필 사진 업로드에 실패했습니다.');
+          console.error("이미지 업로드 실패:", uploadError);
+          alert("프로필 사진 업로드에 실패했습니다.");
           setLoading(false);
           return;
         }
       }
 
       // 프로필 업데이트 (username, email, phone 제외, 업로드된 이미지 URL 포함)
+      // eslint-disable-next-line no-unused-vars
       const { username, email, phone, ...updateData } = formData;
       const profileUpdateData = {
         ...updateData,
@@ -132,7 +137,7 @@ const ProfileEdit = () => {
             ...(user || {}),
             ...updated.data.user,
           },
-          mode || 'normal'
+          mode || "normal"
         );
       }
 
@@ -143,10 +148,10 @@ const ProfileEdit = () => {
       setSelectedFile(null);
       setPreviewUrl(null);
 
-      navigate('/normal/profile');
+      navigate("/normal/profile");
     } catch (error) {
-      console.error('프로필 수정 실패:', error);
-      alert('프로필 수정에 실패했습니다. 다시 시도해주세요.');
+      console.error("프로필 수정 실패:", error);
+      alert("프로필 수정에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }
@@ -160,12 +165,12 @@ const ProfileEdit = () => {
 
       <Container $darkMode={isDarkMode}>
         <MobileHeader $darkMode={isDarkMode}>
-          <BackButton onClick={() => navigate('/normal/profile')}>
-            <ArrowLeft size={24} color={isDarkMode ? '#fff' : '#262626'} />
+          <BackButton onClick={() => navigate("/normal/profile")}>
+            <ArrowLeft size={24} color={isDarkMode ? "#fff" : "#262626"} />
           </BackButton>
           <HeaderTitle $darkMode={isDarkMode}>프로필 편집</HeaderTitle>
           <SubmitButton onClick={handleSubmit} disabled={loading}>
-            {loading ? '저장 중...' : '완료'}
+            {loading ? "저장 중..." : "완료"}
           </SubmitButton>
         </MobileHeader>
 
@@ -178,14 +183,24 @@ const ProfileEdit = () => {
             <ProfileSection $darkMode={isDarkMode}>
               <ProfileImageWrapper>
                 {previewUrl ? (
-                  <ProfileImage src={previewUrl} alt="프로필 이미지 미리보기" $darkMode={isDarkMode} />
+                  <ProfileImage
+                    src={previewUrl}
+                    alt="프로필 이미지 미리보기"
+                    $darkMode={isDarkMode}
+                  />
                 ) : formData.profile_image ? (
-                  <ProfileImage src={getImageUrl(formData.profile_image)} alt="프로필 이미지" $darkMode={isDarkMode} />
+                  <ProfileImage
+                    src={getImageUrl(formData.profile_image)}
+                    alt="프로필 이미지"
+                    $darkMode={isDarkMode}
+                  />
                 ) : (
-                  <ProfileImagePlaceholder $darkMode={isDarkMode}>👤</ProfileImagePlaceholder>
+                  <ProfileImagePlaceholder $darkMode={isDarkMode}>
+                    👤
+                  </ProfileImagePlaceholder>
                 )}
               </ProfileImageWrapper>
-              <ChangePhotoButton 
+              <ChangePhotoButton
                 type="button"
                 $darkMode={isDarkMode}
                 onClick={handleImageSelect}
@@ -224,10 +239,10 @@ const ProfileEdit = () => {
                 disabled
                 placeholder="사용자 이름"
                 $darkMode={isDarkMode}
-                style={{ 
-                  cursor: 'not-allowed',
+                style={{
+                  cursor: "not-allowed",
                   opacity: 0.6,
-                  backgroundColor: isDarkMode ? '#1a1a1a' : '#f5f5f5'
+                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
                 }}
               />
             </FormGroup>
@@ -239,15 +254,15 @@ const ProfileEdit = () => {
               <Input
                 type="email"
                 name="email"
-                value={formData.email || ''}
+                value={formData.email || ""}
                 readOnly
                 disabled
                 placeholder="이메일"
                 $darkMode={isDarkMode}
-                style={{ 
-                  cursor: 'not-allowed',
+                style={{
+                  cursor: "not-allowed",
                   opacity: 0.6,
-                  backgroundColor: isDarkMode ? '#1a1a1a' : '#f5f5f5'
+                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
                 }}
               />
             </FormGroup>
@@ -257,21 +272,21 @@ const ProfileEdit = () => {
               <Input
                 type="tel"
                 name="phone"
-                value={formData.phone || ''}
+                value={formData.phone || ""}
                 readOnly
                 disabled
                 placeholder="전화번호"
                 $darkMode={isDarkMode}
-                style={{ 
-                  cursor: 'not-allowed',
+                style={{
+                  cursor: "not-allowed",
                   opacity: 0.6,
-                  backgroundColor: isDarkMode ? '#1a1a1a' : '#f5f5f5'
+                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
                 }}
               />
             </FormGroup>
 
             <DesktopSubmitButton type="submit" disabled={loading}>
-              {loading ? '저장 중...' : '제출'}
+              {loading ? "저장 중..." : "제출"}
             </DesktopSubmitButton>
           </Form>
         </MainContent>
@@ -282,7 +297,7 @@ const ProfileEdit = () => {
 
 const Container = styled.div`
   min-height: 100vh;
-  background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+  background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
 
   @media (min-width: 1264px) {
     margin-left: 335px;
@@ -304,8 +319,9 @@ const MobileHeader = styled.header`
   display: none;
   position: sticky;
   top: 0;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   padding: 12px 16px;
   align-items: center;
   justify-content: space-between;
@@ -330,7 +346,7 @@ const BackButton = styled.button`
 const HeaderTitle = styled.h1`
   font-size: 16px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   flex: 1;
   text-align: center;
   margin: 0 16px;
@@ -359,17 +375,18 @@ const MainContent = styled.main`
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  background: ${props => props.$darkMode ? '#000' : 'white'};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
   min-height: 100vh;
 
   @media (max-width: 767px) {
-    background: ${props => props.$darkMode ? '#000' : '#fafafa'};
+    background: ${(props) => (props.$darkMode ? "#000" : "#fafafa")};
   }
 `;
 
 const Header = styled.div`
   padding: 30px 20px 20px;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 
   @media (max-width: 767px) {
     display: none;
@@ -379,7 +396,7 @@ const Header = styled.div`
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 `;
 
 const Form = styled.form`
@@ -395,7 +412,8 @@ const ProfileSection = styled.div`
   align-items: center;
   gap: 20px;
   padding: 20px 0;
-  border-bottom: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border-bottom: 1px solid
+    ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   margin-bottom: 20px;
 
   @media (max-width: 767px) {
@@ -415,15 +433,15 @@ const ProfileImage = styled.img`
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
 `;
 
 const ProfileImagePlaceholder = styled.div`
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: ${props => props.$darkMode ? '#1a1a1a' : '#fafafa'};
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#1a1a1a" : "#fafafa")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,14 +455,14 @@ const HiddenFileInput = styled.input`
 const ChangePhotoButton = styled.button`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#0095f6' : '#0095f6'};
+  color: ${(props) => (props.$darkMode ? "#0095f6" : "#0095f6")};
   cursor: pointer;
   outline: none;
   border: none;
   background: transparent;
 
   &:hover:not(:disabled) {
-    color: ${props => props.$darkMode ? '#1877f2' : '#00376b'};
+    color: ${(props) => (props.$darkMode ? "#1877f2" : "#00376b")};
   }
 
   &:disabled {
@@ -461,18 +479,18 @@ const Label = styled.label`
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin-bottom: 8px;
 `;
 
 const Input = styled.input`
   width: 100%;
   padding: 12px;
-  border: 1px solid ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 6px;
   font-size: 14px;
-  color: ${props => props.$darkMode ? '#fff' : '#262626'};
-  background: ${props => props.$darkMode ? '#000' : 'white'};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  background: ${(props) => (props.$darkMode ? "#000" : "white")};
   outline: none;
 
   &::placeholder {
@@ -480,13 +498,13 @@ const Input = styled.input`
   }
 
   &:focus {
-    border-color: ${props => props.$darkMode ? '#3a3a3a' : '#a8a8a8'};
+    border-color: ${(props) => (props.$darkMode ? "#3a3a3a" : "#a8a8a8")};
   }
 `;
 
 const Divider = styled.div`
   height: 1px;
-  background: ${props => props.$darkMode ? '#262626' : '#dbdbdb'};
+  background: ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   margin: 32px 0;
 `;
 

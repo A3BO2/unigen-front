@@ -17,7 +17,7 @@ export async function createStory(formData) {
   let data;
   try {
     data = await res.json();
-  } catch (error) {
+  } catch {
     // JSON 파싱 실패 (정상 처리)
   }
 

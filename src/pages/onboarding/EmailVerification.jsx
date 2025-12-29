@@ -1,28 +1,34 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import styled from 'styled-components';
-import { Mail } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
+import styled from "styled-components";
+import { Mail } from "lucide-react";
 
 const EmailVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useApp();
-  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationCode, setVerificationCode] = useState("");
   const [isResent, setIsResent] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [isExpired, setIsExpired] = useState(false);
 
   // 이전 페이지에서 전달받은 이메일과 사용자 정보
-  const userEmail = location.state?.email || '';
+  const userEmail = location.state?.email || "";
   const userInfo = location.state?.userInfo || {};
 
   useEffect(() => {
     if (countdown > 0 && !isExpired) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      const timer = setTimeout(() => {
+        setCountdown((prev) => {
+          const newCountdown = prev - 1;
+          if (newCountdown === 0) {
+            setIsExpired(true);
+          }
+          return newCountdown;
+        });
+      }, 1000);
       return () => clearTimeout(timer);
-    } else if (countdown === 0) {
-      setIsExpired(true);
     }
   }, [countdown, isExpired]);
 
@@ -30,19 +36,19 @@ const EmailVerification = () => {
     e.preventDefault();
 
     if (verificationCode.length !== 6) {
-      alert('인증번호 6자리를 입력해주세요.');
+      alert("인증번호 6자리를 입력해주세요.");
       return;
     }
 
     if (isExpired) {
-      alert('인증번호가 만료되었습니다. 재전송해주세요.');
+      alert("인증번호가 만료되었습니다. 재전송해주세요.");
       return;
     }
 
     // 실제로는 서버에서 인증번호 확인
     // 여기서는 데모를 위해 바로 로그인 처리
-    await login(userInfo, 'normal');
-    navigate('/normal/home');
+    await login(userInfo, "normal");
+    navigate("/normal/home");
   };
 
   const handleResend = () => {
@@ -54,7 +60,7 @@ const EmailVerification = () => {
   };
 
   const handleChangeEmail = () => {
-    navigate('/login/normal?mode=signup');
+    navigate("/login/normal?mode=signup");
   };
 
   return (
@@ -69,7 +75,8 @@ const EmailVerification = () => {
         <Title>이메일 인증</Title>
 
         <Description>
-          <strong>{userEmail}</strong>(으)로<br />
+          <strong>{userEmail}</strong>(으)로
+          <br />
           인증번호를 보내드렸습니다.
         </Description>
 
@@ -79,7 +86,7 @@ const EmailVerification = () => {
             placeholder="인증번호 6자리"
             value={verificationCode}
             onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, '');
+              const value = e.target.value.replace(/\D/g, "");
               if (value.length <= 6) {
                 setVerificationCode(value);
               }
@@ -90,7 +97,8 @@ const EmailVerification = () => {
 
           {!isExpired && (
             <Timer expired={countdown < 30}>
-              {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+              {Math.floor(countdown / 60)}:
+              {String(countdown % 60).padStart(2, "0")}
             </Timer>
           )}
 
@@ -105,7 +113,7 @@ const EmailVerification = () => {
 
         <LinkSection>
           <ResendButton onClick={handleResend}>
-            {isResent ? '인증번호를 다시 보냈습니다' : '인증번호 재전송'}
+            {isResent ? "인증번호를 다시 보냈습니다" : "인증번호 재전송"}
           </ResendButton>
 
           <Divider>·</Divider>
@@ -116,7 +124,7 @@ const EmailVerification = () => {
         </LinkSection>
       </FormContainer>
 
-      <BackToLogin onClick={() => navigate('/login/normal')}>
+      <BackToLogin onClick={() => navigate("/login/normal")}>
         로그인으로 돌아가기
       </BackToLogin>
     </Container>
@@ -222,7 +230,7 @@ const Input = styled.input`
 const Timer = styled.div`
   text-align: center;
   font-size: 12px;
-  color: ${props => props.expired ? '#ed4956' : '#0095f6'};
+  color: ${(props) => (props.expired ? "#ed4956" : "#0095f6")};
   font-weight: 600;
   margin-top: 4px;
 `;
@@ -238,21 +246,21 @@ const ExpiredMessage = styled.div`
 const SubmitButton = styled.button`
   width: 100%;
   padding: 7px 16px;
-  background: ${props => props.disabled ? '#b2dffc' : '#0095f6'};
+  background: ${(props) => (props.disabled ? "#b2dffc" : "#0095f6")};
   color: white;
   font-size: 14px;
   font-weight: 600;
   border-radius: 8px;
   margin-top: 8px;
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
   transition: background 0.2s;
 
   &:hover {
-    background: ${props => props.disabled ? '#b2dffc' : '#1877f2'};
+    background: ${(props) => (props.disabled ? "#b2dffc" : "#1877f2")};
   }
 
   &:active {
-    opacity: ${props => props.disabled ? 1 : 0.7};
+    opacity: ${(props) => (props.disabled ? 1 : 0.7)};
   }
 `;
 

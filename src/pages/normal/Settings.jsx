@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import { ChevronRight, Moon, Sun, User } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
@@ -13,6 +13,9 @@ const Settings = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, switchMode, logout, user } = useApp();
   const [loading, setLoading] = useState(false);
+
+  // 카카오 로그인 여부 확인
+  const isKakaoUser = user?.signup_mode === "kakao";
 
   const handleDarkModeToggle = async () => {
     const newValue = !isDarkMode;
@@ -40,7 +43,7 @@ const Settings = () => {
   const handleLogout = () => {
     if (confirm("로그아웃 하시겠습니까?")) {
       // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
-      if (user?.signup_mode === "kakao") {
+      if (isKakaoUser) {
         logoutWithKakao();
       }
       logout();
@@ -98,24 +101,30 @@ const Settings = () => {
           <Section>
             <SectionTitle $darkMode={isDarkMode}>계정 및 보안</SectionTitle>
 
-            <SettingItem
-              $darkMode={isDarkMode}
-              onClick={() => navigate("/change-password")}
-            >
-              <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode}>
-                  비밀번호 변경
-                </SettingLabel>
-              </SettingLeft>
-              <ChevronRight
-                size={20}
-                color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
-              />
-            </SettingItem>
+            {/* 카카오 로그인이 아닐 때만 비밀번호 변경 표시 */}
+            {!isKakaoUser && (
+              <SettingItem
+                $darkMode={isDarkMode}
+                onClick={() => navigate("/change-password")}
+              >
+                <SettingLeft>
+                  <SettingLabel $darkMode={isDarkMode}>
+                    비밀번호 변경
+                  </SettingLabel>
+                </SettingLeft>
+                <ChevronRight
+                  size={20}
+                  color={isDarkMode ? "#8e8e8e" : "#8e8e8e"}
+                />
+              </SettingItem>
+            )}
 
             <SettingItem $darkMode={isDarkMode} onClick={handleLogout}>
               <SettingLeft>
-                <SettingLabel $darkMode={isDarkMode} style={{ color: "#ed4956" }}>
+                <SettingLabel
+                  $darkMode={isDarkMode}
+                  style={{ color: "#ed4956" }}
+                >
                   로그아웃
                 </SettingLabel>
               </SettingLeft>
