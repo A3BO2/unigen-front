@@ -981,6 +981,7 @@ const Content = styled.p`
   margin-bottom: 24px;
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
+  white-space: pre-wrap;
 `;
 
 const PostImage = styled.img`
@@ -1172,6 +1173,7 @@ const CommentText = styled.p`
   line-height: 1.6;
   color: ${(props) => (props.theme.$darkMode ? "#fff" : "#000")};
   word-break: keep-all;
+  white-space: pre-wrap;
 `;
 
 const CommentDeleteButton = styled.button`

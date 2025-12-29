@@ -1006,7 +1006,11 @@ const Home = () => {
                         closeStoryViewer();
                       }
                     }}
-                    style={{ cursor: stories[currentStoryIndex].id ? "pointer" : "default" }}
+                    style={{
+                      cursor: stories[currentStoryIndex].id
+                        ? "pointer"
+                        : "default",
+                    }}
                   >
                     <Avatar>
                       {stories[currentStoryIndex].user.avatar ? (
@@ -1541,6 +1545,7 @@ const Caption = styled.p`
   line-height: 18px;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
+  white-space: pre-wrap;
   ${Username} {
     margin-right: 4px;
   }

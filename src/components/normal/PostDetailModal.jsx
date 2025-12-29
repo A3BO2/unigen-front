@@ -147,9 +147,7 @@ const PostDetailModal = ({
     post.image || post.image_url || post.imageUrl
   );
   const postCaption = post.caption || post.content || "";
-  const postTime = formatRelativeTime(
-    post.timestamp || post.createdAt || ""
-  );
+  const postTime = formatRelativeTime(post.timestamp || post.createdAt || "");
   const postLikes = likesCount;
 
   return (
@@ -349,7 +347,9 @@ const PostDetailModal = ({
                             {c.user?.username || "사용자"}
                           </CommentUsername>
                           {isMineComment && (
-                            <DeleteBtn onClick={() => handleDeleteComment(c.id)}>
+                            <DeleteBtn
+                              onClick={() => handleDeleteComment(c.id)}
+                            >
                               삭제
                             </DeleteBtn>
                           )}
@@ -393,9 +393,7 @@ const PostDetailModal = ({
               <Likes $darkMode={isDarkMode}>
                 좋아요 {postLikes.toLocaleString()}개
               </Likes>
-              <Timestamp $darkMode={isDarkMode}>
-                {postTime || ""}
-              </Timestamp>
+              <Timestamp $darkMode={isDarkMode}>{postTime || ""}</Timestamp>
             </ModalActions>
 
             {/* 4. 댓글 입력창 */}
@@ -743,6 +741,7 @@ const CommentText = styled.span`
   word-break: break-word;
   display: block;
   line-height: 1.4;
+  white-space: pre-wrap;
 `;
 
 const CommentTime = styled.span`
