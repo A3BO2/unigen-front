@@ -91,7 +91,7 @@ const Container = styled.nav`
   align-items: center;
   padding: 8px 0 12px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  z-index: 100;
+  z-index: 1000;
 
   @media (max-width: 767px) {
     display: flex;

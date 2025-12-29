@@ -266,7 +266,7 @@ const PostDetailModal = ({
             {/* 2. 댓글 목록 섹션 */}
             <CommentsSection $darkMode={isDarkMode}>
               {/* 게시물 본문(Caption)을 첫 번째 댓글처럼 표시 */}
-              <CommentItem>
+              <CommentItem $isCaption $darkMode={isDarkMode}>
                 <CommentAvatar>
                   {post.user?.avatar || post.user?.profile_image ? (
                     <img
@@ -389,7 +389,6 @@ const PostDetailModal = ({
                   좋아요 {postLikes.toLocaleString()}개
                 </LikesText>
               </LikesRow>
-              <Timestamp $darkMode={isDarkMode}>{postTime || ""}</Timestamp>
             </ModalActions>
 
             {/* 4. 댓글 입력창 */}
@@ -418,6 +417,7 @@ const PostDetailModal = ({
                 placeholder="댓글 달기..."
               />
               <PostButton
+                $darkMode={isDarkMode}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -706,6 +706,13 @@ const CommentItem = styled.div`
   gap: 12px;
   margin-bottom: 16px;
   align-items: center;
+  padding-bottom: ${(props) => (props.$isCaption ? "16px" : "0")};
+  border-bottom: ${(props) =>
+    props.$isCaption
+      ? props.$darkMode
+        ? "1px solid rgba(255, 255, 255, 0.15)"
+        : "1px solid rgba(0, 0, 0, 0.05)"
+      : "none"};
 `;
 
 const CommentAvatar = styled.div`
@@ -785,7 +792,7 @@ const DeleteBtn = styled.button`
 `;
 
 const ModalActions = styled.div`
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-top: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-bottom: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
@@ -795,7 +802,6 @@ const LikesRow = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
 `;
 
 const ActionButton = styled.button`
@@ -848,7 +854,7 @@ const CommentInputIcon = styled.div`
 const PostButton = styled.button`
   background: transparent;
   border: none;
-  color: #0095f6;
+  color: ${(props) => (props.$darkMode ? "#4cb5f9" : "#0095f6")};
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -858,7 +864,7 @@ const PostButton = styled.button`
   z-index: 10;
 
   &:hover:not(:disabled) {
-    color: #1877f2;
+    color: ${(props) => (props.$darkMode ? "#6ec6fa" : "#1877f2")};
   }
 
   &:disabled {

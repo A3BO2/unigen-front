@@ -634,38 +634,41 @@ const LeftSidebar = () => {
       )}
 
       {isMoreOpen && (
-        <MorePanel $darkMode={isDarkMode}>
-          <MoreContent>
-            <MoreMenuItem
-              onClick={() => navigate("/normal/settings")}
-              $darkMode={isDarkMode}
-            >
-              <Settings size={24} color={isDarkMode ? "#fff" : "#262626"} />
-              <MoreMenuLabel $darkMode={isDarkMode}>설정</MoreMenuLabel>
-            </MoreMenuItem>
+        <>
+          <MoreOverlay onClick={() => setIsMoreOpen(false)} />
+          <MorePanel $darkMode={isDarkMode}>
+            <MoreContent>
+              <MoreMenuItem
+                onClick={() => navigate("/normal/settings")}
+                $darkMode={isDarkMode}
+              >
+                <Settings size={24} color={isDarkMode ? "#fff" : "#262626"} />
+                <MoreMenuLabel $darkMode={isDarkMode}>설정</MoreMenuLabel>
+              </MoreMenuItem>
 
-            <MoreMenuItem onClick={toggleDarkMode} $darkMode={isDarkMode}>
-              {isDarkMode ? <Moon size={24} /> : <Sun size={24} />}
-              <MoreMenuLabel $darkMode={isDarkMode}>모드 전환</MoreMenuLabel>
-            </MoreMenuItem>
+              <MoreMenuItem onClick={toggleDarkMode} $darkMode={isDarkMode}>
+                {isDarkMode ? <Moon size={24} /> : <Sun size={24} />}
+                <MoreMenuLabel $darkMode={isDarkMode}>모드 전환</MoreMenuLabel>
+              </MoreMenuItem>
 
-            <MoreMenuItem
-              onClick={() => {
-                if (confirm("로그아웃 하시겠습니까?")) {
-                  // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
-                  if (user?.signup_mode === "kakao") {
-                    logoutWithKakao();
+              <MoreMenuItem
+                onClick={() => {
+                  if (confirm("로그아웃 하시겠습니까?")) {
+                    // 카카오 로그인을 사용한 경우 카카오 로그아웃도 처리
+                    if (user?.signup_mode === "kakao") {
+                      logoutWithKakao();
+                    }
+                    logout();
+                    navigate("/");
                   }
-                  logout();
-                  navigate("/");
-                }
-              }}
-              $darkMode={isDarkMode}
-            >
-              <MoreMenuLabel $darkMode={isDarkMode}>로그아웃</MoreMenuLabel>
-            </MoreMenuItem>
-          </MoreContent>
-        </MorePanel>
+                }}
+                $darkMode={isDarkMode}
+              >
+                <MoreMenuLabel $darkMode={isDarkMode}>로그아웃</MoreMenuLabel>
+              </MoreMenuItem>
+            </MoreContent>
+          </MorePanel>
+        </>
       )}
 
       {/* 모바일용 플로팅 버튼들은 Home.jsx의 MobileHeader에서 처리 */}
@@ -1137,7 +1140,7 @@ const MorePanel = styled.div`
   border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 10000;
+  z-index: 10001;
   overflow: hidden;
   animation: slideUp 0.2s ease;
 
@@ -1162,10 +1165,25 @@ const MorePanel = styled.div`
     border-radius: 12px 12px 0 0;
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
     display: block;
-    z-index: 1100;
+    z-index: 1101;
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     max-height: calc(100vh - env(safe-area-inset-top, 0px));
     overflow-y: auto;
+  }
+`;
+
+const MoreOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 10000;
+
+  @media (max-width: 767px) {
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1100;
   }
 `;
 

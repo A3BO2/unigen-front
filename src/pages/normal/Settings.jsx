@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import styled from "styled-components";
-import { ChevronRight, Moon, Sun, User } from "lucide-react";
+import { ChevronRight, Moon, Sun, User, X } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
@@ -60,6 +60,9 @@ const Settings = () => {
       <Container $darkMode={isDarkMode}>
         <Header $darkMode={isDarkMode}>
           <Title $darkMode={isDarkMode}>설정</Title>
+          <CloseButton $darkMode={isDarkMode} onClick={() => navigate(-1)}>
+            <X size={24} />
+          </CloseButton>
         </Header>
 
         <Content $darkMode={isDarkMode}>
@@ -158,16 +161,40 @@ const Container = styled.div`
 const Header = styled.div`
   max-width: 600px;
   margin: 0 auto;
-  padding: 30px 0 20px 20px;
+  padding: 30px 20px 20px 20px;
   border-bottom: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.6;
+  }
 `;
 
 const Content = styled.div`

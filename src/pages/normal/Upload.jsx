@@ -1249,13 +1249,14 @@ const FilterGrid = styled.div`
   padding: 0;
 
   @media (max-width: 767px) {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-height: 120px;
-    height: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: none;
+    height: 100%;
     padding: 0;
+    gap: 0;
   }
 `;
 
@@ -1273,7 +1274,7 @@ const FilterOption = styled.div`
   }
 
   @media (max-width: 767px) {
-    min-width: 100px;
+    aspect-ratio: 1;
   }
 `;
 
@@ -1298,14 +1299,14 @@ const FilterName = styled.div`
 const AdjustmentPanel = styled.div`
   padding: 16px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 22px;
   overflow-y: auto;
   height: 100%;
   flex: 1;
 
   @media (max-width: 767px) {
-    gap: 16px;
+    gap: 14px;
     padding: 12px;
     height: auto;
   }
