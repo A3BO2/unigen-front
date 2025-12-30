@@ -74,20 +74,119 @@ const Upload = () => {
   });
   const fileInputRef = useRef(null);
 
-  const handleFileSelect = (e) => {
+  // 이미지 압축 함수
+  const compressImage = (file, maxSizeMB = 5) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // 최대 크기 제한 (긴 쪽 기준 2048px)
+          const MAX_SIZE = 2048;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // JPEG로 변환, 품질 0.8
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                // 목표 크기보다 크면 품질을 낮춰서 다시 시도
+                if (blob.size > maxSizeMB * 1024 * 1024) {
+                  canvas.toBlob(
+                    (smallerBlob) => {
+                      const compressedFile = new File(
+                        [smallerBlob || blob],
+                        file.name,
+                        {
+                          type: "image/jpeg",
+                          lastModified: Date.now(),
+                        }
+                      );
+                      console.log(
+                        `압축 완료: ${(file.size / 1024 / 1024).toFixed(
+                          2
+                        )}MB → ${(compressedFile.size / 1024 / 1024).toFixed(
+                          2
+                        )}MB`
+                      );
+                      resolve(compressedFile);
+                    },
+                    "image/jpeg",
+                    0.6
+                  );
+                } else {
+                  const compressedFile = new File([blob], file.name, {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  console.log(
+                    `압축 완료: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(
+                      compressedFile.size /
+                      1024 /
+                      1024
+                    ).toFixed(2)}MB`
+                  );
+                  resolve(compressedFile);
+                }
+              } else {
+                reject(new Error("압축 실패"));
+              }
+            },
+            "image/jpeg",
+            0.8
+          );
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setOriginalFile(file);
+      try {
+        // 이미지 파일인 경우에만 압축
+        let processedFile = file;
+        if (file.type.startsWith("image/")) {
+          processedFile = await compressImage(file);
+        }
 
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
+        setOriginalFile(processedFile);
 
-      // 릴스면 자르기 생략
-      if (contentType === "reels") {
-        setFinalFile(file);
-        setStep("final");
-      } else {
-        setStep("crop");
+        const objectUrl = URL.createObjectURL(processedFile);
+        setPreview(objectUrl);
+
+        // 릴스면 자르기 생략
+        if (contentType === "reels") {
+          setFinalFile(processedFile);
+          setStep("final");
+        } else {
+          setStep("crop");
+        }
+      } catch (error) {
+        console.error("파일 처리 오류:", error);
+        alert("파일을 처리하는 중 오류가 발생했습니다.");
       }
     }
   };
@@ -362,13 +461,21 @@ const Upload = () => {
   };
 
   // 카메라로 찍은 사진 처리 함수 추가
-  const handleCameraCapture = (file) => {
+  const handleCameraCapture = async (file) => {
     if (file) {
-      setOriginalFile(file);
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
+      try {
+        // 카메라로 찍은 사진도 압축
+        const compressedFile = await compressImage(file);
 
-      setStep("crop");
+        setOriginalFile(compressedFile);
+        const objectUrl = URL.createObjectURL(compressedFile);
+        setPreview(objectUrl);
+
+        setStep("crop");
+      } catch (error) {
+        console.error("카메라 이미지 처리 오류:", error);
+        alert("사진을 처리하는 중 오류가 발생했습니다.");
+      }
     }
   };
 
