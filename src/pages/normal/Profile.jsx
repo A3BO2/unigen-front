@@ -1255,6 +1255,18 @@ const Profile = () => {
                 reels.find((r) => r.id === showComments);
               if (!selectedPost) return null;
 
+              // 현재 활성 탭에 따라 적절한 리스트 선택
+              const currentList = activeTab === "reels" ? reels : posts;
+              const currentPostIndex = currentList.findIndex(
+                (p) => p.id === showComments
+              );
+
+              const handleNavigate = (newIndex) => {
+                if (newIndex >= 0 && newIndex < currentList.length) {
+                  setShowComments(currentList[newIndex].id);
+                }
+              };
+
               // 모달용 포스트 데이터 준비
               const modalPost = {
                 ...selectedPost,
@@ -1286,6 +1298,9 @@ const Profile = () => {
                   isMine={commentModalIsMine}
                   followLoading={commentModalFollowLoading}
                   getImageUrl={getImageUrl}
+                  postList={currentList}
+                  currentPostIndex={currentPostIndex}
+                  onNavigate={handleNavigate}
                 />
               );
             })()}
