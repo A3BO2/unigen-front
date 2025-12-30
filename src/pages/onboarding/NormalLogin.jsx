@@ -28,6 +28,17 @@ const NormalLogin = () => {
   const [kakaoAccessToken, setKakaoAccessToken] = useState(null);
   const [kakaoUserInfo, setKakaoUserInfo] = useState(null);
 
+  // 스크롤 방지
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
+
   // 카카오 SDK 초기화
   useEffect(() => {
     const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
@@ -54,14 +65,11 @@ const NormalLogin = () => {
         if (!apiBaseURL) {
           throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
         }
-        const response = await fetch(
-          `${apiBaseURL}/auth/kakao/login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ access_token: accessToken }),
-          }
-        );
+        const response = await fetch(`${apiBaseURL}/auth/kakao/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: accessToken }),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -194,17 +202,14 @@ const NormalLogin = () => {
       }
       if (isLogin) {
         // 로그인
-        const response = await fetch(
-          `${apiBaseURL}/auth/login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              phone: formData.phone,
-              password: formData.password,
-            }),
-          }
-        );
+        const response = await fetch(`${apiBaseURL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: formData.phone,
+            password: formData.password,
+          }),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -236,14 +241,11 @@ const NormalLogin = () => {
           preferred_mode: "normal",
         };
 
-        const response = await fetch(
-          `${apiBaseURL}/auth/signup`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(signupData),
-          }
-        );
+        const response = await fetch(`${apiBaseURL}/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(signupData),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -287,20 +289,17 @@ const NormalLogin = () => {
         throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
       }
 
-      const response = await fetch(
-        `${apiBaseURL}/auth/kakao/signup`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: kakaoAccessToken,
-            username: signupFormData.username,
-            phone: signupFormData.phone,
-            name: signupFormData.name,
-            preferred_mode: "normal",
-          }),
-        }
-      );
+      const response = await fetch(`${apiBaseURL}/auth/kakao/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: kakaoAccessToken,
+          username: signupFormData.username,
+          phone: signupFormData.phone,
+          name: signupFormData.name,
+          preferred_mode: "normal",
+        }),
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -356,98 +355,100 @@ const NormalLogin = () => {
   };
 
   return (
-    <Container>
+    <>
       <Header>
         <BackButton onClick={() => navigate("/")}>←</BackButton>
       </Header>
 
-      <FormContainer>
-        <Logo src="/unigen_black.png" alt="Unigen" />
+      <Container>
+        <FormContainer>
+          <Logo src="/unigen_black.png" alt="Unigen" />
 
-        <Form onSubmit={handleSubmit}>
-          {!isLogin && (
-            <>
-              <Input
-                type="text"
-                name="name"
-                placeholder="성명 (실명)"
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-              <InputWrapper>
+          <Form onSubmit={handleSubmit}>
+            {!isLogin && (
+              <>
                 <Input
                   type="text"
-                  name="username"
-                  placeholder="사용자 이름 (닉네임)"
-                  value={formData.username}
+                  name="name"
+                  placeholder="성명 (실명)"
+                  value={formData.name}
                   onChange={handleChange}
                   required
-                  style={{
-                    borderColor: usernameError ? "#ed4956" : undefined,
-                  }}
                 />
-                {usernameError && <ErrorText>{usernameError}</ErrorText>}
-              </InputWrapper>
-            </>
-          )}
+                <InputWrapper>
+                  <Input
+                    type="text"
+                    name="username"
+                    placeholder="사용자 이름 (닉네임)"
+                    value={formData.username}
+                    onChange={handleChange}
+                    required
+                    style={{
+                      borderColor: usernameError ? "#ed4956" : undefined,
+                    }}
+                  />
+                  {usernameError && <ErrorText>{usernameError}</ErrorText>}
+                </InputWrapper>
+              </>
+            )}
 
-          <Input
-            type="tel"
-            name="phone"
-            placeholder="전화번호"
-            value={formData.phone}
-            onChange={handleChange}
-            required
-          />
+            <Input
+              type="tel"
+              name="phone"
+              placeholder="전화번호"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+            />
 
-          <Input
-            type="password"
-            name="password"
-            placeholder="비밀번호"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+            <Input
+              type="password"
+              name="password"
+              placeholder="비밀번호"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
 
-          <SubmitButton type="submit">
-            {isLogin ? "로그인" : "가입"}
-          </SubmitButton>
-        </Form>
+            <SubmitButton type="submit">
+              {isLogin ? "로그인" : "가입"}
+            </SubmitButton>
+          </Form>
 
-        <Divider>
-          <DividerLine />
-          <DividerText>또는</DividerText>
-          <DividerLine />
-        </Divider>
+          <Divider>
+            <DividerLine />
+            <DividerText>또는</DividerText>
+            <DividerLine />
+          </Divider>
 
-        <SocialButton type="button" onClick={handleKakaoAuth}>
-          카카오로 시작하기
-        </SocialButton>
+          <SocialButton type="button" onClick={handleKakaoAuth}>
+            카카오로 시작하기
+          </SocialButton>
 
-        <ForgotPassword onClick={() => navigate("/forgot-password")}>
-          비밀번호를 잊으셨나요?
-        </ForgotPassword>
-      </FormContainer>
+          <ForgotPassword onClick={() => navigate("/forgot-password")}>
+            비밀번호를 잊으셨나요?
+          </ForgotPassword>
+        </FormContainer>
 
-      <SignupBox>
-        {isLogin ? "계정이 없으신가요?" : "계정이 있으신가요?"}
-        <SignupLink onClick={handleModeToggle}>
-          {isLogin ? " 가입하기" : " 로그인"}
-        </SignupLink>
-      </SignupBox>
+        <SignupBox>
+          {isLogin ? "계정이 없으신가요?" : "계정이 있으신가요?"}
+          <SignupLink onClick={handleModeToggle}>
+            {isLogin ? " 가입하기" : " 로그인"}
+          </SignupLink>
+        </SignupBox>
 
-      <KakaoSignupModal
-        isOpen={showKakaoSignupModal}
-        onClose={() => {
-          setShowKakaoSignupModal(false);
-          setKakaoAccessToken(null);
-          setKakaoUserInfo(null);
-        }}
-        kakaoUser={kakaoUserInfo}
-        onSignup={handleKakaoSignup}
-      />
-    </Container>
+        <KakaoSignupModal
+          isOpen={showKakaoSignupModal}
+          onClose={() => {
+            setShowKakaoSignupModal(false);
+            setKakaoAccessToken(null);
+            setKakaoUserInfo(null);
+          }}
+          kakaoUser={kakaoUserInfo}
+          onSignup={handleKakaoSignup}
+        />
+      </Container>
+    </>
   );
 };
 
@@ -458,13 +459,31 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 100%;
+  overflow: hidden;
+
+  @media (max-width: 767px) {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
 `;
 
 const Header = styled.div`
-  width: 100%;
-  max-width: 350px;
-  margin-bottom: 20px;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+
+  @media (max-width: 767px) {
+    top: 16px;
+    left: 16px;
+  }
 `;
 
 const BackButton = styled.button`

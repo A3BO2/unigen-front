@@ -1157,7 +1157,8 @@ const FilterContainer = styled.div`
   @media (max-width: 767px) {
     flex-direction: column;
     height: auto;
-    max-height: calc(100vh - 140px - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    flex: 1;
     overflow-y: auto;
   }
 `;
@@ -1171,6 +1172,13 @@ const FilterLeft = styled.div`
   overflow: hidden;
   position: relative;
   min-height: 0;
+
+  @media (max-width: 767px) {
+    width: 100%;
+    min-height: 50vh;
+    max-height: 60vh;
+    flex-shrink: 0;
+  }
 `;
 
 const PreviewImageLarge = styled.img`
@@ -1186,7 +1194,9 @@ const PreviewImageLarge = styled.img`
   }
 
   @media (max-width: 767px) {
-    max-height: 60vh;
+    width: 100%;
+    height: 100%;
+    max-height: none;
     object-fit: contain;
   }
 `;
@@ -1208,8 +1218,8 @@ const FilterRight = styled.div`
     width: 100%;
     border-left: none;
     border-top: 1px solid #dbdbdb;
-    max-height: 40vh;
-    overflow-y: auto;
+    min-height: 300px;
+    flex-shrink: 0;
   }
 `;
 
@@ -1251,10 +1261,11 @@ const FilterGrid = styled.div`
   @media (max-width: 767px) {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(80px, auto);
     overflow-y: auto;
     overflow-x: hidden;
     max-height: none;
-    height: 100%;
+    height: auto;
     padding: 0;
     gap: 0;
   }
@@ -1275,6 +1286,9 @@ const FilterOption = styled.div`
 
   @media (max-width: 767px) {
     aspect-ratio: 1;
+    width: 100%;
+    height: auto;
+    min-height: 80px;
   }
 `;
 
@@ -1294,6 +1308,14 @@ const FilterName = styled.div`
   color: white;
   font-size: 11px;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 767px) {
+    padding: 6px 4px;
+    font-size: 10px;
+  }
 `;
 
 const AdjustmentPanel = styled.div`
