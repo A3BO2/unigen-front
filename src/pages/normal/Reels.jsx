@@ -1085,6 +1085,7 @@ const BackButtonContainer = styled.button`
   border-radius: 50%;
   width: 62px;
   height: 62px;
+  min-height: 62px; /* 전역 스타일 오버라이드 */
   display: flex;
   align-items: center;
   justify-content: center;
