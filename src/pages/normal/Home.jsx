@@ -1399,7 +1399,7 @@ const Feed = styled.div`
 
 const Post = styled.article`
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
-  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
+  border: 1px solid ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
   border-radius: 8px;
   margin-bottom: 20px;
 
@@ -1407,7 +1407,9 @@ const Post = styled.article`
     border-left: none;
     border-right: none;
     border-radius: 0;
-    margin-bottom: 0;
+    margin-bottom: 20px;
+    border-top: 1px solid
+      ${(props) => (props.$darkMode ? "#262626" : "#efefef")};
     border-bottom: none;
   }
 `;
@@ -1603,20 +1605,25 @@ const Timestamp = styled.div`
 `;
 
 const CommentInput = styled.div`
-  border-top: 1px solid #efefef;
+  border-top: 1px solid ${(props) => (props.$darkMode ? "#4a4a4a" : "#dbdbdb")};
   padding: 6px 16px;
   display: flex;
   align-items: center;
   min-height: 56px;
 
+  @media (max-width: 767px) {
+    border-bottom: 1px solid
+      ${(props) => (props.$darkMode ? "#262626" : "#c0c0c0")};
+  }
+
   input {
     flex: 1;
     font-size: 14px;
     background: transparent;
-    color: #262626;
+    color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
 
     &::placeholder {
-      color: #8e8e8e;
+      color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
     }
   }
 `;
