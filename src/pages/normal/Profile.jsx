@@ -524,9 +524,11 @@ const Profile = () => {
       if (commentModalIsFollowing) {
         await unfollowUser(profileData.id);
         setCommentModalIsFollowing(false);
+        setIsFollowingUser(false); // 프로필 페이지 상태도 함께 업데이트
       } else {
         await followUser(profileData.id);
         setCommentModalIsFollowing(true);
+        setIsFollowingUser(true); // 프로필 페이지 상태도 함께 업데이트
       }
     } catch (error) {
       console.error("팔로우/언팔로우 요청 실패:", error);
