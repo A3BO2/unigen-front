@@ -38,8 +38,8 @@ const Reels = () => {
   const noMoreReelsRef = useRef(false); // ref로도 추적 (비동기 체크용)
   const [initialLoaded, setInitialLoaded] = useState(false);
 
-  // 팔로우 상태 관리
-  const [followStatuses, setFollowStatuses] = useState({}); // { reelId: { isFollowing: boolean, isLoading: boolean } }
+  // 팔로우 상태 관리 (userId를 키로 사용)
+  const [followStatuses, setFollowStatuses] = useState({}); // { userId: { isFollowing: boolean, isLoading: boolean } }
 
   const FILE_BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -189,14 +189,14 @@ const Reels = () => {
       for (const reel of reels) {
         if (!reel.user?.id || reel.user.id === currentUser?.id) continue;
 
-        // 이미 확인했으면 스킵
-        if (followStatuses[reel.id] !== undefined) continue;
+        // 이미 확인했으면 스킵 (userId 기준)
+        if (followStatuses[reel.user.id] !== undefined) continue;
 
         try {
           const response = await isFollowing(reel.user.id);
           setFollowStatuses((prev) => ({
             ...prev,
-            [reel.id]: {
+            [reel.user.id]: {
               isFollowing: Boolean(response?.isFollowing),
               isLoading: false,
             },
@@ -205,7 +205,7 @@ const Reels = () => {
           console.error("팔로우 상태 확인 실패:", error);
           setFollowStatuses((prev) => ({
             ...prev,
-            [reel.id]: {
+            [reel.user.id]: {
               isFollowing: false,
               isLoading: false,
             },
@@ -215,27 +215,27 @@ const Reels = () => {
     };
 
     checkFollowStatuses();
-  }, [reels, currentUser?.id]);
+  }, [reels, currentUser?.id, followStatuses]);
 
   // 팔로우/언팔로우 핸들러
-  const handleFollow = async (reelId, userId) => {
-    if (!userId || followStatuses[reelId]?.isLoading) return;
+  const handleFollow = async (userId) => {
+    if (!userId || followStatuses[userId]?.isLoading) return;
 
     setFollowStatuses((prev) => ({
       ...prev,
-      [reelId]: {
-        ...prev[reelId],
+      [userId]: {
+        ...prev[userId],
         isLoading: true,
       },
     }));
 
     try {
-      const currentStatus = followStatuses[reelId]?.isFollowing;
+      const currentStatus = followStatuses[userId]?.isFollowing;
       if (currentStatus) {
         await unfollowUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [reelId]: {
+          [userId]: {
             isFollowing: false,
             isLoading: false,
           },
@@ -244,7 +244,7 @@ const Reels = () => {
         await followUser(userId);
         setFollowStatuses((prev) => ({
           ...prev,
-          [reelId]: {
+          [userId]: {
             isFollowing: true,
             isLoading: false,
           },
@@ -254,8 +254,8 @@ const Reels = () => {
       console.error("팔로우/언팔로우 요청 실패:", error);
       setFollowStatuses((prev) => ({
         ...prev,
-        [reelId]: {
-          ...prev[reelId],
+        [userId]: {
+          ...prev[userId],
           isLoading: false,
         },
       }));
@@ -611,16 +611,16 @@ const Reels = () => {
                             <FollowButton
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleFollow(reel.id, reel.user.id);
+                                handleFollow(reel.user.id);
                               }}
-                              disabled={followStatuses[reel.id]?.isLoading}
+                              disabled={followStatuses[reel.user.id]?.isLoading}
                               $isFollowing={
-                                followStatuses[reel.id]?.isFollowing
+                                followStatuses[reel.user.id]?.isFollowing
                               }
                             >
-                              {followStatuses[reel.id]?.isLoading
+                              {followStatuses[reel.user.id]?.isLoading
                                 ? "..."
-                                : followStatuses[reel.id]?.isFollowing
+                                : followStatuses[reel.user.id]?.isFollowing
                                 ? "팔로잉"
                                 : "팔로우"}
                             </FollowButton>

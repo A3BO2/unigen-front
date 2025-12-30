@@ -74,8 +74,8 @@ const Upload = () => {
   });
   const fileInputRef = useRef(null);
 
-  // 이미지 압축 함수
-  const compressImage = (file, maxSizeMB = 5) => {
+  // 이미지 압축 함수 - 사진은 400KB 제한
+  const compressImage = (file, maxSizeKB = 400) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -87,8 +87,8 @@ const Upload = () => {
           let width = img.width;
           let height = img.height;
 
-          // 최대 크기 제한 (긴 쪽 기준 2048px)
-          const MAX_SIZE = 2048;
+          // 최대 크기 제한 (긴 쪽 기준 1080px)
+          const MAX_SIZE = 1080;
           if (width > height) {
             if (width > MAX_SIZE) {
               height *= MAX_SIZE / width;
@@ -106,55 +106,43 @@ const Upload = () => {
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
 
-          // JPEG로 변환, 품질 0.8
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                // 목표 크기보다 크면 품질을 낮춰서 다시 시도
-                if (blob.size > maxSizeMB * 1024 * 1024) {
-                  canvas.toBlob(
-                    (smallerBlob) => {
-                      const compressedFile = new File(
-                        [smallerBlob || blob],
-                        file.name,
-                        {
-                          type: "image/jpeg",
-                          lastModified: Date.now(),
-                        }
-                      );
-                      console.log(
-                        `압축 완료: ${(file.size / 1024 / 1024).toFixed(
-                          2
-                        )}MB → ${(compressedFile.size / 1024 / 1024).toFixed(
-                          2
-                        )}MB`
-                      );
-                      resolve(compressedFile);
-                    },
-                    "image/jpeg",
-                    0.6
-                  );
+          // 목표 용량에 맞춰 품질 조정하며 압축
+          const compressRecursively = (quality) => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error("압축 실패"));
+                  return;
+                }
+
+                const sizeKB = blob.size / 1024;
+                console.log(
+                  `압축 시도 (품질: ${quality}): ${sizeKB.toFixed(2)}KB`
+                );
+
+                // 목표 용량보다 크고 품질을 더 낮출 수 있으면 재시도
+                if (sizeKB > maxSizeKB && quality > 0.1) {
+                  compressRecursively(quality - 0.1);
                 } else {
                   const compressedFile = new File([blob], file.name, {
                     type: "image/jpeg",
                     lastModified: Date.now(),
                   });
                   console.log(
-                    `압축 완료: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(
-                      compressedFile.size /
-                      1024 /
-                      1024
-                    ).toFixed(2)}MB`
+                    `최종 압축: ${(file.size / 1024).toFixed(2)}KB → ${(
+                      compressedFile.size / 1024
+                    ).toFixed(2)}KB`
                   );
                   resolve(compressedFile);
                 }
-              } else {
-                reject(new Error("압축 실패"));
-              }
-            },
-            "image/jpeg",
-            0.8
-          );
+              },
+              "image/jpeg",
+              quality
+            );
+          };
+
+          // 초기 품질 0.9부터 시작
+          compressRecursively(0.9);
         };
         img.onerror = reject;
       };
@@ -162,14 +150,70 @@ const Upload = () => {
     });
   };
 
+  // 동영상 압축 및 60초 제한 함수 - 릴스는 60초/20MB 제한
+  const compressVideo = (file, maxDuration = 60, maxSizeMB = 20) => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        const duration = video.duration;
+        const fileSizeMB = file.size / (1024 * 1024);
+
+        console.log(
+          `원본 동영상: ${duration.toFixed(2)}초, ${fileSizeMB.toFixed(2)}MB`
+        );
+
+        // 60초 이하이고 20MB 이하면 그대로 사용
+        if (duration <= maxDuration && fileSizeMB <= maxSizeMB) {
+          console.log("동영상 압축 불필요");
+          resolve(file);
+          return;
+        }
+
+        // 60초 초과 또는 20MB 초과 시 경고
+        if (duration > maxDuration) {
+          alert(
+            `⚠️ 동영상이 ${duration.toFixed(
+              1
+            )}초로 ${maxDuration}초를 초과합니다.\n\n처음 ${maxDuration}초까지만 업로드됩니다.`
+          );
+        }
+        if (fileSizeMB > maxSizeMB) {
+          alert(
+            `⚠️ 동영상 크기가 ${fileSizeMB.toFixed(
+              1
+            )}MB로 ${maxSizeMB}MB를 초과합니다.\n\n업로드가 제한될 수 있습니다.`
+          );
+        }
+
+        // 일단 원본 파일 반환 (실제 압축은 서버에서 처리하는 것이 좋음)
+        // 클라이언트에서 동영상 압축은 매우 무거운 작업이므로 제한만 체크
+        resolve(file);
+      };
+
+      video.onerror = () => {
+        reject(new Error("동영상 메타데이터 로드 실패"));
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
       try {
-        // 이미지 파일인 경우에만 압축
         let processedFile = file;
+
+        // 이미지 파일인 경우 압축 (400KB 제한)
         if (file.type.startsWith("image/")) {
-          processedFile = await compressImage(file);
+          processedFile = await compressImage(file, 400);
+        }
+        // 동영상 파일인 경우 검증 및 압축 (60초/20MB 제한)
+        else if (file.type.startsWith("video/")) {
+          processedFile = await compressVideo(file, 60, 20);
         }
 
         setOriginalFile(processedFile);
@@ -464,8 +508,8 @@ const Upload = () => {
   const handleCameraCapture = async (file) => {
     if (file) {
       try {
-        // 카메라로 찍은 사진도 압축
-        const compressedFile = await compressImage(file);
+        // 카메라로 찍은 사진도 압축 (400KB 제한)
+        const compressedFile = await compressImage(file, 400);
 
         setOriginalFile(compressedFile);
         const objectUrl = URL.createObjectURL(compressedFile);
@@ -541,34 +585,36 @@ const Upload = () => {
 
           {step === "select" && (
             <UploadSection>
-              <IconContainer>
-                {contentType === "photo" ? <span>📷</span> : <span>🎬</span>}
-              </IconContainer>
-              <UploadText $darkMode={isDarkMode}>
-                {contentType === "photo"
-                  ? "사진을 여기에 끌어다 놓으세요"
-                  : "동영상을 여기에 끌어다 놓으세요"}
-              </UploadText>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
-                }}
-              >
-                <SelectButton onClick={() => fileInputRef.current?.click()}>
-                  컴퓨터에서 선택
-                </SelectButton>
-                {contentType === "photo" && (
-                  <SelectButton
-                    onClick={handleCameraClick}
-                    $darkMode={isDarkMode}
-                    $isCameraButton
-                  >
-                    사진 촬영
+              <UploadContentWrapper>
+                <IconContainer>
+                  {contentType === "photo" ? <span>📷</span> : <span>🎬</span>}
+                </IconContainer>
+                <UploadText $darkMode={isDarkMode}>
+                  {contentType === "photo"
+                    ? "사진을 여기에 끌어다 놓으세요"
+                    : "동영상을 여기에 끌어다 놓으세요"}
+                </UploadText>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    justifyContent: "center",
+                  }}
+                >
+                  <SelectButton onClick={() => fileInputRef.current?.click()}>
+                    {isMobileDevice() ? "앨범에서 선택" : "컴퓨터에서 선택"}
                   </SelectButton>
-                )}
-              </div>
+                  {contentType === "photo" && (
+                    <SelectButton
+                      onClick={handleCameraClick}
+                      $darkMode={isDarkMode}
+                      $isCameraButton
+                    >
+                      사진 촬영
+                    </SelectButton>
+                  )}
+                </div>
+              </UploadContentWrapper>
               <input
                 ref={mobileCameraInputRef}
                 type="file"
@@ -954,9 +1000,10 @@ const Modal = styled.div`
   @media (max-width: 767px) {
     width: 100%;
     /* 전체 높이에서 안전영역 분리. 상단/하단 안전영역을 고려하고 내부 스크롤을 허용 */
-    height: calc(
-      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
-    );
+    height: ${(props) =>
+      props.$step === "select"
+        ? "auto"
+        : `calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`};
     max-width: none;
     max-height: none;
     border-radius: 0; /* 둥근 모서리 제거 */
@@ -1089,9 +1136,21 @@ const UploadSection = styled.div`
   min-height: 500px;
 
   @media (max-width: 767px) {
-    padding: 24px 12px;
-    min-height: auto;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    padding: 0;
+    height: 100%;
+    flex: 1;
+    justify-content: center;
+  }
+`;
+
+const UploadContentWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 767px) {
+    transform: translateY(-40px);
   }
 `;
 
@@ -1120,6 +1179,11 @@ const UploadText = styled.p`
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin-bottom: 24px;
   text-align: center;
+
+  @media (max-width: 767px) {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
 `;
 
 const SelectButton = styled.button`

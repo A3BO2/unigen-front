@@ -34,16 +34,93 @@ const StoryCreate = () => {
   const previewAreaRef = useRef(null);
   const nodeRef = useRef(null);
 
-  const handleImageSelect = (e) => {
+  // 이미지 압축 함수 - 스토리는 200KB 제한
+  const compressImage = (file, maxSizeKB = 200) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // 스토리는 세로형이므로 높이 기준 1080px
+          const MAX_HEIGHT = 1080;
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 목표 용량에 맞춰 품질 조정하며 압축
+          const compressRecursively = (quality) => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error("압축 실패"));
+                  return;
+                }
+
+                const sizeKB = blob.size / 1024;
+                console.log(
+                  `스토리 압축 시도 (품질: ${quality}): ${sizeKB.toFixed(2)}KB`
+                );
+
+                // 목표 용량보다 크고 품질을 더 낮출 수 있으면 재시도
+                if (sizeKB > maxSizeKB && quality > 0.1) {
+                  compressRecursively(quality - 0.1);
+                } else {
+                  const compressedFile = new File([blob], file.name, {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  console.log(
+                    `스토리 최종 압축: ${(file.size / 1024).toFixed(2)}KB → ${(
+                      compressedFile.size / 1024
+                    ).toFixed(2)}KB`
+                  );
+                  resolve(compressedFile);
+                }
+              },
+              "image/jpeg",
+              quality
+            );
+          };
+
+          // 초기 품질 0.85부터 시작 (스토리는 더 작게)
+          compressRecursively(0.85);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handleImageSelect = async (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // FileReader 대신 URL.createObjectURL 사용 (더 빠르고 간단함)
-      const objectUrl = URL.createObjectURL(selectedFile);
+      try {
+        // 이미지 압축 (200KB 제한)
+        const compressedFile = await compressImage(selectedFile, 200);
 
-      setPreview(objectUrl); // 현재 화면에 보일 이미지 (나중에 잘린 걸로 바뀜)
-      setOriginalPreview(objectUrl); // [추가] 원본 보존용 (절대 안 바뀜)
+        // 압축된 파일로 URL 생성
+        const objectUrl = URL.createObjectURL(compressedFile);
 
-      setStep("edit");
+        setPreview(objectUrl); // 현재 화면에 보일 이미지 (나중에 잘린 걸로 바뀜)
+        setOriginalPreview(objectUrl); // [추가] 원본 보존용 (절대 안 바뀜)
+
+        setStep("edit");
+      } catch (error) {
+        console.error("이미지 압축 오류:", error);
+        alert("이미지를 처리하는 중 오류가 발생했습니다.");
+      }
     }
   };
 

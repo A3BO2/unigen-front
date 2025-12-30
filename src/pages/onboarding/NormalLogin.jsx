@@ -222,6 +222,15 @@ const NormalLogin = () => {
         }
       } else {
         // 회원가입
+        // 전화번호 검증 (010으로 시작하는 11자리)
+        const phoneRegex = /^010\d{8}$/;
+        if (!phoneRegex.test(formData.phone)) {
+          alert(
+            "010으로 시작하는 11자리 전화번호를 입력해주세요. (예: 01012341234)"
+          );
+          return;
+        }
+
         // username 검증
         if (!formData.username) {
           alert("사용자 이름을 입력해주세요.");

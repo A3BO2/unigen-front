@@ -116,11 +116,9 @@ const SeniorProfileEdit = () => {
         }
       }
 
-      // 프로필 업데이트 (username 제외, 업로드된 이미지 URL 포함)
-      // eslint-disable-next-line no-unused-vars
-      const { username, ...updateData } = formData;
+      // 프로필 업데이트 (username 포함, 업로드된 이미지 URL 포함)
       const profileUpdateData = {
-        ...updateData,
+        ...formData,
         profile_image: uploadedImageUrl,
       };
       const updated = await updateUserProfile(profileUpdateData);
@@ -212,14 +210,8 @@ const SeniorProfileEdit = () => {
               <Input
                 name="username"
                 value={formData.username}
-                readOnly
-                disabled
-                placeholder="사용자 이름"
-                style={{
-                  cursor: "not-allowed",
-                  opacity: 0.6,
-                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
-                }}
+                onChange={handleChange}
+                placeholder="사용자 이름을 입력하세요"
               />
             </FieldGroup>
 

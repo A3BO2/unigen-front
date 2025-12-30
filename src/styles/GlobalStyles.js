@@ -33,9 +33,6 @@ export const GlobalStyles = createGlobalStyle`
         return scaleMap[props.$fontScale] || 0.95;
       }};
     }
-
-    /* 모바일에서 하단 네비(약 60px) 때문에 콘텐츠가 가려지지 않도록 기본 바텀 패딩 추가 */
-    body { padding-bottom: 78px; }
   }
 
   body {

@@ -39,6 +39,12 @@ const ChangePassword = () => {
       return;
     }
 
+    // 기존 비밀번호와 새 비밀번호가 같은지 검사
+    if (!isForgotMode && passwords.currentPassword === passwords.newPassword) {
+      setError("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+      return;
+    }
+
     try {
       let payload = {};
 
