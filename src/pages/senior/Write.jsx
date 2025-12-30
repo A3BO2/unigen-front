@@ -227,7 +227,7 @@ const Write = () => {
   // 카메라 버튼 클릭 핸들러
   const handleCameraClick = () => {
     if (isMobileDevice()) {
-      cameraInputRef.currnent?.click();
+      cameraInputRef.current?.click();
     } else {
       setShowCamera(true);
     }
@@ -444,22 +444,17 @@ const Content = styled.div`
 `;
 const ModeSelector = styled.div`
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 24px;
   padding: 48px 24px;
   min-height: 500px;
-
-  @media (max-width: 767px) {
-    flex-direction: column;
-  }
 `;
 const ModeButton = styled.button`
-  flex: 1;
-  max-width: 280px;
-  min-width: 200px;
-  height: 280px;
+  width: 100%;
+  max-width: 320px;
+  height: 200px;
   font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   display: flex;
@@ -475,9 +470,7 @@ const ModeButton = styled.button`
   transition: all 0.2s;
 
   @media (max-width: 767px) {
-    width: 280px;
-    max-width: 100%;
-    min-width: unset;
+    height: 160px;
   }
 
   &:active {

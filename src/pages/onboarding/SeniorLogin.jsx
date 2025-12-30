@@ -169,8 +169,9 @@ const SeniorLogin = () => {
 
   const handleSendCode = async () => {
     const cleanPhone = phoneNumber.replace(/-/g, "");
-    if (cleanPhone.length < 10) {
-      alert("올바른 전화번호를 입력해주세요.");
+    // 010으로 시작하는 11자리 숫자 검증
+    if (!/^010\d{8}$/.test(cleanPhone)) {
+      alert("010으로 시작하는 11자리 전화번호를 입력해주세요.");
       return;
     }
 
@@ -308,7 +309,10 @@ const SeniorLogin = () => {
 
               <Button
                 onClick={handleSendCode}
-                disabled={phoneNumber.length < 10 || isLoading}
+                disabled={
+                  !/^010[\d-]{8,9}$/.test(phoneNumber.replace(/-/g, "")) ||
+                  isLoading
+                }
               >
                 {isLoading ? "발송 중..." : "인증번호 받기"}
               </Button>

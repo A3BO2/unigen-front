@@ -726,8 +726,9 @@ const Profile = () => {
     } else {
       const filtered = followList.filter((user) => {
         const username = (user.username || "").toLowerCase();
+        const name = (user.name || "").toLowerCase();
         const query = searchQuery.toLowerCase();
-        return username.includes(query);
+        return username.includes(query) || name.includes(query);
       });
       setFilteredFollowList(filtered);
     }

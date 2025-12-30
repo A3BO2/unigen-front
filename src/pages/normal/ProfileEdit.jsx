@@ -124,9 +124,9 @@ const ProfileEdit = () => {
         }
       }
 
-      // 프로필 업데이트 (username, email, phone 제외, 업로드된 이미지 URL 포함)
+      // 프로필 업데이트 (email, phone 제외, 업로드된 이미지 URL 포함)
       // eslint-disable-next-line no-unused-vars
-      const { username, email, phone, ...updateData } = formData;
+      const { email, phone, ...updateData } = formData;
       const profileUpdateData = {
         ...updateData,
         profile_image: uploadedImageUrl,
@@ -238,15 +238,10 @@ const ProfileEdit = () => {
                 type="text"
                 name="username"
                 value={formData.username}
-                readOnly
-                disabled
+                onChange={handleChange}
                 placeholder="사용자 이름"
                 $darkMode={isDarkMode}
-                style={{
-                  cursor: "not-allowed",
-                  opacity: 0.6,
-                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
-                }}
+                disabled={loading}
               />
             </FormGroup>
 

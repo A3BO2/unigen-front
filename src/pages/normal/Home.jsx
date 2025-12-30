@@ -920,7 +920,7 @@ const Home = () => {
                   )}
                 </PostInfo>
 
-                <CommentInput>
+                <CommentInput $darkMode={isDarkMode}>
                   <input
                     placeholder="댓글 달기..."
                     value={commentInputs[post.id] || ""}
