@@ -139,6 +139,15 @@ const Container = styled.div`
   min-height: 100vh;
   padding: 20px;
   background: #fafafa;
+
+  @media (max-width: 767px) {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    padding: 16px;
+    box-sizing: border-box;
+  }
 `;
 
 const FormContainer = styled.div`

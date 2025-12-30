@@ -17,6 +17,17 @@ const SeniorLogin = () => {
   const [kakaoAccessToken, setKakaoAccessToken] = useState(null);
   const [kakaoUserInfo, setKakaoUserInfo] = useState(null);
 
+  // 스크롤 방지
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
+
   // 카카오 SDK 초기화
   useEffect(() => {
     const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
@@ -40,14 +51,11 @@ const SeniorLogin = () => {
         if (!apiBaseURL) {
           throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
         }
-        const response = await fetch(
-          `${apiBaseURL}/senior/auth/kakao/login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ access_token: accessToken }),
-          }
-        );
+        const response = await fetch(`${apiBaseURL}/senior/auth/kakao/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: accessToken }),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -235,19 +243,16 @@ const SeniorLogin = () => {
         throw new Error("VITE_API_BASE_URL 환경변수가 설정되지 않았습니다.");
       }
 
-      const response = await fetch(
-        `${apiBaseURL}/senior/auth/kakao/signup`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: kakaoAccessToken,
-            username: signupFormData.username,
-            phone: signupFormData.phone,
-            name: signupFormData.name,
-          }),
-        }
-      );
+      const response = await fetch(`${apiBaseURL}/senior/auth/kakao/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: kakaoAccessToken,
+          username: signupFormData.username,
+          phone: signupFormData.phone,
+          name: signupFormData.name,
+        }),
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -273,104 +278,106 @@ const SeniorLogin = () => {
   };
 
   return (
-    <Container>
+    <>
       <Header>
         <BackButton onClick={() => navigate("/")}>← 뒤로</BackButton>
       </Header>
 
-      <Content>
-        <Title>간단하게 시작하기</Title>
+      <Container>
+        <Content>
+          <Title>간단하게 시작하기</Title>
 
-        {step === "phone" ? (
-          <>
-            <Description>
-              전화번호만 입력하시면
-              <br />
-              바로 시작할 수 있어요
-            </Description>
+          {step === "phone" ? (
+            <>
+              <Description>
+                전화번호만 입력하시면
+                <br />
+                바로 시작할 수 있어요
+              </Description>
 
-            <InputContainer>
-              <Label>전화번호</Label>
-              <Input
-                type="tel"
-                placeholder="010-1234-5678"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                autoFocus
-              />
-            </InputContainer>
+              <InputContainer>
+                <Label>전화번호</Label>
+                <Input
+                  type="tel"
+                  placeholder="010-1234-5678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  autoFocus
+                />
+              </InputContainer>
 
-            <Button
-              onClick={handleSendCode}
-              disabled={phoneNumber.length < 10 || isLoading}
-            >
-              {isLoading ? "발송 중..." : "인증번호 받기"}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Description>
-              문자로 받은 인증번호를
-              <br />
-              입력해주세요
-            </Description>
+              <Button
+                onClick={handleSendCode}
+                disabled={phoneNumber.length < 10 || isLoading}
+              >
+                {isLoading ? "발송 중..." : "인증번호 받기"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Description>
+                문자로 받은 인증번호를
+                <br />
+                입력해주세요
+              </Description>
 
-            <PhoneDisplay>{phoneNumber}</PhoneDisplay>
+              <PhoneDisplay>{phoneNumber}</PhoneDisplay>
 
-            <InputContainer>
-              <Label>인증번호 (6자리)</Label>
-              <Input
-                type="text"
-                placeholder="123456"
-                value={verificationCode}
-                onChange={(e) =>
-                  setVerificationCode(e.target.value.slice(0, 6))
-                }
-                maxLength={6}
-                autoFocus
-              />
-            </InputContainer>
+              <InputContainer>
+                <Label>인증번호 (6자리)</Label>
+                <Input
+                  type="text"
+                  placeholder="123456"
+                  value={verificationCode}
+                  onChange={(e) =>
+                    setVerificationCode(e.target.value.slice(0, 6))
+                  }
+                  maxLength={6}
+                  autoFocus
+                />
+              </InputContainer>
 
-            <Button
-              onClick={handleVerify}
-              disabled={verificationCode.length !== 6 || isLoading}
-            >
-              {isLoading ? "인증 중..." : "시작하기"}
-            </Button>
+              <Button
+                onClick={handleVerify}
+                disabled={verificationCode.length !== 6 || isLoading}
+              >
+                {isLoading ? "인증 중..." : "시작하기"}
+              </Button>
 
-            <ResendButton onClick={() => setStep("phone")}>
-              전화번호 다시 입력
-            </ResendButton>
-          </>
-        )}
+              <ResendButton onClick={() => setStep("phone")}>
+                전화번호 다시 입력
+              </ResendButton>
+            </>
+          )}
 
-        <Divider>
-          <DividerLine />
-          <DividerText>또는</DividerText>
-          <DividerLine />
-        </Divider>
+          <Divider>
+            <DividerLine />
+            <DividerText>또는</DividerText>
+            <DividerLine />
+          </Divider>
 
-        <SocialButton type="button" onClick={handleKakaoAuth}>
-          카카오로 시작하기
-        </SocialButton>
+          <SocialButton type="button" onClick={handleKakaoAuth}>
+            카카오로 시작하기
+          </SocialButton>
 
-        <TermsText>
-          계속 진행하시면 <TermsLink>이용약관</TermsLink>에 동의하는 것으로
-          간주됩니다
-        </TermsText>
-      </Content>
+          <TermsText>
+            계속 진행하시면 <TermsLink>이용약관</TermsLink>에 동의하는 것으로
+            간주됩니다
+          </TermsText>
+        </Content>
 
-      <KakaoSignupModal
-        isOpen={showKakaoSignupModal}
-        onClose={() => {
-          setShowKakaoSignupModal(false);
-          setKakaoAccessToken(null);
-          setKakaoUserInfo(null);
-        }}
-        kakaoUser={kakaoUserInfo}
-        onSignup={handleKakaoSignup}
-      />
-    </Container>
+        <KakaoSignupModal
+          isOpen={showKakaoSignupModal}
+          onClose={() => {
+            setShowKakaoSignupModal(false);
+            setKakaoAccessToken(null);
+            setKakaoUserInfo(null);
+          }}
+          kakaoUser={kakaoUserInfo}
+          onSignup={handleKakaoSignup}
+        />
+      </Container>
+    </>
   );
 };
 
@@ -381,10 +388,32 @@ const Container = styled.div`
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+
+  @media (max-width: 767px) {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
 `;
 
 const Header = styled.div`
-  margin-bottom: 40px;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+
+  @media (max-width: 767px) {
+    top: 16px;
+    left: 16px;
+  }
 `;
 
 const BackButton = styled.button`

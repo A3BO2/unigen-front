@@ -1,9 +1,21 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import styled from "styled-components";
 import { Smartphone, Zap } from "lucide-react";
 
 const Welcome = () => {
   const navigate = useNavigate();
+
+  // 스크롤 방지
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
 
   return (
     <Container>
@@ -75,12 +87,16 @@ const Container = styled.div`
   min-height: 100vh;
   padding: 20px;
   background: #fafafa;
+  overflow: hidden;
 
   @media (max-width: 767px) {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
     padding: 16px;
-    padding-top: calc(16px + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
+    overflow: hidden;
   }
 `;
 
@@ -102,11 +118,16 @@ const Content = styled.div`
 const LogoSection = styled.div`
   text-align: center;
   margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 `;
 
 const LogoImage = styled.img`
   height: 60px;
   margin-bottom: 16px;
+  display: block;
 `;
 
 const Tagline = styled.p`
