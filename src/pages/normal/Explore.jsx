@@ -493,23 +493,51 @@ const Explore = () => {
       </Container>
 
       {/* 피드 상세 모달 */}
-      {selectedPost && (
-        <PostDetailModal
-          post={selectedPost}
-          isOpen={!!selectedPost}
-          onClose={handleCloseModal}
-          isDarkMode={isDarkMode}
-          user={user}
-          onLike={handleModalLike}
-          onFollow={handleFollow}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-          isFollowing={isFollowingUser}
-          isMine={isMine}
-          followLoading={followLoading}
-          getImageUrl={resolveUrl}
-        />
-      )}
+      {selectedPost &&
+        (() => {
+          // 릴스를 제외한 일반 게시물만 필터링
+          const feedPosts = explorePosts.filter((p) => p.type !== "reel");
+          const currentPostIndex = feedPosts.findIndex(
+            (p) => p.id === selectedPost.id
+          );
+
+          const handleNavigate = (newIndex) => {
+            if (newIndex >= 0 && newIndex < feedPosts.length) {
+              const newPost = feedPosts[newIndex];
+              // handlePostClick 로직과 동일하게 상태 설정
+              isModalOpening.current = true;
+              isModalClosing.current = false;
+              setIsFollowingUser(false);
+              setIsMine(false);
+              setSelectedPost(newPost);
+
+              setTimeout(() => {
+                isModalOpening.current = false;
+              }, 100);
+            }
+          };
+
+          return (
+            <PostDetailModal
+              post={selectedPost}
+              isOpen={!!selectedPost}
+              onClose={handleCloseModal}
+              isDarkMode={isDarkMode}
+              user={user}
+              onLike={handleModalLike}
+              onFollow={handleFollow}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+              isFollowing={isFollowingUser}
+              isMine={isMine}
+              followLoading={followLoading}
+              getImageUrl={resolveUrl}
+              postList={feedPosts}
+              currentPostIndex={currentPostIndex}
+              onNavigate={handleNavigate}
+            />
+          );
+        })()}
     </>
   );
 };

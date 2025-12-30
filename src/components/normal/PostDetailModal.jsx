@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import {
   fetchComments,
   createComment,
@@ -23,6 +30,10 @@ const PostDetailModal = ({
   isMine: isMineProp,
   followLoading: followLoadingProp,
   getImageUrl,
+  // 네비게이션 props 추가
+  postList = [],
+  currentPostIndex = -1,
+  onNavigate,
 }) => {
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
@@ -82,11 +93,19 @@ const PostDetailModal = ({
     };
   }, [isOpen]);
 
-  // ESC 키로 모달 닫기
+  // ESC 키로 모달 닫기, 좌우 화살표로 네비게이션
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         onClose();
+      } else if (e.key === "ArrowLeft" && onNavigate && currentPostIndex > 0) {
+        onNavigate(currentPostIndex - 1);
+      } else if (
+        e.key === "ArrowRight" &&
+        onNavigate &&
+        currentPostIndex < postList.length - 1
+      ) {
+        onNavigate(currentPostIndex + 1);
       }
     };
 
@@ -94,7 +113,7 @@ const PostDetailModal = ({
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, onNavigate, currentPostIndex, postList.length]);
 
   // 메뉴 외부 클릭 시 닫기
   useEffect(() => {
@@ -154,6 +173,10 @@ const PostDetailModal = ({
   const postTime = formatRelativeTime(post.timestamp || post.createdAt || "");
   const postLikes = likesCount;
 
+  // 네비게이션 가능 여부
+  const hasPrev = onNavigate && currentPostIndex > 0;
+  const hasNext = onNavigate && currentPostIndex < postList.length - 1;
+
   return (
     <Overlay onClick={onClose}>
       <ModalContainer onClick={(e) => e.stopPropagation()}>
@@ -161,6 +184,34 @@ const PostDetailModal = ({
         <CloseButton onClick={onClose} $darkMode={isDarkMode}>
           <X size={24} />
         </CloseButton>
+
+        {/* 이전 게시물 버튼 */}
+        {hasPrev && (
+          <NavButton
+            $position="left"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(currentPostIndex - 1);
+            }}
+            $darkMode={isDarkMode}
+          >
+            <ChevronLeft size={32} strokeWidth={2.5} />
+          </NavButton>
+        )}
+
+        {/* 다음 게시물 버튼 */}
+        {hasNext && (
+          <NavButton
+            $position="right"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(currentPostIndex + 1);
+            }}
+            $darkMode={isDarkMode}
+          >
+            <ChevronRight size={32} strokeWidth={2.5} />
+          </NavButton>
+        )}
 
         <ModalContent>
           {/* 왼쪽: 이미지 영역 */}
@@ -500,6 +551,54 @@ const CloseButton = styled.button`
   @media (max-width: 767px) {
     top: calc(10px + env(safe-area-inset-top, 0px));
     right: calc(10px + env(safe-area-inset-right, 0px));
+  }
+`;
+
+const NavButton = styled.button`
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  ${(props) => (props.$position === "left" ? "left: 20px;" : "right: 20px;")}
+  background: ${(props) =>
+    props.$darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.6)"};
+  border: ${(props) =>
+    props.$darkMode ? "1px solid rgba(255, 255, 255, 0.3)" : "none"};
+  color: #fff;
+  cursor: pointer;
+  padding: 12px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    background: ${(props) =>
+      props.$darkMode ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.8)"};
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  @media (max-width: 767px) {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    ${(props) =>
+      props.$position === "left"
+        ? "left: calc(10px + env(safe-area-inset-left, 0px));"
+        : "right: calc(10px + env(safe-area-inset-right, 0px));"}
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
   }
 `;
 

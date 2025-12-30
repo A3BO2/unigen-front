@@ -8,6 +8,23 @@ const CameraModal = ({ onClose, onCapture }) => {
   const [stream, setStream] = useState(null);
   const [facingMode, setFacingMode] = useState("user"); // 'user' or 'environment'
 
+  // 카메라 스트림 정리 함수
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  // 카메라 종료 후 onClose 호출
+  const handleClose = useCallback(() => {
+    stopCamera();
+    onClose();
+  }, [stopCamera, onClose]);
+
   const startCamera = useCallback(async () => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -29,9 +46,9 @@ const CameraModal = ({ onClose, onCapture }) => {
     } catch (err) {
       console.error("카메라 접근 오류:", err);
       alert("카메라를 실행할 수 없습니다. 권한을 확인해주세요.");
-      onClose();
+      handleClose();
     }
-  }, [facingMode, onClose, stream]);
+  }, [facingMode, handleClose, stream]);
 
   useEffect(() => {
     startCamera();
@@ -66,6 +83,10 @@ const CameraModal = ({ onClose, onCapture }) => {
             type: "image/jpeg",
             lastModified: Date.now(),
           });
+
+          // 카메라 스트림 정리
+          stopCamera();
+
           onCapture(file);
           onClose();
         },
@@ -96,7 +117,7 @@ const CameraModal = ({ onClose, onCapture }) => {
 
         <Controls>
           {/* 취소 버튼 */}
-          <ActionButton onClick={onClose}>
+          <ActionButton onClick={handleClose}>
             <IconCircle>
               <X size={24} color="#fff" />
             </IconCircle>

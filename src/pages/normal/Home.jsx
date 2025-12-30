@@ -855,7 +855,9 @@ const Home = () => {
                 <PostImage
                   src={post.image}
                   alt="게시물 이미지"
+                  onClick={() => setShowComments(post.id)}
                   onDoubleClick={() => handleLike(post.id)}
+                  style={{ cursor: "pointer" }}
                 />
 
                 <PostActions>
@@ -973,6 +975,25 @@ const Home = () => {
             const selectedPost = posts.find((p) => p.id === showComments);
             if (!selectedPost) return null;
 
+            const currentPostIndex = posts.findIndex(
+              (p) => p.id === showComments
+            );
+
+            const handleNavigate = async (newIndex) => {
+              if (newIndex >= 0 && newIndex < posts.length) {
+                setShowComments(posts[newIndex].id);
+
+                // 끝에서 3개 남았을 때 자동으로 다음 페이지 로드
+                if (newIndex >= posts.length - 3 && hasMore && !loading) {
+                  setPage((prevPage) => {
+                    const nextPage = prevPage + 1;
+                    loadPosts(nextPage);
+                    return nextPage;
+                  });
+                }
+              }
+            };
+
             return (
               <PostDetailModal
                 post={selectedPost}
@@ -988,6 +1009,9 @@ const Home = () => {
                 isMine={isMine}
                 followLoading={followLoading}
                 getImageUrl={getImageUrl}
+                postList={posts}
+                currentPostIndex={currentPostIndex}
+                onNavigate={handleNavigate}
               />
             );
           })()}
