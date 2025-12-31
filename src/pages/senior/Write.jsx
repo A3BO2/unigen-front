@@ -278,17 +278,11 @@ const Write = () => {
             <ModeSelector>
               <ModeButton onClick={() => handleModeSelect("text")}>
                 <ModeEmoji>✍️</ModeEmoji>
-                <ModeText>
-                  <div>직접</div>
-                  <div>쓰기</div>
-                </ModeText>
+                <ModeText>직접 쓰기</ModeText>
               </ModeButton>
               <ModeButton onClick={() => handleModeSelect("voice")}>
                 <ModeEmoji>🎤</ModeEmoji>
-                <ModeText>
-                  <div>말로</div>
-                  <div>쓰기</div>
-                </ModeText>
+                <ModeText>말로 쓰기</ModeText>
               </ModeButton>
             </ModeSelector>
           )}
@@ -454,7 +448,8 @@ const ModeSelector = styled.div`
 const ModeButton = styled.button`
   width: 100%;
   max-width: 320px;
-  height: 200px;
+  min-height: 160px;
+  padding: 24px;
   font-size: calc(28px * var(--font-scale, 1));
   font-weight: 700;
   display: flex;
@@ -470,7 +465,8 @@ const ModeButton = styled.button`
   transition: all 0.2s;
 
   @media (max-width: 767px) {
-    height: 160px;
+    min-height: 140px;
+    padding: 20px;
   }
 
   &:active {
@@ -485,13 +481,10 @@ const ModeEmoji = styled.div`
 `;
 
 const ModeText = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: calc(28px * var(--font-scale, 1));
-  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
 `;
+
 const UploadSection = styled.div`
   display: flex;
   flex-direction: column;

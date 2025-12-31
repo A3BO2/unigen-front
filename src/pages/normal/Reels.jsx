@@ -60,6 +60,23 @@ const Reels = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const myUser = JSON.parse(sessionStorage.getItem("user"));
 
+  // 해시태그 색상 처리 함수
+  const renderContentWithHashtags = (content) => {
+    if (!content) return null;
+
+    const parts = content.split(/(#[가-힣a-zA-Z0-9_]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("#")) {
+        return (
+          <Hashtag key={index} $darkMode={isDarkMode}>
+            {part}
+          </Hashtag>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   // ✅ 페이지 진입 시 스크롤 맨 위로 초기화
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -653,7 +670,9 @@ const Reels = () => {
                             </FollowButton>
                           )}
                         </UserInfo>
-                        <Caption>{reel.caption}</Caption>
+                        <Caption>
+                          {renderContentWithHashtags(reel.caption)}
+                        </Caption>
                       </ReelInfo>
 
                       <Actions>
@@ -1335,6 +1354,11 @@ const Caption = styled.p`
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+`;
+
+const Hashtag = styled.span`
+  color: #4a9eff;
+  font-weight: 600;
 `;
 
 const Actions = styled.div`

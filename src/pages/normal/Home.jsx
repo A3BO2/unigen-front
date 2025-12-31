@@ -48,6 +48,23 @@ const Home = () => {
 
   // 스토리 관련 state
   const [showStoryViewer, setShowStoryViewer] = useState(false);
+
+  // 해시태그 색상 처리 함수
+  const renderContentWithHashtags = (content) => {
+    if (!content) return null;
+
+    const parts = content.split(/(#[가-힣a-zA-Z0-9_]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("#")) {
+        return (
+          <Hashtag key={index} $darkMode={isDarkMode}>
+            {part}
+          </Hashtag>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [currentStoryItemIndex, setCurrentStoryItemIndex] = useState(0);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -965,7 +982,7 @@ const Home = () => {
                     >
                       {post.user.username}
                     </Username>{" "}
-                    {post.caption}
+                    {renderContentWithHashtags(post.caption)}
                   </Caption>
                   {post.comments > 0 && (
                     <Comments
@@ -1647,11 +1664,6 @@ const Likes = styled.div`
   font-weight: 600;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   margin: 8px 0;
-  cursor: pointer;
-
-  &:hover {
-    opacity: 0.5;
-  }
 `;
 
 const Caption = styled.p`
@@ -1664,6 +1676,11 @@ const Caption = styled.p`
   ${Username} {
     margin-right: 4px;
   }
+`;
+
+const Hashtag = styled.span`
+  color: ${(props) => (props.$darkMode ? "#4A9EFF" : "#0095f6")};
+  font-weight: 600;
 `;
 
 const Comments = styled.div`
