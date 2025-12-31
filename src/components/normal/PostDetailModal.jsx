@@ -43,6 +43,23 @@ const PostDetailModal = ({
   const [isLiked, setIsLiked] = useState(post?.liked || false);
   const [likesCount, setLikesCount] = useState(post?.likes || 0);
 
+  // 해시태그 색상 처리 함수
+  const renderContentWithHashtags = (content) => {
+    if (!content) return null;
+
+    const parts = content.split(/(#[가-힣a-zA-Z0-9_]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("#")) {
+        return (
+          <Hashtag key={index} $darkMode={isDarkMode}>
+            {part}
+          </Hashtag>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   // 이미지 URL 변환 함수
   const resolveImageUrl = (url) => {
     if (!url) return null;
@@ -336,7 +353,7 @@ const PostDetailModal = ({
                     {post.user?.username || "사용자"}
                   </CommentUsername>
                   <CommentText $darkMode={isDarkMode}>
-                    {postCaption}
+                    {renderContentWithHashtags(postCaption)}
                   </CommentText>
                   <CommentTime $darkMode={isDarkMode}>
                     {postTime || ""}
@@ -863,6 +880,11 @@ const CommentText = styled.span`
   display: block;
   line-height: 1.4;
   white-space: pre-wrap;
+`;
+
+const Hashtag = styled.span`
+  color: ${(props) => (props.$darkMode ? "#4A9EFF" : "#0095f6")};
+  font-weight: 600;
 `;
 
 const CommentTime = styled.span`
