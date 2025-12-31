@@ -248,7 +248,7 @@ const StoryCreate = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/* video/*"
+                accept="image/*"
                 onChange={handleImageSelect}
                 style={{ display: "none" }}
               />
@@ -595,11 +595,13 @@ const SelectSection = styled.div`
 
   @media (max-width: 767px) {
     padding: 20px 16px;
-    max-height: calc(
+    height: calc(
       100vh - 56px - env(safe-area-inset-top, 0px) -
         env(safe-area-inset-bottom, 0px)
     );
+    max-height: none;
     box-sizing: border-box;
+    justify-content: center;
   }
 `;
 
@@ -608,6 +610,10 @@ const OptionCards = styled.div`
   justify-content: center;
   margin-bottom: 32px;
   width: 100%;
+
+  @media (max-width: 767px) {
+    margin-bottom: 0;
+  }
 `;
 
 const OptionCard = styled.button`

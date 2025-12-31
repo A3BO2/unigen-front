@@ -200,6 +200,7 @@ const Home = () => {
             id: item.author.id || item.authorId,
             username: item.author.username,
             avatar: toAbsolute(item.author.profileImageUrl),
+            isFollowing: false, // 초기값
           },
           image: toAbsolute(`${item.imageUrl}`),
           image_url: toAbsolute(`${item.imageUrl}`),
@@ -214,17 +215,36 @@ const Home = () => {
           comments: item.commentCount,
         }));
 
-        // ✅ 좋아요 상태 조회 (UI 영향 없음)
+        // ✅ 좋아요 상태 및 팔로우 상태 조회 (UI 영향 없음)
         transformedPosts.forEach(async (post) => {
           try {
-            const res = await isPostLike(post.id);
+            // 좋아요 상태 확인
+            const likeRes = await isPostLike(post.id);
+
+            // 팔로우 상태 확인 (내 게시물이 아닐 때만)
+            let followStatus = false;
+            if (post.user.id !== user?.id) {
+              try {
+                const followRes = await isFollowing(post.user.id);
+                followStatus = followRes.isFollowing || false;
+              } catch (e) {
+                console.error("팔로우 상태 조회 실패", e);
+              }
+            }
+
             setPosts((prev) =>
               prev.map((p) =>
-                p.id === post.id ? { ...p, liked: res.isLiked } : p
+                p.id === post.id
+                  ? {
+                      ...p,
+                      liked: likeRes.isLiked,
+                      user: { ...p.user, isFollowing: followStatus },
+                    }
+                  : p
               )
             );
           } catch (e) {
-            console.error("좋아요 상태 조회 실패", e);
+            console.error("상태 조회 실패", e);
           }
         });
 
@@ -254,7 +274,7 @@ const Home = () => {
         setLoading(false);
       }
     },
-    [loading, hasMore]
+    [loading, hasMore, user?.id]
   );
 
   // 초기 로딩
@@ -296,15 +316,41 @@ const Home = () => {
       if (showComments) {
         const selectedPost = posts.find((p) => p.id === showComments);
         if (selectedPost && selectedPost.user.id) {
+          // 내 게시물인지 확인
+          const isMinePost = selectedPost.user.id === user?.id;
+          setIsMine(isMinePost);
+
+          if (isMinePost) {
+            setIsFollowingUser(false);
+            return;
+          }
+
+          // 이미 로드된 팔로우 상태가 있으면 즉시 사용
+          if (selectedPost.user.isFollowing !== undefined) {
+            setIsFollowingUser(selectedPost.user.isFollowing);
+            return;
+          }
+
+          // 없으면 API로 확인
           setFollowStatusLoading(true);
           try {
             const response = await isFollowing(selectedPost.user.id);
             setIsFollowingUser(response.isFollowing);
-            setIsMine(response.isMine);
+
+            // posts 상태도 업데이트
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.user.id === selectedPost.user.id
+                  ? {
+                      ...p,
+                      user: { ...p.user, isFollowing: response.isFollowing },
+                    }
+                  : p
+              )
+            );
           } catch (error) {
             console.error("팔로우 상태 확인 실패:", error);
             setIsFollowingUser(false);
-            setIsMine(false);
           } finally {
             setFollowStatusLoading(false);
           }
@@ -317,7 +363,7 @@ const Home = () => {
       }
     };
     checkFollowStatus();
-  }, [showComments, posts]);
+  }, [showComments, posts, user?.id]);
 
   // 댓글 모달 열기 핸들러
   const handleShowComments = (postId) => {
@@ -331,14 +377,25 @@ const Home = () => {
     if (!selectedPost || !selectedPost.user.id || followLoading) return;
 
     setFollowLoading(true);
+    const newFollowState = !isFollowingUser;
+
     try {
       if (isFollowingUser) {
         await unfollowUser(selectedPost.user.id);
-        setIsFollowingUser(false);
       } else {
         await followUser(selectedPost.user.id);
-        setIsFollowingUser(true);
       }
+
+      setIsFollowingUser(newFollowState);
+
+      // 같은 사용자의 모든 게시물 팔로우 상태 업데이트
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.user.id === selectedPost.user.id
+            ? { ...p, user: { ...p.user, isFollowing: newFollowState } }
+            : p
+        )
+      );
     } catch (error) {
       console.error("팔로우/언팔로우 요청 실패:", error);
     } finally {
