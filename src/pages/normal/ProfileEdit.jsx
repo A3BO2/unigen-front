@@ -248,24 +248,6 @@ const ProfileEdit = () => {
             <Divider $darkMode={isDarkMode} />
 
             <FormGroup>
-              <Label $darkMode={isDarkMode}>이메일</Label>
-              <Input
-                type="email"
-                name="email"
-                value={formData.email || ""}
-                readOnly
-                disabled
-                placeholder="이메일"
-                $darkMode={isDarkMode}
-                style={{
-                  cursor: "not-allowed",
-                  opacity: 0.6,
-                  backgroundColor: isDarkMode ? "#1a1a1a" : "#f5f5f5",
-                }}
-              />
-            </FormGroup>
-
-            <FormGroup>
               <Label $darkMode={isDarkMode}>전화번호</Label>
               <Input
                 type="tel"
