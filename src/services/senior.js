@@ -116,7 +116,12 @@ export const isLikePost = async (postId) => {
 };
 
 // AI 글 다듬기 요청
-export const refineContent = async (text, theme, imageBase64) => {
+export const refineContent = async (
+  text,
+  theme,
+  imageBase64,
+  isReels = false
+) => {
   try {
     const response = await fetch(`${baseURL}/ai/refine`, {
       method: "POST",
@@ -125,6 +130,7 @@ export const refineContent = async (text, theme, imageBase64) => {
         text,
         theme,
         image: imageBase64,
+        isReels, // 릴스 여부 추가
       }),
     });
 

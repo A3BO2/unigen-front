@@ -1,13 +1,26 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Maximize2, Loader2, ArrowLeft } from "lucide-react";
+import { Maximize2, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import { useApp } from "../../context/AppContext";
 import Cropper from "react-easy-crop";
 import { createPost } from "../../services/post";
+import { refineContent } from "../../services/senior";
 import CameraModal from "../../components/normal/CameraModal";
+
+// AI 테마 목록
+const AI_THEMES = [
+  { id: "intro", label: "소개하기", emoji: "🙋‍♀️" },
+  { id: "daily", label: "오늘의 일상", emoji: "🌿" },
+  { id: "greeting", label: "안부 인사", emoji: "👋" },
+  { id: "family", label: "가족 이야기", emoji: "👨‍👩‍👧" },
+  { id: "thanks", label: "감사 인사", emoji: "🙏" },
+  { id: "memory", label: "추억 이야기", emoji: "📷" },
+  { id: "cheer", label: "응원 · 다짐", emoji: "💪" },
+  { id: "light", label: "소소한 웃음", emoji: "😊" },
+];
 
 // 필터 값 정의
 const FILTER_STYLES = {
@@ -62,9 +75,13 @@ const Upload = () => {
   // 업로드 시 상태 관리 state(업로드 로딩 창)
   const [isUploading, setIsUploading] = useState(false);
 
+  // AI 비서 관련 state 추가
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
   // 카메라 모달 표시 여부 state 추가
   const [showCamera, setShowCamera] = useState(false);
   const mobileCameraInputRef = useRef(null); // 모바일 카메라용
+  const [isDragging, setIsDragging] = useState(false); // 드래그 상태 추가
 
   const [adjustments, setAdjustments] = useState({
     brightness: 0,
@@ -73,6 +90,73 @@ const Upload = () => {
     temperature: 0,
   });
   const fileInputRef = useRef(null);
+
+  // 드래그 앤 드롭 핸들러 추가
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (step === "select") {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (step !== "select") return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      // 파일 타입 검증
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+
+      if (contentType === "photo" && !isImage) {
+        alert("이미지 파일만 선택할 수 있습니다.");
+        return;
+      }
+
+      if (contentType === "reels" && !isVideo) {
+        alert("영상 파일만 선택할 수 있습니다.");
+        return;
+      }
+
+      // 기존 handleFileSelect 로직 재사용
+      try {
+        let processedFile = file;
+
+        if (file.type.startsWith("image/")) {
+          processedFile = await compressImage(file, 400);
+        } else if (file.type.startsWith("video/")) {
+          processedFile = await compressVideo(file, 60, 20);
+        }
+
+        setOriginalFile(processedFile);
+        const objectUrl = URL.createObjectURL(processedFile);
+        setPreview(objectUrl);
+
+        if (contentType === "reels") {
+          setFinalFile(processedFile);
+          setStep("final");
+        } else {
+          setStep("crop");
+        }
+      } catch (error) {
+        console.error("파일 처리 오류:", error);
+        alert("파일을 처리하는 중 오류가 발생했습니다.");
+      }
+    }
+  };
 
   // 이미지 압축 함수 - 사진은 400KB 제한
   const compressImage = (file, maxSizeKB = 400) => {
@@ -380,6 +464,63 @@ const Upload = () => {
     }
   };
 
+  // AI 테마 적용 함수
+  const handleApplyAiTheme = async (theme) => {
+    if (isAiLoading) return;
+
+    // 릴스일 때는 텍스트 필수
+    if (contentType === "reels" && !caption.trim()) {
+      alert("릴스는 텍스트를 입력해야 AI 변환이 가능합니다.");
+      return;
+    }
+
+    // 일반 게시물: 내용도 없고 사진도 없으면 에러
+    if (contentType === "photo" && !caption.trim() && !preview) {
+      alert("변환할 내용이나 사진이 없습니다.");
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      let imageData = null;
+
+      // 릴스(영상)가 아니고 사진일 때만 이미지 분석
+      if (contentType === "photo" && preview) {
+        if (preview.startsWith("blob:")) {
+          // blob URL을 base64로 변환
+          try {
+            const response = await fetch(preview);
+            const blob = await response.blob();
+            imageData = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error("이미지 변환 실패:", error);
+            imageData = null; // 이미지 없이 진행
+          }
+        } else {
+          imageData = preview;
+        }
+      }
+
+      // AI에 요청 (릴스일 때는 이미지 없이, 사진일 때는 base64 이미지 전달)
+      const refinedText = await refineContent(
+        caption,
+        theme.id,
+        imageData, // 릴스면 null, 사진이면 base64
+        contentType === "reels" // 릴스일 때 true
+      );
+      setCaption(refinedText);
+    } catch (error) {
+      console.error("AI 변환 실패:", error);
+      alert("AI 변환에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   const handlePost = async () => {
     // 파일 존재 유무 확인
     if (!finalFile) {
@@ -584,8 +725,12 @@ const Upload = () => {
           )}
 
           {step === "select" && (
-            <UploadSection>
-              <UploadContentWrapper>
+            <UploadSection
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <UploadContentWrapper $isDragging={isDragging}>
                 <IconContainer>
                   {contentType === "photo" ? <span>📷</span> : <span>🎬</span>}
                 </IconContainer>
@@ -602,7 +747,11 @@ const Upload = () => {
                   }}
                 >
                   <SelectButton onClick={() => fileInputRef.current?.click()}>
-                    {isMobileDevice() ? "앨범에서 선택" : "컴퓨터에서 선택"}
+                    {isMobileDevice()
+                      ? "앨범에서 선택"
+                      : contentType === "photo"
+                      ? "내 사진 선택"
+                      : "영상 선택"}
                   </SelectButton>
                   {contentType === "photo" && (
                     <SelectButton
@@ -950,6 +1099,33 @@ const Upload = () => {
                 />
 
                 <CharCount>{caption.length}/2,200</CharCount>
+
+                {/* AI 비서 섹션 */}
+                <AiSection>
+                  <AiTitle>
+                    <Sparkles size={16} />
+                    AI 비서가 글 다듬어주기
+                  </AiTitle>
+                  {isAiLoading ? (
+                    <AiLoadingMessage>
+                      <Loader2 size={16} className="spin" />
+                      AI가 글을 다듬고 있어요...
+                    </AiLoadingMessage>
+                  ) : (
+                    <ThemeGrid>
+                      {AI_THEMES.map((theme) => (
+                        <ThemeButton
+                          key={theme.id}
+                          onClick={() => handleApplyAiTheme(theme)}
+                          type="button"
+                        >
+                          <span className="emoji">{theme.emoji}</span>
+                          <span className="label">{theme.label}</span>
+                        </ThemeButton>
+                      ))}
+                    </ThemeGrid>
+                  )}
+                </AiSection>
               </FinalRight>
             </FinalContainer>
           )}
@@ -1148,6 +1324,13 @@ const UploadContentWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
+  padding: ${(props) => (props.$isDragging ? "20px" : "0")};
+  border: ${(props) =>
+    props.$isDragging ? "3px dashed #0095f6" : "3px dashed transparent"};
+  border-radius: ${(props) => (props.$isDragging ? "12px" : "0")};
+  background: ${(props) =>
+    props.$isDragging ? "rgba(0, 149, 246, 0.05)" : "transparent"};
 
   @media (max-width: 767px) {
     transform: translateY(-40px);
@@ -1722,6 +1905,92 @@ const LoadingText = styled.p`
   font-weight: 600;
   text-align: center;
   line-height: 1.5;
+`;
+
+// AI 비서 관련 스타일
+const AiSection = styled.div`
+  padding: 16px;
+  border-bottom: 1px solid #efefef;
+`;
+
+const AiTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 12px;
+
+  svg {
+    color: #0095f6;
+  }
+`;
+
+const AiLoadingMessage = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: #8e8e8e;
+  font-size: 14px;
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const ThemeGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+`;
+
+const ThemeButton = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: #fafafa;
+  border: 1px solid #efefef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f0f0f0;
+    border-color: #0095f6;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .emoji {
+    font-size: 24px;
+  }
+
+  .label {
+    font-size: 12px;
+    color: #262626;
+    font-weight: 500;
+  }
 `;
 
 export default Upload;

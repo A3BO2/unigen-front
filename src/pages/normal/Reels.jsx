@@ -133,16 +133,43 @@ const Reels = () => {
             },
           ];
         });
-        // ✅ 좋아요 상태 조회 (UI 영향 없음)
+
+        // ✅ 좋아요 및 팔로우 상태 조회 (UI 영향 없음)
+        const userId = reel.author_id;
+        const reelId = reel.id;
+
         try {
-          const likeRes = await isPostLike(reel.id);
+          // 좋아요 상태 확인
+          const likeRes = await isPostLike(reelId);
+
+          // 팔로우 상태 확인
+          let followStatus = false;
+          if (!followStatuses[userId]) {
+            try {
+              const followRes = await isFollowing(userId);
+              followStatus = followRes.isFollowing || false;
+            } catch (e) {
+              console.error("팔로우 상태 조회 실패", e);
+            }
+          }
+
           setReels((prev) =>
             prev.map((r) =>
-              r.id === reel.id ? { ...r, liked: likeRes.isLiked } : r
+              r.id === reelId ? { ...r, liked: likeRes.isLiked } : r
             )
           );
+
+          if (!followStatuses[userId]) {
+            setFollowStatuses((prev) => ({
+              ...prev,
+              [userId]: {
+                isFollowing: followStatus,
+                isLoading: false,
+              },
+            }));
+          }
         } catch (e) {
-          console.error("좋아요 상태 조회 실패", e);
+          console.error("상태 조회 실패", e);
         }
 
         // ⭐ 안전장치(서버가 같은 cursor를 주면 무한루프 방지)
@@ -159,7 +186,7 @@ const Reels = () => {
         loadingRef.current = false;
       }
     },
-    [] // dependency 제거 (ref 사용)
+    [followStatuses, resolveUrl]
   );
   /* =========================
    * 댓글 불러오기

@@ -470,19 +470,28 @@ const Profile = () => {
           setCommentModalIsFollowing(false);
           setCommentModalFollowLoading(false);
         } else if (selectedPost && profileData?.id) {
-          // 다른 사용자 프로필인 경우 팔로우 상태 확인
-          setCommentModalFollowLoading(true);
-          try {
-            const response = await isFollowing(profileData.id);
-            // Boolean()으로 명시적 변환
-            setCommentModalIsFollowing(Boolean(response?.isFollowing));
-            setCommentModalIsMine(Boolean(response?.isMine));
-          } catch (error) {
-            console.error("팔로우 상태 확인 실패:", error);
-            setCommentModalIsFollowing(false);
+          // 다른 사용자 프로필인 경우
+          // 이미 로드된 팔로우 상태가 있으면 즉시 사용
+          if (isFollowingUser !== undefined) {
+            setCommentModalIsFollowing(isFollowingUser);
             setCommentModalIsMine(false);
-          } finally {
-            setCommentModalFollowLoading(false);
+          } else {
+            // 없으면 API로 팔로우 상태 확인
+            setCommentModalFollowLoading(true);
+            try {
+              const response = await isFollowing(profileData.id);
+              // Boolean()으로 명시적 변환
+              const followState = Boolean(response?.isFollowing);
+              setCommentModalIsFollowing(followState);
+              setIsFollowingUser(followState); // 프로필 페이지 상태도 업데이트
+              setCommentModalIsMine(Boolean(response?.isMine));
+            } catch (error) {
+              console.error("팔로우 상태 확인 실패:", error);
+              setCommentModalIsFollowing(false);
+              setCommentModalIsMine(false);
+            } finally {
+              setCommentModalFollowLoading(false);
+            }
           }
         }
       } else {
@@ -493,7 +502,15 @@ const Profile = () => {
       }
     };
     checkFollowStatus();
-  }, [showComments, posts, reels, profileData, user, targetUserId]);
+  }, [
+    showComments,
+    posts,
+    reels,
+    profileData,
+    user,
+    targetUserId,
+    isFollowingUser,
+  ]);
 
   const handleLogout = () => {
     if (confirm("로그아웃 하시겠습니까?")) {
@@ -1261,9 +1278,30 @@ const Profile = () => {
                 (p) => p.id === showComments
               );
 
-              const handleNavigate = (newIndex) => {
+              const handleNavigate = async (newIndex) => {
                 if (newIndex >= 0 && newIndex < currentList.length) {
                   setShowComments(currentList[newIndex].id);
+
+                  // 끝에서 3개 남았을 때 자동으로 다음 페이지 로드
+                  if (activeTab === "reels") {
+                    if (
+                      newIndex >= currentList.length - 3 &&
+                      hasMoreReels &&
+                      !isLoadingReels
+                    ) {
+                      reelPageRef.current += 1;
+                      loadReelsData(reelPageRef.current);
+                    }
+                  } else {
+                    if (
+                      newIndex >= currentList.length - 3 &&
+                      hasMore &&
+                      !isLoading
+                    ) {
+                      pageRef.current += 1;
+                      loadProfileData(pageRef.current);
+                    }
+                  }
                 }
               };
 

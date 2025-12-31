@@ -74,34 +74,66 @@ const Explore = () => {
     try {
       // Feed 데이터 가져오기
       const feedData = await getPosts(undefined, pageRef.current, 14, true);
-      const transformedFeeds = await Promise.all(
-        feedData.items.map(async (item) => {
-          // 각 게시물의 좋아요 상태 확인
-          let liked = false;
-          try {
-            const likeStatus = await isPostLike(item.id);
-            liked = likeStatus.isLiked || false;
-          } catch (error) {
-            console.error(`좋아요 상태 확인 실패 (postId: ${item.id}):`, error);
-          }
+      const transformedFeeds = feedData.items.map((item) => {
+        const authorId = item.author.id || item.authorId;
 
-          return {
-            id: item.id,
-            type: "feed",
-            image: resolveUrl(item.imageUrl),
-            likes: item.likeCount,
-            comments: item.commentCount,
-            user: {
-              id: item.author.id || item.authorId,
-              username: item.author.username || "사용자",
-              avatar: item.author.profileImageUrl || null,
-            },
-            caption: item.content || "",
-            timestamp: item.createdAt || "",
-            liked: liked,
-          };
-        })
-      );
+        return {
+          id: item.id,
+          type: "feed",
+          image: resolveUrl(item.imageUrl),
+          likes: item.likeCount,
+          comments: item.commentCount,
+          user: {
+            id: authorId,
+            username: item.author.username || "사용자",
+            avatar: item.author.profileImageUrl || null,
+            isFollowing: undefined, // 초기값
+          },
+          caption: item.content || "",
+          timestamp: item.createdAt || "",
+          liked: false,
+        };
+      });
+
+      // 좋아요 및 팔로우 상태 백그라운드에서 확인
+      transformedFeeds.forEach(async (item) => {
+        const authorId = item.user.id;
+
+        // 좋아요 상태 확인
+        try {
+          const likeStatus = await isPostLike(item.id);
+          setExplorePosts((prev) =>
+            prev.map((p) =>
+              p.id === item.id
+                ? { ...p, liked: likeStatus.isLiked || false }
+                : p
+            )
+          );
+        } catch (error) {
+          console.error(`좋아요 상태 확인 실패 (postId: ${item.id}):`, error);
+        }
+
+        // 팔로우 상태 확인 (내 게시물이 아닐 때만)
+        if (authorId && authorId !== user?.id) {
+          try {
+            const followRes = await isFollowing(authorId);
+            const followingStatus = followRes?.isFollowing || false;
+
+            setExplorePosts((prev) =>
+              prev.map((p) =>
+                p.user.id === authorId
+                  ? { ...p, user: { ...p.user, isFollowing: followingStatus } }
+                  : p
+              )
+            );
+          } catch (error) {
+            console.error(
+              `팔로우 상태 확인 실패 (userId: ${authorId}):`,
+              error
+            );
+          }
+        }
+      });
 
       // Reel 데이터 가져오기 (한 개)
       let transformedReel = null;
@@ -159,7 +191,7 @@ const Explore = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // 의존성 배열 제거 - ref를 통해 최신 값 참조
+  }, [user?.id]); // user?.id 의존성 추가
 
   // 마지막 요소를 관찰하는 ref callback
   const lastPostElementRef = useCallback(
@@ -255,34 +287,71 @@ const Explore = () => {
         return;
       }
 
-      try {
-        const response = await isFollowing(selectedPost.user.id);
-        setIsFollowingUser(response.isFollowing);
-        setIsMine(response.isMine);
+      // 내 게시물인지 확인
+      const isMinePost = selectedPost.user.id === user?.id;
+      setIsMine(isMinePost);
 
-        // 좋아요 상태도 확인 (setSelectedPost를 호출하지 않고 직접 업데이트)
+      if (isMinePost) {
+        setIsFollowingUser(false);
+        // 좋아요 상태만 확인
         try {
           const likeStatus = await isPostLike(selectedPost.id);
-          // selectedPost가 여전히 같은 포스트인지 확인 후 업데이트
           setSelectedPost((prev) => {
-            if (!prev || prev.id !== selectedPost.id) return prev;
-            return {
-              ...prev,
-              liked: likeStatus.isLiked || false,
-            };
+            if (prev && prev.id === selectedPost.id) {
+              return { ...prev, liked: likeStatus.isLiked };
+            }
+            return prev;
           });
         } catch (error) {
           console.error("좋아요 상태 확인 실패:", error);
         }
+        return;
+      }
+
+      // 이미 로드된 팔로우 상태가 있으면 즉시 사용
+      if (selectedPost.user.isFollowing !== undefined) {
+        setIsFollowingUser(selectedPost.user.isFollowing);
+      } else {
+        // 없으면 API로 확인
+        try {
+          const response = await isFollowing(selectedPost.user.id);
+          setIsFollowingUser(response.isFollowing);
+
+          // explorePosts 상태도 업데이트
+          setExplorePosts((prev) =>
+            prev.map((p) =>
+              p.user.id === selectedPost.user.id
+                ? {
+                    ...p,
+                    user: { ...p.user, isFollowing: response.isFollowing },
+                  }
+                : p
+            )
+          );
+        } catch (error) {
+          console.error("팔로우 상태 확인 실패:", error);
+          setIsFollowingUser(false);
+        }
+      }
+
+      // 좋아요 상태도 확인 (setSelectedPost를 호출하지 않고 직접 업데이트)
+      try {
+        const likeStatus = await isPostLike(selectedPost.id);
+        // selectedPost가 여전히 같은 포스트인지 확인 후 업데이트
+        setSelectedPost((prev) => {
+          if (!prev || prev.id !== selectedPost.id) return prev;
+          return {
+            ...prev,
+            liked: likeStatus.isLiked || false,
+          };
+        });
       } catch (error) {
-        console.error("팔로우 상태 확인 실패:", error);
-        setIsFollowingUser(false);
-        setIsMine(false);
+        console.error("좋아요 상태 확인 실패:", error);
       }
     };
 
     checkFollowStatus();
-  }, [selectedPost]); // selectedPost 변경 시에만 실행
+  }, [selectedPost, user?.id]); // selectedPost, user?.id 변경 시에만 실행
 
   // 팔로우/언팔로우 핸들러
   const handleFollow = async (e) => {
@@ -296,16 +365,27 @@ const Explore = () => {
     if (!selectedPost || !selectedPost.user.id || followLoading) return;
 
     setFollowLoading(true);
+    const newFollowState = !isFollowingUser;
+
     try {
       if (isFollowingUser) {
         // 언팔로우
         await unfollowUser(selectedPost.user.id);
-        setIsFollowingUser(false);
       } else {
         // 팔로우
         await followUser(selectedPost.user.id);
-        setIsFollowingUser(true);
       }
+
+      setIsFollowingUser(newFollowState);
+
+      // 같은 사용자의 모든 게시물 팔로우 상태 업데이트
+      setExplorePosts((prev) =>
+        prev.map((p) =>
+          p.user.id === selectedPost.user.id
+            ? { ...p, user: { ...p.user, isFollowing: newFollowState } }
+            : p
+        )
+      );
     } catch (error) {
       console.error("팔로우/언팔로우 요청 실패:", error);
     } finally {
@@ -501,7 +581,7 @@ const Explore = () => {
             (p) => p.id === selectedPost.id
           );
 
-          const handleNavigate = (newIndex) => {
+          const handleNavigate = async (newIndex) => {
             if (newIndex >= 0 && newIndex < feedPosts.length) {
               const newPost = feedPosts[newIndex];
               // handlePostClick 로직과 동일하게 상태 설정
@@ -514,6 +594,12 @@ const Explore = () => {
               setTimeout(() => {
                 isModalOpening.current = false;
               }, 100);
+
+              // 끝에서 3개 남았을 때 자동으로 다음 페이지 로드
+              if (newIndex >= feedPosts.length - 3 && hasMore && !loading) {
+                setPage((prev) => prev + 1);
+                loadMoreData();
+              }
             }
           };
 
