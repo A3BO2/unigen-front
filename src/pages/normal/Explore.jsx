@@ -179,7 +179,15 @@ const Explore = () => {
         : transformedFeeds;
       const shuffledNewPosts = shuffleArray(newPosts);
 
-      setExplorePosts((prev) => [...prev, ...shuffledNewPosts]);
+      // 중복 제거하면서 추가
+      setExplorePosts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const uniqueNewPosts = shuffledNewPosts.filter(
+          (p) => !existingIds.has(p.id)
+        );
+        return [...prev, ...uniqueNewPosts];
+      });
+
       setPage((prev) => prev + 1);
 
       // 더 이상 데이터가 없으면 hasMore를 false로 설정
@@ -208,12 +216,7 @@ const Explore = () => {
 
     const intersectionObserver = new IntersectionObserver(
       (entries) => {
-        console.log(
-          "👁️ IntersectionObserver 콜백 실행:",
-          entries[0].isIntersecting
-        );
         if (entries[0].isIntersecting && hasMore && !loading) {
-          console.log("🔄 무한 스크롤 트리거 - 다음 페이지 로드!");
           loadMoreData();
         }
       },
@@ -224,13 +227,11 @@ const Explore = () => {
     );
 
     if (observerElement) {
-      console.log("👀 Observer 요소 관찰 시작");
       intersectionObserver.observe(observerElement);
     }
 
     return () => {
       if (observerElement) {
-        console.log("🔌 Observer 정리");
         intersectionObserver.unobserve(observerElement);
       }
     };
@@ -716,20 +717,9 @@ const LoadingText = styled.div`
 `;
 
 const LoadingTrigger = styled.div`
-  height: 100px;
+  height: 20px;
   width: 100%;
   margin: 20px 0;
-  background: rgba(255, 0, 0, 0.1); /* 디버깅용 빨간 배경 */
-  border: 2px dashed red; /* 디버깅용 테두리 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: red;
-  font-size: 12px;
-
-  &::after {
-    content: "무한 스크롤 감지 영역";
-  }
 `;
 
 // 릴스 표시 아이콘
