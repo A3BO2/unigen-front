@@ -290,36 +290,6 @@ http://localhost:3000/api-docs
 - SQL Injection 방지
 - 파일 업로드 검증
 
-## 🧪 테스트
-
-백엔드 테스트:
-```bash
-cd unigen-back
-npm test
-```
-
-프론트엔드 테스트:
-```bash
-cd unigen-front
-npm test
-```
-
-## 📦 배포
-
-### 백엔드 배포
-```bash
-cd unigen-back
-npm run build
-npm run start:prod
-```
-
-### 프론트엔드 배포
-```bash
-cd unigen-front
-npm run build
-# dist 폴더를 웹 서버에 배포
-```
-
 ## 🤝 기여하기
 
 1. Fork the Project
@@ -332,23 +302,7 @@ npm run build
 
 이 프로젝트는 MIT 라이선스를 따릅니다.
 
-## 👥 개발팀
-
-- **Frontend Developer**: React, Vite, styled-components
-- **Backend Developer**: Node.js, Express, MySQL
-- **UI/UX Designer**: 시니어 친화적 인터페이스 설계
-
 ## 📞 문의
 
 프로젝트 관련 문의사항이 있으시면 이슈를 등록해 주세요.
 
-## 🙏 감사의 말
-
-- Kakao Developers for OAuth integration
-- OpenAI for AI capabilities
-- AWS for cloud services
-- All contributors who helped make this project better
-
----
-
-**Made with ❤️ for connecting generations**
