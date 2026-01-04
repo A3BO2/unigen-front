@@ -1214,6 +1214,7 @@ const Avatar = styled.div`
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  overflow: hidden;
   background: #fff;
   display: flex;
   align-items: center;
