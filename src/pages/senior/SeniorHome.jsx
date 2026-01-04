@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import styled, { ThemeProvider } from "styled-components";
-import { Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import { Heart, MessageCircle, MoreHorizontal, X, ArrowUp } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import SeniorBottomNav from "../../components/senior/BottomNav";
 import { getSeniorPosts } from "../../services/post";
@@ -46,6 +46,7 @@ const Home = () => {
   };
 
   const [activateMenuPostId, setActivateMenuPostId] = useState(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -265,6 +266,11 @@ const Home = () => {
     }
   };
 
+  // 페이지 진입 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     loadPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -313,6 +319,9 @@ const Home = () => {
       const clientHeight =
         document.documentElement.clientHeight || window.innerHeight;
 
+      // 맨 위로 버튼 표시 여부 (스크롤 300px 이상 내려갔을 때)
+      setShowScrollTop(scrollTop > 300);
+
       if (scrollTop + clientHeight >= scrollHeight - 200) {
         loadPosts(true);
       }
@@ -321,6 +330,14 @@ const Home = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isLoadingMore, loading, hasMore]);
+
+  // 맨 위로 스크롤 함수
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   const handleLike = async (postId) => {
     const currentPost = posts.find((post) => post.id === postId);
@@ -758,6 +775,13 @@ const Home = () => {
 
         {!hasMore && posts.length > 0 && !loading && (
           <EndMessage>모든 게시물을 확인했습니다 🎉</EndMessage>
+        )}
+
+        {/* 맨 위로 버튼 */}
+        {showScrollTop && (
+          <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
+            <ArrowUp size={32} />
+          </ScrollTopButton>
         )}
 
         <SeniorBottomNav />
@@ -1289,6 +1313,48 @@ const MenuItem = styled.button`
 
   &:active {
     background: ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#f5f5f5")};
+  }
+`;
+
+const ScrollTopButton = styled.button`
+  position: fixed;
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#4a5568" : "#ff6b35")};
+  border: 2px solid ${(props) => (props.$darkMode ? "#5a6578" : "#ff8c5a")};
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${(props) =>
+    props.$darkMode
+      ? "0 4px 16px rgba(74, 85, 104, 0.4)"
+      : "0 4px 16px rgba(255, 107, 53, 0.3)"};
+  transition: all 0.3s ease;
+  z-index: 100;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: ${(props) =>
+      props.$darkMode
+        ? "0 6px 20px rgba(74, 85, 104, 0.5)"
+        : "0 6px 20px rgba(255, 107, 53, 0.4)"};
+    background: ${(props) => (props.$darkMode ? "#5a6578" : "#ff8c5a")};
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    width: 56px;
+    height: 56px;
   }
 `;
 

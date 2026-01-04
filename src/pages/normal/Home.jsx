@@ -8,6 +8,7 @@ import {
   Plus,
   Loader2,
   Search,
+  ArrowUp,
 } from "lucide-react";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
@@ -48,6 +49,7 @@ const Home = () => {
 
   // 스토리 관련 state
   const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // 해시태그 색상 처리 함수
   const renderContentWithHashtags = (content) => {
@@ -327,6 +329,17 @@ const Home = () => {
     };
   }, [hasMore, loading, loadPosts]);
 
+  // 스크롤 위치 감지 - 맨 위로 버튼 표시
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // 댓글 모달이 열릴 때 팔로우 상태 확인
   useEffect(() => {
     const checkFollowStatus = async () => {
@@ -381,6 +394,14 @@ const Home = () => {
     };
     checkFollowStatus();
   }, [showComments, posts, user?.id]);
+
+  // 맨 위로 스크롤 함수
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   // 댓글 모달 열기 핸들러
   const handleShowComments = (postId) => {
@@ -1039,6 +1060,13 @@ const Home = () => {
               <EndMessage $darkMode={isDarkMode}>
                 모든 포스트를 확인했습니다 🎉
               </EndMessage>
+            )}
+
+            {/* 맨 위로 버튼 */}
+            {showScrollTop && (
+              <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
+                <ArrowUp size={24} />
+              </ScrollTopButton>
             )}
           </Feed>
         </MainContent>
@@ -2197,6 +2225,51 @@ const HeaderTimestamp = styled.span`
   color: ${(props) => (props.$darkMode ? "#a8a8a8" : "#8e8e8e")};
   margin-top: 2px;
   font-weight: 400;
+`;
+
+const ScrollTopButton = styled.button`
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#4a5568" : "#fff")};
+  border: ${(props) =>
+    props.$darkMode ? "2px solid #5a6578" : "1px solid #dbdbdb"};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${(props) =>
+    props.$darkMode
+      ? "0 4px 12px rgba(74, 85, 104, 0.4)"
+      : "0 4px 12px rgba(0, 0, 0, 0.15)"};
+  transition: all 0.3s ease;
+  z-index: 100;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: ${(props) =>
+      props.$darkMode
+        ? "0 6px 16px rgba(74, 85, 104, 0.5)"
+        : "0 6px 16px rgba(0, 0, 0, 0.2)"};
+    background: ${(props) => (props.$darkMode ? "#5a6578" : "#f5f5f5")};
+  }
+
+  &:active {
+    transform: translateY(-2px);
+  }
+
+  @media (min-width: 768px) {
+    bottom: 100px;
+    right: calc(50% - 300px - 80px);
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 export default Home;

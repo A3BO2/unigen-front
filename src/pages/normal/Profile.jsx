@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { Settings, Moon, Sun, MoreHorizontal } from "lucide-react";
+import { Settings, Moon, Sun, MoreHorizontal, ArrowUp } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useNavigate, useParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
@@ -74,6 +74,10 @@ const Profile = () => {
   const [commentModalIsMine, setCommentModalIsMine] = useState(false);
   const [commentModalFollowLoading, setCommentModalFollowLoading] =
     useState(false);
+
+  // 스크롤 버튼
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   const observerRef = useRef();
   const lastPostRef = useRef();
   const lastReelRef = useRef();
@@ -296,6 +300,11 @@ const Profile = () => {
 
   // 프로필 페이지에서 팔로우 상태 확인 (다른 사람 프로필일 때만)
   const followStatusCheckRef = useRef(false); // 중복 호출 방지용 ref
+
+  // 페이지 진입 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     const checkProfileFollowStatus = async () => {
@@ -883,6 +892,25 @@ const Profile = () => {
     };
   }, [isDragging, activeTab]);
 
+  // 스크롤 이벤트 리스너
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 맨 위로 스크롤 함수
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <>
       <LeftSidebar />
@@ -1443,6 +1471,13 @@ const Profile = () => {
             </FollowModalOverlay>
           )}
         </MainContent>
+
+        {/* 맨 위로 버튼 */}
+        {showScrollTop && (
+          <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
+            <ArrowUp size={24} />
+          </ScrollTopButton>
+        )}
       </Container>
     </>
   );
@@ -2435,6 +2470,51 @@ const EmptyFollowList = styled.div`
   padding: 40px 20px;
   color: ${(props) => (props.$darkMode ? "#8e8e8e" : "#8e8e8e")};
   font-size: 14px;
+`;
+
+const ScrollTopButton = styled.button`
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#4a5568" : "#fff")};
+  border: ${(props) =>
+    props.$darkMode ? "2px solid #5a6578" : "1px solid #dbdbdb"};
+  color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${(props) =>
+    props.$darkMode
+      ? "0 4px 12px rgba(74, 85, 104, 0.4)"
+      : "0 4px 12px rgba(0, 0, 0, 0.15)"};
+  transition: all 0.3s ease;
+  z-index: 100;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: ${(props) =>
+      props.$darkMode
+        ? "0 6px 16px rgba(74, 85, 104, 0.5)"
+        : "0 6px 16px rgba(0, 0, 0, 0.2)"};
+    background: ${(props) => (props.$darkMode ? "#5a6578" : "#f5f5f5")};
+  }
+
+  &:active {
+    transform: translateY(-2px);
+  }
+
+  @media (min-width: 768px) {
+    bottom: 100px;
+    right: calc(50% - 300px - 80px);
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
 `;
 
 export default Profile;
