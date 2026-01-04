@@ -33,7 +33,7 @@ const Reels = () => {
   const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
 
   const [reels, setReels] = useState([]);
-  const cursorRef = useRef(null); // cursor ref for useCallback
+  const cursorRef = useRef(new Date().toISOString()); // cursor ref for useCallback
   const loadingRef = useRef(false); // ref로 추적 (비동기 체크용)
   const noMoreReelsRef = useRef(false); // ref로도 추적 (비동기 체크용)
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -94,117 +94,54 @@ const Reels = () => {
    * 릴스 가져오기
    ========================= */
   const fetchReel = useCallback(
-    async (targetId = null) => {
-      // noMoreReels 체크는 ref로 확인 (비동기 처리 시 state는 업데이트되지 않을 수 있음)
-      if (loadingRef.current) return;
-      if (noMoreReelsRef.current) return;
-      loadingRef.current = true;
+  async (overrideCursor = null) => {
+    if (loadingRef.current || noMoreReelsRef.current) return;
+    loadingRef.current = true;
 
-      try {
-        // targetId가 있으면 그 기준으로, 없으면 cursor 기준
-        const data = await getReel(targetId ?? cursorRef.current);
+    try {
+      const data = await getReel(
+        overrideCursor ?? cursorRef.current
+      );
 
-        if (!data?.reel || data?.message === "NO_MORE_REELS") {
-          noMoreReelsRef.current = true;
-          loadingRef.current = false;
-          return;
-        }
-
-        const reel = data.reel;
-
-        setReels((prev) => {
-          if (prev.some((r) => r.id === reel.id)) return prev;
-
-          return [
-            ...prev,
-            {
-              id: reel.id,
-              video: resolveUrl(reel.video_url),
-              thumbnail: resolveUrl(reel.image_url), // 썸네일 용도 (poster)
-
-              user: {
-                id: reel.author_id,
-                username: reel.authorName || "알 수 없음",
-                avatar: reel.authorProfile ? (
-                  <img
-                    src={resolveUrl(reel.authorProfile)}
-                    alt="프사"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  "👤"
-                ),
-              },
-              caption: reel.content,
-              likes: reel.like_count,
-              comments: reel.comment_count,
-              liked: false,
-              saved: false,
-              isSeniorMode: reel.is_senior_mode,
-              createdAt: reel.created_at,
-            },
-          ];
-        });
-
-        // ✅ 좋아요 및 팔로우 상태 조회 (UI 영향 없음)
-        const userId = reel.author_id;
-        const reelId = reel.id;
-
-        try {
-          // 좋아요 상태 확인
-          const likeRes = await isPostLike(reelId);
-
-          // 팔로우 상태 확인
-          let followStatus = false;
-          if (!followStatuses[userId]) {
-            try {
-              const followRes = await isFollowing(userId);
-              followStatus = followRes.isFollowing || false;
-            } catch (e) {
-              console.error("팔로우 상태 조회 실패", e);
-            }
-          }
-
-          setReels((prev) =>
-            prev.map((r) =>
-              r.id === reelId ? { ...r, liked: likeRes.isLiked } : r
-            )
-          );
-
-          if (!followStatuses[userId]) {
-            setFollowStatuses((prev) => ({
-              ...prev,
-              [userId]: {
-                isFollowing: followStatus,
-                isLoading: false,
-              },
-            }));
-          }
-        } catch (e) {
-          console.error("상태 조회 실패", e);
-        }
-
-        // ⭐ 안전장치(서버가 같은 cursor를 주면 무한루프 방지)
-        if (data.nextCursor === cursorRef.current) {
-          noMoreReelsRef.current = true;
-          loadingRef.current = false;
-          return;
-        }
-
-        cursorRef.current = data.nextCursor;
-      } catch (error) {
-        console.error(error);
-      } finally {
-        loadingRef.current = false;
+      if (!data?.reel || data?.message === "NO_MORE_REELS") {
+        noMoreReelsRef.current = true;
+        return;
       }
-    },
-    [followStatuses, resolveUrl]
-  );
+
+      const reel = data.reel;
+
+      setReels((prev) => {
+        if (prev.some((r) => r.id === reel.id)) return prev;
+        return [...prev, {
+          id: reel.id,
+          video: resolveUrl(reel.video_url),
+          thumbnail: resolveUrl(reel.image_url),
+          user: {
+            id: reel.author_id,
+            username: reel.authorName || "알 수 없음",
+            avatar: reel.authorProfile
+              ? <img src={resolveUrl(reel.authorProfile)} />
+              : "👤",
+          },
+          caption: reel.content,
+          likes: reel.like_count,
+          comments: reel.comment_count,
+          liked: false,
+          isSeniorMode: reel.is_senior_mode,
+          createdAt: reel.created_at,
+        }];
+      });
+
+      cursorRef.current = data.nextCursor;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingRef.current = false;
+    }
+  },
+  [followStatuses]
+);
+
   /* =========================
    * 댓글 불러오기
    ========================= */
@@ -310,56 +247,25 @@ const Reels = () => {
    * 최초 로딩: startId 우선 적용, 초기에 여러 개 가져오기
    ========================= */
   useEffect(() => {
-    // ✅ startId가 있으면 그 릴스로부터 시작
-    // (백엔드가 id < lastId 방식이면, startId를 "커서"로 넣으면 startId보다 작은 것부터 나오기 때문에
-    // startId를 정확히 포함하고 싶으면 서버에서 startId fetch 전용을 만들거나,
-    // 현재 구조라면 startId+1을 주는 방식이 보통 안정적)
-    const init = async () => {
-      if (initialLoaded) return;
+  const init = async () => {
+    if (initialLoaded) return;
 
-      // 초기 로딩 시 여러 개의 릴스를 가져오기 (10개)
-      const initialLoadCount = 10;
+    const initialLoadCount = 10;
 
-      if (startId) {
-        const s = Number(startId);
-        if (Number.isFinite(s) && s > 0) {
-          // startId가 있으면 해당 릴스부터 시작
-          for (let i = 0; i < initialLoadCount; i++) {
-            await fetchReel(i === 0 ? s + 1 : undefined);
-            // 더 이상 릴스가 없으면 중단
-            if (noMoreReelsRef.current) break;
-            // 각 요청 사이에 약간의 지연 (서버 부하 방지)
-            if (i < initialLoadCount - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-        } else {
-          // startId가 없으면 처음부터
-          for (let i = 0; i < initialLoadCount; i++) {
-            await fetchReel();
-            if (noMoreReelsRef.current) break;
-            if (i < initialLoadCount - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-        }
-      } else {
-        // startId가 없으면 처음부터
-        for (let i = 0; i < initialLoadCount; i++) {
-          await fetchReel();
-          if (noMoreReelsRef.current) break;
-          if (i < initialLoadCount - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 50));
-          }
-        }
+    for (let i = 0; i < initialLoadCount; i++) {
+      await fetchReel();
+      if (noMoreReelsRef.current) break;
+      if (i < initialLoadCount - 1) {
+        await new Promise((r) => setTimeout(r, 50));
       }
+    }
 
-      setInitialLoaded(true);
-    };
+    setInitialLoaded(true);
+  };
 
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startId, initialLoaded]);
+  init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [initialLoaded]);
 
   /* =========================
    * 무한 스크롤 및 영상 재생/일시정지 관리

@@ -101,9 +101,12 @@ export async function getPosts(mode, page = 1, size = 10, all) {
   });
 }
 
-export async function getReel(lastId) {
+export async function getReel(lastCreatedAt) {
   const params = new URLSearchParams();
-  if (lastId) params.append("lastId", lastId);
+
+  if (lastCreatedAt) {
+    params.append("lastCreatedAt", lastCreatedAt);
+  }
 
   const query = params.toString() ? `?${params.toString()}` : "";
 
@@ -112,6 +115,7 @@ export async function getReel(lastId) {
     headers: getHeaders(),
   });
 }
+
 
 export async function getStories() {
   return await apifetch(`/stories`, {
