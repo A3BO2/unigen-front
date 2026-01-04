@@ -54,9 +54,9 @@ const Home = () => {
   const [hasMore, setHasMore] = useState(true);
   const [followPage, setFollowPage] = useState(0);
   const [allPage, setAllPage] = useState(0);
-  const isModeTransitioning = useRef(false);
   const loadedPostIds = useRef(new Set());
   const [showEmptyTransition, setShowEmptyTransition] = useState(false);
+  const [showTransitionMessage, setShowTransitionMessage] = useState(false);
   const POSTS_PER_PAGE = 5;
 
   const formatPosts = (data, mode) => {
@@ -154,7 +154,6 @@ const Home = () => {
 
   const loadPosts = async (loadMore = false) => {
     if ((loadMore && isLoadingMore) || (loadMore && !hasMore)) return;
-    if (isModeTransitioning.current) return;
 
     try {
       if (loadMore) {
@@ -205,10 +204,12 @@ const Home = () => {
 
           if (data.length < POSTS_PER_PAGE) {
             if (!isAllMode && hasFollowData) {
-              isModeTransitioning.current = true;
+              // 기존 게시물 유지하고 전체 모드로 전환
               setHasFollowData(false);
               setIsAllMode(true);
               setHasMore(true);
+              setShowEmptyTransition(false); // 정상적인 전환 시에는 false
+              setShowTransitionMessage(true); // 전환 메시지 표시
             } else {
               setHasMore(false);
             }
@@ -218,10 +219,12 @@ const Home = () => {
         } else if (loadMore) {
           // 중복 데이터만 있는 경우 - 팔로우 모드에서는 전체 모드로 전환
           if (!isAllMode && hasFollowData) {
-            isModeTransitioning.current = true;
+            // 기존 게시물 유지하고 전체 모드로 전환
             setHasFollowData(false);
             setIsAllMode(true);
             setHasMore(true);
+            setShowEmptyTransition(false); // 정상적인 전환 시에는 false
+            setShowTransitionMessage(true); // 전환 메시지 표시
           } else {
             // 전체 모드에서 중복만 있으면 페이지 증가 후 계속 시도
             if (isAllMode) {
@@ -239,18 +242,13 @@ const Home = () => {
         // 데이터가 비어있는 경우
         if (!isAllMode && hasFollowData) {
           // 팔로우 모드에서 데이터가 없으면 즉시 전체 모드로 전환
-          isModeTransitioning.current = true;
+          // 기존 팔로잉 게시물은 유지하고 전체 게시물을 이어서 추가
           setHasFollowData(false);
           setIsAllMode(true);
           setHasMore(true);
           setAllPage(0); // 전체 모드 페이지 초기화
-          loadedPostIds.current.clear(); // 로드된 게시글 ID 초기화
-          setPosts([]); // 게시물 배열 초기화 (중복 방지)
+          // loadedPostIds와 posts는 유지 (기존 게시물 보존)
           setShowEmptyTransition(true); // 빈 상태 전환 메시지 표시
-          isModeTransitioning.current = false;
-          // loading 상태를 false로 설정하지 않고 바로 로드 (useEffect에서 처리되도록 상태만 변경)
-          // finally에서 loading이 false로 설정되므로 useEffect에서 처리
-          return; // finally 블록 실행 후 useEffect에서 처리
         } else {
           setHasMore(false);
         }
@@ -273,8 +271,7 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    if (isAllMode && !hasFollowData && hasMore && isModeTransitioning.current) {
-      isModeTransitioning.current = false;
+    if (isAllMode && !hasFollowData && hasMore) {
       loadPosts(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -543,23 +540,21 @@ const Home = () => {
         )}
 
         <Feed>
-          {/* 팔로우 모드에서 게시글이 없어서 전체 모드로 전환된 경우 */}
-          {showEmptyTransition && !loading && !isLoadingMore && (
-            <InfoContainer>
-              <InfoText>팔로우한 친구들의 게시물을 모두 확인했어요</InfoText>
-              <InfoSubText>이제 모든 게시물을 보여드릴게요</InfoSubText>
-            </InfoContainer>
-          )}
-
           {posts.map((post, index) => {
             const showModeTransition =
               index > 0 &&
               posts[index - 1].mode === "follow" &&
               post.mode === "all";
 
+            // 전환 메시지를 한 번만 표시하기 위한 조건
+            const isFirstAllPost =
+              showTransitionMessage &&
+              post.mode === "all" &&
+              (index === 0 || posts[index - 1].mode === "follow");
+
             return (
               <div key={post.id}>
-                {showModeTransition && !showEmptyTransition && (
+                {(showModeTransition || isFirstAllPost) && (
                   <InfoContainer>
                     <InfoText>
                       팔로우한 친구들의 게시물을 모두 확인했어요
