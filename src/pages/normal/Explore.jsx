@@ -193,33 +193,6 @@ const Explore = () => {
     }
   }, [user?.id]); // user?.id 의존성 추가
 
-  // 마지막 요소를 관찰하는 ref callback
-  const lastPostElementRef = useCallback(
-    (node) => {
-      if (loadingRef.current) return;
-      if (observer.current) observer.current.disconnect();
-
-      observer.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && hasMoreRef.current) {
-            console.log("🔄 무한 스크롤 트리거 - 다음 페이지 로드");
-            loadMoreData();
-          }
-        },
-        {
-          root: null, // viewport 사용 (배포 환경에서도 안정적)
-          rootMargin: "300px", // 바닥에서 300px 위에서 미리 로드
-          threshold: 0.1,
-        }
-      );
-      if (node) {
-        console.log("👀 마지막 요소 관찰 시작");
-        observer.current.observe(node);
-      }
-    },
-    [loadMoreData]
-  );
-
   // 초기 데이터 로드
   useEffect(() => {
     if (isInitialMount.current) {
@@ -228,6 +201,40 @@ const Explore = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 초기 한 번만 실행
+
+  // Intersection Observer로 무한 스크롤 구현 (Home.jsx 방식)
+  useEffect(() => {
+    const observerElement = observer.current;
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        console.log(
+          "👁️ IntersectionObserver 콜백 실행:",
+          entries[0].isIntersecting
+        );
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          console.log("🔄 무한 스크롤 트리거 - 다음 페이지 로드!");
+          loadMoreData();
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: "200px",
+      }
+    );
+
+    if (observerElement) {
+      console.log("👀 Observer 요소 관찰 시작");
+      intersectionObserver.observe(observerElement);
+    }
+
+    return () => {
+      if (observerElement) {
+        console.log("🔌 Observer 정리");
+        intersectionObserver.unobserve(observerElement);
+      }
+    };
+  }, [hasMore, loading, loadMoreData]);
 
   // 모달 닫기 핸들러 (메모이제이션)
   const handleCloseModal = useCallback(() => {
@@ -540,7 +547,7 @@ const Explore = () => {
           </Grid>
 
           {/* 무한 스크롤 트리거 요소 */}
-          {hasMore && !loading && <LoadingTrigger ref={lastPostElementRef} />}
+          <LoadingTrigger ref={observer} />
 
           {loading && (
             <LoadingText $darkMode={isDarkMode}>로딩 중...</LoadingText>
@@ -709,9 +716,20 @@ const LoadingText = styled.div`
 `;
 
 const LoadingTrigger = styled.div`
-  height: 20px;
+  height: 100px;
   width: 100%;
   margin: 20px 0;
+  background: rgba(255, 0, 0, 0.1); /* 디버깅용 빨간 배경 */
+  border: 2px dashed red; /* 디버깅용 테두리 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: red;
+  font-size: 12px;
+
+  &::after {
+    content: "무한 스크롤 감지 영역";
+  }
 `;
 
 // 릴스 표시 아이콘
