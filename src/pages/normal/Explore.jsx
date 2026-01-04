@@ -509,75 +509,39 @@ const Explore = () => {
         <MainContent>
           <Grid>
             {explorePosts.map((post, index) => {
-              // 마지막 요소에 ref 연결
-              if (explorePosts.length === index + 1) {
-                return (
-                  <GridItem
-                    key={`${post.type}-${post.id}`}
-                    ref={lastPostElementRef}
-                    onClick={(e) => handlePostClick(e, post)}
-                  >
-                    <ImageWrapper>
-                      <Image src={post.image} alt="" />
-                      {post.type === "reel" && (
-                        <ReelIndicator>
-                          <Play size={20} fill="white" color="white" />
-                        </ReelIndicator>
-                      )}
-                      <Overlay>
-                        <Stats>
-                          <Stat>
-                            <Heart size={20} fill="white" color="white" />
-                            <span>{post.likes.toLocaleString()}</span>
-                          </Stat>
-                          <Stat>
-                            <MessageCircle
-                              size={20}
-                              fill="white"
-                              color="white"
-                            />
-                            <span>{post.comments.toLocaleString()}</span>
-                          </Stat>
-                        </Stats>
-                      </Overlay>
-                    </ImageWrapper>
-                  </GridItem>
-                );
-              } else {
-                return (
-                  <GridItem
-                    key={`${post.type}-${post.id}`}
-                    onClick={(e) => handlePostClick(e, post)}
-                  >
-                    <ImageWrapper>
-                      <Image src={post.image} alt="" />
-                      {post.type === "reel" && (
-                        <ReelIndicator>
-                          <Play size={20} fill="white" color="white" />
-                        </ReelIndicator>
-                      )}
-                      <Overlay>
-                        <Stats>
-                          <Stat>
-                            <Heart size={20} fill="white" color="white" />
-                            <span>{post.likes.toLocaleString()}</span>
-                          </Stat>
-                          <Stat>
-                            <MessageCircle
-                              size={20}
-                              fill="white"
-                              color="white"
-                            />
-                            <span>{post.comments.toLocaleString()}</span>
-                          </Stat>
-                        </Stats>
-                      </Overlay>
-                    </ImageWrapper>
-                  </GridItem>
-                );
-              }
+              return (
+                <GridItem
+                  key={`${post.type}-${post.id}`}
+                  onClick={(e) => handlePostClick(e, post)}
+                >
+                  <ImageWrapper>
+                    <Image src={post.image} alt="" />
+                    {post.type === "reel" && (
+                      <ReelIndicator>
+                        <Play size={20} fill="white" color="white" />
+                      </ReelIndicator>
+                    )}
+                    <Overlay>
+                      <Stats>
+                        <Stat>
+                          <Heart size={20} fill="white" color="white" />
+                          <span>{post.likes.toLocaleString()}</span>
+                        </Stat>
+                        <Stat>
+                          <MessageCircle size={20} fill="white" color="white" />
+                          <span>{post.comments.toLocaleString()}</span>
+                        </Stat>
+                      </Stats>
+                    </Overlay>
+                  </ImageWrapper>
+                </GridItem>
+              );
             })}
           </Grid>
+
+          {/* 무한 스크롤 트리거 요소 */}
+          {hasMore && !loading && <LoadingTrigger ref={lastPostElementRef} />}
+
           {loading && (
             <LoadingText $darkMode={isDarkMode}>로딩 중...</LoadingText>
           )}
@@ -742,6 +706,12 @@ const LoadingText = styled.div`
   padding: 20px;
   color: ${(props) => (props.$darkMode ? "#fff" : "#262626")};
   font-size: 14px;
+`;
+
+const LoadingTrigger = styled.div`
+  height: 20px;
+  width: 100%;
+  margin: 20px 0;
 `;
 
 // 릴스 표시 아이콘
