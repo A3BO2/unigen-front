@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import styled, { ThemeProvider } from "styled-components";
+import { ArrowUp } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import SeniorBottomNav from "../../components/senior/BottomNav";
@@ -48,6 +49,7 @@ const Profile = () => {
   const [isFollowListOpen, setIsFollowListOpen] = useState(false);
   const [followListType, setFollowListType] = useState(null); // "followers" or "following"
   const [followList, setFollowList] = useState([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // 해시태그 색상 처리 함수
   const renderContentWithHashtags = (content) => {
@@ -265,6 +267,11 @@ const Profile = () => {
     };
   }, [isFollowListOpen]);
 
+  // 페이지 진입 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // 검색 필터링
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -278,6 +285,25 @@ const Profile = () => {
       setFilteredFollowList(filtered);
     }
   }, [searchQuery, followList]);
+
+  // 스크롤 이벤트 리스너
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 맨 위로 스크롤 함수
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   return (
     <ThemeProvider theme={{ $darkMode: isDarkMode }}>
@@ -551,6 +577,15 @@ const Profile = () => {
             </FollowModalContainer>
           </FollowModalOverlay>
         )}
+
+        {/* 맨 위로 버튼 */}
+        {showScrollTop && (
+          <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
+            <ArrowUp size={32} />
+          </ScrollTopButton>
+        )}
+
+        <SeniorBottomNav />
       </Container>
     </ThemeProvider>
   );
@@ -1140,6 +1175,48 @@ const AvatarPlaceholder = styled.div`
   justify-content: center;
   font-size: 28px;
   background: ${(props) => (props.theme.$darkMode ? "#2a2a2a" : "#e0e0e0")};
+`;
+
+const ScrollTopButton = styled.button`
+  position: fixed;
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${(props) => (props.$darkMode ? "#4a5568" : "#ff6b35")};
+  border: 2px solid ${(props) => (props.$darkMode ? "#5a6578" : "#ff8c5a")};
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${(props) =>
+    props.$darkMode
+      ? "0 4px 16px rgba(74, 85, 104, 0.4)"
+      : "0 4px 16px rgba(255, 107, 53, 0.3)"};
+  transition: all 0.3s ease;
+  z-index: 100;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: ${(props) =>
+      props.$darkMode
+        ? "0 6px 20px rgba(74, 85, 104, 0.5)"
+        : "0 6px 20px rgba(255, 107, 53, 0.4)"};
+    background: ${(props) => (props.$darkMode ? "#5a6578" : "#ff8c5a")};
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    width: 56px;
+    height: 56px;
+  }
 `;
 
 export default Profile;
