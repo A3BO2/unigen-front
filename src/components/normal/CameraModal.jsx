@@ -5,81 +5,96 @@ import { X, RefreshCw } from "lucide-react";
 const CameraModal = ({ onClose, onCapture }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [stream, setStream] = useState(null);
-  const [facingMode, setFacingMode] = useState("user"); // 'user' or 'environment'
+  const streamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("user");
 
-  // 카메라 스트림 정리 함수
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, [stream]);
-
-  // 카메라 종료 후 onClose 호출
-  const handleClose = useCallback(() => {
-    stopCamera();
-    onClose();
-  }, [stopCamera, onClose]);
-
-  const startCamera = useCallback(async () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-
-    try {
-      const constraints = {
-        video: {
-          facingMode: facingMode,
-          aspectRatio: { ideal: 1 },
-        },
-      };
-
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(newStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-      }
-    } catch (err) {
-      console.error("카메라 접근 오류:", err);
-      alert("카메라를 실행할 수 없습니다. 권한을 확인해주세요.");
-      handleClose();
-    }
-  }, [facingMode, handleClose, stream]);
-
+  // 카메라 시작
   useEffect(() => {
-    startCamera();
-    return () => {
-      stopCamera();
+    const startCamera = async () => {
+      try {
+        // 기존 스트림이 있으면 정리
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+
+        const constraints = {
+          video: {
+            facingMode: facingMode,
+            aspectRatio: { ideal: 1 },
+          },
+        };
+
+        const newStream = await navigator.mediaDevices.getUserMedia(
+          constraints
+        );
+        streamRef.current = newStream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+        }
+      } catch (err) {
+        console.error("카메라 접근 오류:", err);
+        alert("카메라를 실행할 수 없습니다. 권한을 확인해주세요.");
+        onClose();
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]);
+
+    startCamera();
+  }, [facingMode, onClose]);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      console.log("🔴 CameraModal cleanup - 카메라 정리 중...");
+
+      // 1. 비디오 엘리먼트 먼저 정리
       if (videoRef.current) {
+        videoRef.current.pause();
         videoRef.current.srcObject = null;
       }
-    };
-  }, [stream]);
 
+      // 2. 스트림 트랙 중지
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          console.log("⏹️ 트랙 중지:", track.kind);
+          track.stop();
+        });
+        streamRef.current = null;
+      }
+
+      console.log("✅ 카메라 정리 완료");
+    };
+  }, []);
+
+  // 모달 닫기
+  const handleClose = async () => {
+    // 비디오 먼저 정리
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    // 스트림 정리
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    // 카메라가 완전히 꺼질 시간을 주고 닫기
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    onClose();
+  };
+
+  // 사진 촬영
   const handleCapture = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (video && canvas) {
+    if (video && canvas && video.videoWidth > 0) {
       const context = canvas.getContext("2d");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      // 전면 카메라일 때 좌우반전하여 정상적으로 저장
       if (facingMode === "user") {
         context.translate(canvas.width, 0);
         context.scale(-1, 1);
@@ -88,14 +103,26 @@ const CameraModal = ({ onClose, onCapture }) => {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       canvas.toBlob(
-        (blob) => {
+        async (blob) => {
           const file = new File([blob], `capture_${Date.now()}.jpg`, {
             type: "image/jpeg",
             lastModified: Date.now(),
           });
 
-          // 카메라 스트림 정리
-          stopCamera();
+          // 비디오 먼저 정리
+          if (videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.srcObject = null;
+          }
+
+          // 스트림 정리
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+          }
+
+          // 카메라가 완전히 꺼질 시간을 주고 닫기
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
           onCapture(file);
           onClose();
@@ -106,6 +133,7 @@ const CameraModal = ({ onClose, onCapture }) => {
     }
   };
 
+  // 카메라 전환
   const toggleCamera = () => {
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   };
