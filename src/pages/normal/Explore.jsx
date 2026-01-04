@@ -193,19 +193,92 @@ const Explore = () => {
     }
   }, [user?.id]); // user?.id 의존성 추가
 
+  // 스크롤 컨테이너 찾기 함수
+  const findScrollContainer = useCallback(() => {
+    // window.scrollY가 0이 아니면 window 스크롤
+    if (window.scrollY > 0) {
+      return null; // window 스크롤
+    }
+
+    // 일반적인 스크롤 컨테이너 선택자들 확인
+    const commonSelectors = [
+      "main",
+      "[role='main']",
+      ".main-content",
+      ".content",
+      ".container",
+      "#root > div",
+      "body > div",
+    ];
+
+    for (const selector of commonSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const style = window.getComputedStyle(element);
+        const overflowY = style.overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          element.scrollHeight > element.clientHeight
+        ) {
+          return element;
+        }
+      }
+    }
+
+    // 모든 요소를 순회하며 스크롤 가능한 컨테이너 찾기
+    const allElements = document.querySelectorAll("*");
+    const scrollables = Array.from(allElements)
+      .filter((el) => {
+        // body, html은 제외
+        if (el === document.body || el === document.documentElement) {
+          return false;
+        }
+        const style = window.getComputedStyle(el);
+        const overflowY = style.overflowY;
+        return (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight > el.clientHeight
+        );
+      })
+      .sort((a, b) => {
+        // 스크롤된 정도로 정렬 (스크롤이 많이 된 것이 실제 컨테이너)
+        const aScroll = a.scrollTop;
+        const bScroll = b.scrollTop;
+        if (aScroll !== bScroll) {
+          return bScroll - aScroll;
+        }
+        // 스크롤이 같으면 높이가 큰 것 우선
+        return b.scrollHeight - a.scrollHeight;
+      });
+
+    // 가장 많이 스크롤된 요소 또는 가장 큰 스크롤 가능한 요소
+    return scrollables[0] || null;
+  }, []);
+
   // 마지막 요소를 관찰하는 ref callback
   const lastPostElementRef = useCallback(
     (node) => {
       if (loadingRef.current) return;
       if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMoreRef.current) {
-          loadMoreData();
+      
+      // 스크롤 컨테이너 찾기 (배포 환경 대응)
+      const scrollRoot = findScrollContainer();
+      
+      observer.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasMoreRef.current) {
+            loadMoreData();
+          }
+        },
+        {
+          root: scrollRoot, // 스크롤 컨테이너 또는 null (window 스크롤)
+          rootMargin: "200px", // 바닥에서 200px 위에서 미리 로드
+          threshold: 0.1,
         }
-      });
+      );
       if (node) observer.current.observe(node);
     },
-    [loadMoreData]
+    [loadMoreData, findScrollContainer]
   );
 
   // 초기 데이터 로드
