@@ -302,7 +302,7 @@ const MobileHeader = styled.header`
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
   border-bottom: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
-  padding: 12px 16px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
   align-items: center;
   justify-content: space-between;
   z-index: 10;

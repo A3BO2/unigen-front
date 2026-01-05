@@ -31,12 +31,37 @@ const Reels = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const startId = searchParams.get("startId"); // 탐색탭에서 넘어온 릴스 ID
+  
+  // startId가 변경되면 ref 업데이트 및 상태 리셋
+  useEffect(() => {
+    const newStartId = searchParams.get("startId");
+    if (newStartId) {
+      const parsedId = parseInt(newStartId, 10);
+      if (!isNaN(parsedId)) {
+        targetReelIdRef.current = parsedId;
+        startIdUsedRef.current = false;
+        hasScrolledToTargetRef.current = false; // 스크롤 플래그도 리셋
+        // 기존 릴스 목록 초기화하고 다시 로드
+        setReels([]);
+        setInitialLoaded(false);
+        noMoreReelsRef.current = false;
+        cursorRef.current = null; // startId 사용 시 null로 시작
+      }
+    } else {
+      targetReelIdRef.current = null;
+      startIdUsedRef.current = false;
+      cursorRef.current = new Date().toISOString(); // startId 없으면 현재 시간으로 시작
+    }
+  }, [searchParams]);
 
   const [reels, setReels] = useState([]);
-  const cursorRef = useRef(new Date().toISOString()); // cursor ref for useCallback
+  const cursorRef = useRef(null); // cursor ref for useCallback (startId 사용 시 null로 시작)
   const loadingRef = useRef(false); // ref로 추적 (비동기 체크용)
   const noMoreReelsRef = useRef(false); // ref로도 추적 (비동기 체크용)
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const targetReelIdRef = useRef(startId ? parseInt(startId, 10) : null); // startId를 ref로 저장
+  const startIdUsedRef = useRef(false); // startId를 사용했는지 추적
+  const hasScrolledToTargetRef = useRef(false); // 타겟 릴스로 스크롤했는지 추적
 
   // 팔로우 상태 관리 (userId를 키로 사용)
   const [followStatuses, setFollowStatuses] = useState({}); // { userId: { isFollowing: boolean, isLoading: boolean } }
@@ -94,13 +119,18 @@ const Reels = () => {
    * 릴스 가져오기
    ========================= */
   const fetchReel = useCallback(
-  async (overrideCursor = null) => {
+  async (overrideCursor = null, useStartId = false) => {
     if (loadingRef.current || noMoreReelsRef.current) return;
     loadingRef.current = true;
 
     try {
+      // startId를 사용해야 하고 아직 사용하지 않았으면 startId 전달
+      const shouldUseStartId = useStartId && targetReelIdRef.current && !startIdUsedRef.current;
+      const startIdParam = shouldUseStartId ? targetReelIdRef.current : null;
+      
       const data = await getReel(
-        overrideCursor ?? cursorRef.current
+        overrideCursor ?? cursorRef.current,
+        startIdParam
       );
 
       if (!data?.reel || data?.message === "NO_MORE_REELS") {
@@ -110,8 +140,14 @@ const Reels = () => {
 
       const reel = data.reel;
 
+      // startId를 사용했다면 플래그 설정
+      if (shouldUseStartId) {
+        startIdUsedRef.current = true;
+      }
+
       setReels((prev) => {
         if (prev.some((r) => r.id === reel.id)) return prev;
+        
         return [...prev, {
           id: reel.id,
           video: resolveUrl(reel.video_url),
@@ -126,7 +162,7 @@ const Reels = () => {
           caption: reel.content,
           likes: reel.like_count,
           comments: reel.comment_count,
-          liked: false,
+          liked: Boolean(reel.is_liked), // 백엔드에서 받은 좋아요 상태 사용
           isSeniorMode: reel.is_senior_mode,
           createdAt: reel.created_at,
         }];
@@ -244,19 +280,72 @@ const Reels = () => {
   };
 
   /* =========================
+   * 타겟 릴스 찾기 및 스크롤 (한 번만 실행)
+   ========================= */
+  useEffect(() => {
+    const targetId = targetReelIdRef.current;
+    // 이미 스크롤했거나, startId가 없거나, startId를 아직 사용하지 않았으면 리턴
+    if (!targetId || !startIdUsedRef.current || hasScrolledToTargetRef.current) return;
+
+    const found = reels.some((r) => r.id === targetId);
+    if (found) {
+      // 타겟 릴스를 찾았으면 해당 위치로 스크롤 (한 번만)
+      hasScrolledToTargetRef.current = true; // 플래그 설정하여 중복 실행 방지
+      
+      setTimeout(() => {
+        const reelsContainer = document.querySelector("[data-reels-container]");
+        const targetElement = document.querySelector(
+          `[data-reel-id="${targetId}"]`
+        );
+        
+        if (targetElement && reelsContainer) {
+          // 컨테이너 기준으로 스크롤 위치 계산
+          const containerRect = reelsContainer.getBoundingClientRect();
+          const elementRect = targetElement.getBoundingClientRect();
+          const scrollTop = reelsContainer.scrollTop;
+          const relativeTop = elementRect.top - containerRect.top + scrollTop;
+          
+          reelsContainer.scrollTo({
+            top: relativeTop,
+            behavior: "smooth",
+          });
+        }
+      }, 500);
+    }
+  }, [reels]);
+
+  /* =========================
    * 최초 로딩: startId 우선 적용, 초기에 여러 개 가져오기
    ========================= */
   useEffect(() => {
   const init = async () => {
     if (initialLoaded) return;
 
-    const initialLoadCount = 10;
-
-    for (let i = 0; i < initialLoadCount; i++) {
-      await fetchReel();
-      if (noMoreReelsRef.current) break;
-      if (i < initialLoadCount - 1) {
-        await new Promise((r) => setTimeout(r, 50));
+    const targetId = targetReelIdRef.current;
+    
+    // startId가 있으면 먼저 해당 릴스를 가져오고, 그 다음부터는 최신 순으로
+    if (targetId) {
+      // 첫 번째 요청: startId로 특정 릴스 가져오기
+      await fetchReel(null, true);
+      
+      // 그 다음부터는 기존처럼 최신 순으로 9개 더 가져오기
+      const additionalLoadCount = 9;
+      for (let i = 0; i < additionalLoadCount; i++) {
+        await fetchReel();
+        if (noMoreReelsRef.current) break;
+        if (i < additionalLoadCount - 1) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+    } else {
+      // startId가 없으면 기존처럼 10개만 로드
+      const initialLoadCount = 10;
+      for (let i = 0; i < initialLoadCount; i++) {
+        await fetchReel();
+        if (noMoreReelsRef.current) break;
+        if (i < initialLoadCount - 1) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
       }
     }
 
@@ -372,6 +461,9 @@ const Reels = () => {
     const target = reels.find((r) => r.id === reelId);
     if (!target) return;
 
+    const previousLiked = target.liked;
+    const previousLikes = target.likes;
+
     // optimistic update
     setReels((prev) =>
       prev.map((r) =>
@@ -391,6 +483,9 @@ const Reels = () => {
       } else {
         await likePost(reelId);
       }
+      
+      // 성공 후 서버에서 최신 좋아요 상태 확인 (선택적)
+      // 현재는 optimistic update만으로도 충분하지만, 필요시 서버 상태와 동기화 가능
     } catch (err) {
       console.error("좋아요 실패 → 롤백", err);
 
@@ -400,8 +495,8 @@ const Reels = () => {
           r.id === reelId
             ? {
                 ...r,
-                liked: target.liked,
-                likes: target.likes,
+                liked: previousLiked,
+                likes: previousLikes,
               }
             : r
         )
@@ -1029,7 +1124,7 @@ const OverlayUI = styled.div`
 
 const BackButtonContainer = styled.button`
   position: fixed;
-  top: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
   left: 20px;
   z-index: 1000;
   background: rgba(0, 0, 0, 0.6);
@@ -1061,6 +1156,7 @@ const BackButtonContainer = styled.button`
 
   @media (min-width: 768px) {
     left: calc(72px + 20px); /* LeftSidebar 너비 + 여백 */
+    top: 20px; /* 태블릿 이상에서는 safe-area 불필요 */
   }
 
   @media (min-width: 1265px) {
@@ -1113,6 +1209,9 @@ const ReelsContainer = styled.div`
   @media (max-width: 767px) {
     height: 100vh;
     height: 100dvh; /* 동적 뷰포트 높이 */
+    /* safe-area 고려 */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); /* 하단 네비게이션 바 높이 */
   }
 `;
 

@@ -48,11 +48,18 @@ export const GlobalStyles = createGlobalStyle`
       return "#fafafa";
     }};
     font-size: calc(16px * var(--font-scale, 1));
+    /* 모바일에서 safe-area 고려 */
+    min-height: 100vh;
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    /* 모바일에서 컨텐츠가 safe-area 안에 들어가도록 */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   #root {
     width: 100%;
     min-height: 100vh;
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
   a {

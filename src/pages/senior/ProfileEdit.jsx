@@ -247,6 +247,11 @@ const Header = styled.header`
   display: flex;
   align-items: center;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 24px 20px;
+    top: env(safe-area-inset-top, 0px);
+  }
 `;
 
 const BackButton = styled.button`
