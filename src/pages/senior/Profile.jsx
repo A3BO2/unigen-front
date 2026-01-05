@@ -612,6 +612,11 @@ const Header = styled.header`
   justify-content: space-between;
   align-items: center;
   z-index: 10;
+
+  @media (max-width: 767px) {
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 24px;
+    top: env(safe-area-inset-top, 0px);
+  }
 `;
 
 const Title = styled.h1`

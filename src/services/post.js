@@ -101,8 +101,12 @@ export async function getPosts(mode, page = 1, size = 10, all) {
   });
 }
 
-export async function getReel(lastCreatedAt) {
+export async function getReel(lastCreatedAt, startId = null) {
   const params = new URLSearchParams();
+
+  if (startId) {
+    params.append("startId", startId);
+  }
 
   if (lastCreatedAt) {
     params.append("lastCreatedAt", lastCreatedAt);

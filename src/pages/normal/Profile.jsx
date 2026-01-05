@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { Settings, Moon, Sun, MoreHorizontal, ArrowUp } from "lucide-react";
 import { useApp } from "../../context/AppContext";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import LeftSidebar from "../../components/normal/LeftSidebar";
 import RightSidebar from "../../components/normal/RightSidebar";
 import BottomNav from "../../components/normal/BottomNav";
@@ -43,12 +43,17 @@ const Profile = () => {
   const { user, logout, isDarkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
   const { userId } = useParams(); // URL 파라미터에서 userId 가져오기
+  const [searchParams, setSearchParams] = useSearchParams(); // URL 파라미터 관리
   const targetUserId = userId ? parseInt(userId, 10) : null; // 내 프로필인지 다른 사용자 프로필인지 구분
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [posts, setPosts] = useState([]);
   const [reels, setReels] = useState([]);
-  const [activeTab, setActiveTab] = useState("feed"); // "feed" or "reels"
+  // URL 파라미터에서 탭 상태 가져오기 (기본값: "feed")
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get("tab");
+    return tabParam === "reels" ? "reels" : "feed";
+  });
   const [hasMore, setHasMore] = useState(true);
   const [hasMoreReels, setHasMoreReels] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -305,6 +310,16 @@ const Profile = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // URL 파라미터의 tab 값이 변경되면 activeTab 업데이트 (뒤로 가기 시 복원)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "reels") {
+      setActiveTab("reels");
+    } else {
+      setActiveTab("feed");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const checkProfileFollowStatus = async () => {
@@ -835,9 +850,15 @@ const Profile = () => {
       if (swipeDistance > 0 && activeTab === "reels") {
         // 오른쪽으로 스와이프 -> 피드로
         setActiveTab("feed");
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete("tab");
+        setSearchParams(newSearchParams, { replace: true });
       } else if (swipeDistance < 0 && activeTab === "feed") {
         // 왼쪽으로 스와이프 -> 릴스로
         setActiveTab("reels");
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.set("tab", "reels");
+        setSearchParams(newSearchParams, { replace: true });
       }
     }
 
@@ -874,8 +895,14 @@ const Profile = () => {
       if (Math.abs(swipeDistance) > minSwipeDistance) {
         if (swipeDistance > 0 && activeTab === "reels") {
           setActiveTab("feed");
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete("tab");
+          setSearchParams(newSearchParams, { replace: true });
         } else if (swipeDistance < 0 && activeTab === "feed") {
           setActiveTab("reels");
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.set("tab", "reels");
+          setSearchParams(newSearchParams, { replace: true });
         }
       }
 
@@ -1101,14 +1128,26 @@ const Profile = () => {
           <TabContainer $darkMode={isDarkMode}>
             <TabButton
               $active={activeTab === "feed"}
-              onClick={() => setActiveTab("feed")}
+              onClick={() => {
+                setActiveTab("feed");
+                // URL 파라미터 업데이트 (tab 파라미터 제거)
+                const newSearchParams = new URLSearchParams(searchParams);
+                newSearchParams.delete("tab");
+                setSearchParams(newSearchParams, { replace: true });
+              }}
               $darkMode={isDarkMode}
             >
               게시물
             </TabButton>
             <TabButton
               $active={activeTab === "reels"}
-              onClick={() => setActiveTab("reels")}
+              onClick={() => {
+                setActiveTab("reels");
+                // URL 파라미터에 tab=reels 추가
+                const newSearchParams = new URLSearchParams(searchParams);
+                newSearchParams.set("tab", "reels");
+                setSearchParams(newSearchParams, { replace: true });
+              }}
               $darkMode={isDarkMode}
             >
               릴스
@@ -1220,9 +1259,10 @@ const Profile = () => {
                       <GridItem
                         key={reel.id || index}
                         ref={index === reels.length - 1 ? lastReelRef : null}
-                        onClick={() =>
-                          navigate(`/normal/reels?startId=${reel.id}`)
-                        }
+                        onClick={() => {
+                          // tab=reels 파라미터를 유지하면서 릴스 페이지로 이동
+                          navigate(`/normal/reels?startId=${reel.id}`);
+                        }}
                       >
                         <ImageWrapper>
                           <PostImage
@@ -1475,7 +1515,7 @@ const Profile = () => {
         {/* 맨 위로 버튼 */}
         {showScrollTop && (
           <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
-            <ArrowUp size={24} />
+            <ArrowUp size={28} strokeWidth={3} />
           </ScrollTopButton>
         )}
       </Container>
@@ -2494,6 +2534,13 @@ const ScrollTopButton = styled.button`
   transition: all 0.3s ease;
   z-index: 100;
 
+  /* 화살표 아이콘이 더 잘 보이도록 */
+  svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 3;
+  }
+
   &:hover {
     transform: translateY(-4px);
     box-shadow: ${(props) =>
@@ -2514,6 +2561,13 @@ const ScrollTopButton = styled.button`
 
   @media (max-width: 767px) {
     bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    width: 52px;
+    height: 52px;
+    
+    svg {
+      width: 26px;
+      height: 26px;
+    }
   }
 `;
 

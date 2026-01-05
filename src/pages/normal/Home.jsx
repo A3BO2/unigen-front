@@ -1065,7 +1065,7 @@ const Home = () => {
             {/* 맨 위로 버튼 */}
             {showScrollTop && (
               <ScrollTopButton onClick={scrollToTop} $darkMode={isDarkMode}>
-                <ArrowUp size={24} />
+                <ArrowUp size={28} strokeWidth={3} />
               </ScrollTopButton>
             )}
           </Feed>
@@ -1323,7 +1323,7 @@ const MobileHeader = styled.header`
   background: ${(props) => (props.$darkMode ? "#000" : "white")};
   border-bottom: 1px solid
     ${(props) => (props.$darkMode ? "#262626" : "#dbdbdb")};
-  padding: 12px 16px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2249,6 +2249,13 @@ const ScrollTopButton = styled.button`
   transition: all 0.3s ease;
   z-index: 100;
 
+  /* 화살표 아이콘이 더 잘 보이도록 */
+  svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 3;
+  }
+
   &:hover {
     transform: translateY(-4px);
     box-shadow: ${(props) =>
@@ -2256,6 +2263,17 @@ const ScrollTopButton = styled.button`
         ? "0 6px 16px rgba(74, 85, 104, 0.5)"
         : "0 6px 16px rgba(0, 0, 0, 0.2)"};
     background: ${(props) => (props.$darkMode ? "#5a6578" : "#f5f5f5")};
+  }
+
+  @media (max-width: 767px) {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    width: 52px;
+    height: 52px;
+    
+    svg {
+      width: 26px;
+      height: 26px;
+    }
   }
 
   &:active {

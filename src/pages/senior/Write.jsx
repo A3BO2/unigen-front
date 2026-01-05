@@ -414,7 +414,8 @@ const Header = styled.header`
   z-index: 10;
 
   @media (max-width: 767px) {
-    padding: 12px 16px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+    top: env(safe-area-inset-top, 0px);
   }
 `;
 const CancelButton = styled.button`
