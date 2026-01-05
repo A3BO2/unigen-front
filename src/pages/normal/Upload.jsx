@@ -200,9 +200,6 @@ const Upload = () => {
                 }
 
                 const sizeKB = blob.size / 1024;
-                console.log(
-                  `압축 시도 (품질: ${quality}): ${sizeKB.toFixed(2)}KB`
-                );
 
                 // 목표 용량보다 크고 품질을 더 낮출 수 있으면 재시도
                 if (sizeKB > maxSizeKB && quality > 0.1) {
@@ -212,11 +209,6 @@ const Upload = () => {
                     type: "image/jpeg",
                     lastModified: Date.now(),
                   });
-                  console.log(
-                    `최종 압축: ${(file.size / 1024).toFixed(2)}KB → ${(
-                      compressedFile.size / 1024
-                    ).toFixed(2)}KB`
-                  );
                   resolve(compressedFile);
                 }
               },
@@ -245,13 +237,8 @@ const Upload = () => {
         const duration = video.duration;
         const fileSizeMB = file.size / (1024 * 1024);
 
-        console.log(
-          `원본 동영상: ${duration.toFixed(2)}초, ${fileSizeMB.toFixed(2)}MB`
-        );
-
         // 60초 이하이고 20MB 이하면 그대로 사용
         if (duration <= maxDuration && fileSizeMB <= maxSizeMB) {
-          console.log("동영상 압축 불필요");
           resolve(file);
           return;
         }

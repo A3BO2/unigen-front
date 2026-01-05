@@ -45,8 +45,6 @@ const CameraModal = ({ onClose, onCapture }) => {
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
     return () => {
-      console.log("🔴 CameraModal cleanup - 카메라 정리 중...");
-
       // 1. 비디오 엘리먼트 먼저 정리
       if (videoRef.current) {
         videoRef.current.pause();
@@ -56,13 +54,10 @@ const CameraModal = ({ onClose, onCapture }) => {
       // 2. 스트림 트랙 중지
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => {
-          console.log("⏹️ 트랙 중지:", track.kind);
           track.stop();
         });
         streamRef.current = null;
       }
-
-      console.log("✅ 카메라 정리 완료");
     };
   }, []);
 
